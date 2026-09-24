@@ -10,7 +10,7 @@ method: >
   closed by a new or tightened AD — no fixes are proposed here.
 ---
 
-# Adversarial Review — EkoDoc Architecture Spine (2026-09-09 amendment)
+# Adversarial Review — bmad-demo Architecture Spine (2026-09-09 amendment)
 
 ## Verdict
 

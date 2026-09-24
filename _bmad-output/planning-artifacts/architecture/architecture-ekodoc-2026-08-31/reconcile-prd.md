@@ -1,13 +1,13 @@
 ---
-title: Réconciliation PRD ↔ Architecture Spine — EkoDoc
+title: Réconciliation PRD ↔ Architecture Spine — bmad-demo
 status: draft
 created: 2026-08-31
 sources:
-  - '../../prds/prd-ekodoc-2026-08-31/prd.md'
+  - '../../prds/prd-bmad-demo-2026-08-31/prd.md'
   - './ARCHITECTURE-SPINE.md'
 ---
 
-# Réconciliation PRD ↔ Architecture Spine — EkoDoc
+# Réconciliation PRD ↔ Architecture Spine — bmad-demo
 
 Vérification que chaque FR/NFR du PRD a un point d'ancrage concret dans la spine (AD, Consistency Convention, Stack, Structural Seed, ou ligne de la Capability → Architecture Map), et que les trois questions ouvertes du PRD ont réellement été tranchées.
 

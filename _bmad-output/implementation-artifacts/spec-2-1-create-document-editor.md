@@ -12,7 +12,7 @@ baseline_commit: 'b47d24eb63bf94098313cd89828d93f913b41d93'
 
 ## Intent
 
-**Problem:** EkoDoc ne permet aujourd'hui que d'importer des fichiers existants — aucune façon de rédiger un document directement dans l'outil.
+**Problem:** bmad-demo ne permet aujourd'hui que d'importer des fichiers existants — aucune façon de rédiger un document directement dans l'outil.
 
 **Approach:** Bouton "Créer un document" sur la Bibliothèque ouvrant un Éditeur WYSIWYG (TipTap 3.x, `@tiptap/vue-3`) vide, focus sur le titre. "Enregistrer" révèle le sélecteur catégorie s'il n'est pas déjà renseigné, puis crée un `Document` (`source=created`) via `CreateDocumentAction`, avec `extracted_text` dérivé synchroniquement du HTML (AD-9), et redirige vers sa Fiche document — même flux que l'import (FR10).
 

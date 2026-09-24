@@ -12,9 +12,9 @@ route: 'one-shot'
 
 ## Intent
 
-**Problem:** Le side menu avait plusieurs petits défauts visuels : le toggle thème clair/sombre était isolé en bas plutôt que dans la liste des boutons ; aucun séparateur ne distinguait le bloc "EkoDoc - Démo" de la liste des boutons, ni la liste du footer ; le footer affichait un cœur brisé (💔) plutôt qu'un cœur barré, et le premier essai de cœur SVG rendait un cœur décentré (croix mal alignée) et gris au lieu de rouge.
+**Problem:** Le side menu avait plusieurs petits défauts visuels : le toggle thème clair/sombre était isolé en bas plutôt que dans la liste des boutons ; aucun séparateur ne distinguait le bloc "bmad-demo - Démo" de la liste des boutons, ni la liste du footer ; le footer affichait un cœur brisé (💔) plutôt qu'un cœur barré, et le premier essai de cœur SVG rendait un cœur décentré (croix mal alignée) et gris au lieu de rouge.
 
-**Approach:** Déplacer le bouton toggle thème juste après "Configuration" (hors du landmark `<nav>` pour ne pas casser la sémantique de navigation, mais visuellement dans la même liste via `display:contents`) ; ajouter un `<hr>` sous le bloc "EkoDoc - Démo" et un second au-dessus du footer ; remplacer l'emoji 💔 par une icône SVG cœur rouge, symétrique (centrée en x=12), barrée de deux traits en croix centrés sur le cœur.
+**Approach:** Déplacer le bouton toggle thème juste après "Configuration" (hors du landmark `<nav>` pour ne pas casser la sémantique de navigation, mais visuellement dans la même liste via `display:contents`) ; ajouter un `<hr>` sous le bloc "bmad-demo - Démo" et un second au-dessus du footer ; remplacer l'emoji 💔 par une icône SVG cœur rouge, symétrique (centrée en x=12), barrée de deux traits en croix centrés sur le cœur.
 
 ## Suggested Review Order
 
@@ -25,7 +25,7 @@ route: 'one-shot'
 
 **Séparateurs brand / liste / footer**
 
-- `<hr>` ajouté entre "EkoDoc - Démo" et le conteneur de la liste des boutons.
+- `<hr>` ajouté entre "bmad-demo - Démo" et le conteneur de la liste des boutons.
   [`Sidebar.vue:79`](../../resources/js/Components/Sidebar.vue#L79)
 - Second `<hr>` ajouté entre la liste des boutons et le footer "Made with ... Claude" (retour humain après le premier essai).
   [`Sidebar.vue:187`](../../resources/js/Components/Sidebar.vue#L187)

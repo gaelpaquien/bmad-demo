@@ -1,26 +1,26 @@
 ---
-title: PRD EkoDoc
+title: PRD bmad-demo
 status: final
 created: 2026-08-31
 updated: 2026-09-09
 ---
 
-# PRD : EkoDoc
+# PRD : bmad-demo
 
 ## Contexte
 
-Les documents internes sont aujourd'hui éparpillés, sans point d'accès unique. EkoDoc centralise l'existant (PDF, Word, Excel...) et permet d'en créer de nouveaux directement dans l'outil, exportables ensuite en PDF/Word. Périmètre de départ volontairement restreint : usage **solo**, en local (Laravel Herd), sur un corpus d'environ **350 documents** existants à terme. Voir le brief associé (`../../briefs/brief-ekodoc-2026-08-31/brief.md`) pour le contexte produit complet.
+Les documents internes sont aujourd'hui éparpillés, sans point d'accès unique. bmad-demo centralise l'existant (PDF, Word, Excel...) et permet d'en créer de nouveaux directement dans l'outil, exportables ensuite en PDF/Word. Périmètre de départ volontairement restreint : usage **solo**, en local (Laravel Herd), sur un corpus d'environ **350 documents** existants à terme. Voir le brief associé (`../../briefs/brief-bmad-demo-2026-08-31/brief.md`) pour le contexte produit complet.
 
 ## Parcours type
 
 Deux usages concrets couvrent la v1 :
 
-- **Retrouver et exploiter un document existant** : l'utilisateur ouvre EkoDoc, recherche un document (plutôt que de fouiller manuellement parmi ~350 fichiers), le consulte directement dans le navigateur ou télécharge l'original pour l'envoyer à un collègue.
+- **Retrouver et exploiter un document existant** : l'utilisateur ouvre bmad-demo, recherche un document (plutôt que de fouiller manuellement parmi ~350 fichiers), le consulte directement dans le navigateur ou télécharge l'original pour l'envoyer à un collègue.
 - **Créer un document pour usage futur ou partage** : l'utilisateur rédige un nouveau document dans l'outil, qui devient disponible pour consultation/recherche future ou pour export et partage.
 
 ## Utilisateurs
 
-**V1 : mono-utilisateur.** EkoDoc est utilisé par une seule personne pour l'instant. `[ASSUMPTION]` Pas de gestion de comptes, rôles ou permissions en v1 — un seul utilisateur implicite. L'ouverture à 2-3 collègues (cible du brief) est une évolution ultérieure, conditionnée à la preuve de valeur et à une décision d'infrastructure (accès partagé).
+**V1 : mono-utilisateur.** bmad-demo est utilisé par une seule personne pour l'instant. `[ASSUMPTION]` Pas de gestion de comptes, rôles ou permissions en v1 — un seul utilisateur implicite. L'ouverture à 2-3 collègues (cible du brief) est une évolution ultérieure, conditionnée à la preuve de valeur et à une décision d'infrastructure (accès partagé).
 
 ## Exigences fonctionnelles
 
@@ -32,7 +32,7 @@ Deux usages concrets couvrent la v1 :
 
 ### Consultation & téléchargement
 
-- **FR4** — Prévisualiser un document dans le navigateur (PDF nativement ; Word/Excel via une conversion, voir l'addendum du brief : `../../briefs/brief-ekodoc-2026-08-31/addendum.md` § Pièges techniques à anticiper).
+- **FR4** — Prévisualiser un document dans le navigateur (PDF nativement ; Word/Excel via une conversion, voir l'addendum du brief : `../../briefs/brief-bmad-demo-2026-08-31/addendum.md` § Pièges techniques à anticiper).
 - **FR5** — Télécharger le fichier original en un clic.
 
 ### Recherche & filtrage
@@ -64,7 +64,7 @@ Deux usages concrets couvrent la v1 :
 ## Métriques de succès
 
 - Usage quotidien réel constaté (l'outil est effectivement rouvert et utilisé, pas seulement alimenté une fois).
-- EkoDoc devient le réflexe pour retrouver ou partager un document, y compris dans un contexte d'onboarding futur.
+- bmad-demo devient le réflexe pour retrouver ou partager un document, y compris dans un contexte d'onboarding futur.
 - **Contre-métrique** : le nombre de documents importés seul n'est pas un signal de succès — un corpus alimenté mais jamais rouvert pour une recherche/consultation indique un échec, pas une réussite.
 
 ## Hors scope (v1)

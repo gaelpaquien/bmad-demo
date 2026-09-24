@@ -1,9 +1,9 @@
 ---
-title: DESIGN.md EkoDoc
+title: DESIGN.md bmad-demo
 status: final
 created: 2026-08-31
 updated: 2026-09-09
-name: EkoDoc
+name: bmad-demo
 description: Base de connaissance interne, usage solo/local (Laravel Herd). Fondation Tailwind CSS from scratch, pas de librairie de composants tierce.
 colors:
   # Palette v2 (2026-09-09) : gris chaud (beige/brun) + accent lime neon, choisie parmi 4 variations rendues en atelier (voir mockups/color-themes.html). Remplace la palette bleu sobre v1 — decision produit du sprint-change-proposal-2026-09-09.
@@ -139,7 +139,7 @@ components:
 
 ## Brand & Style
 
-EkoDoc reste un outil interne, pas un produit vitrine : **le contenu (les documents) doit être la star, l'interface doit s'effacer**. Ce principe ne change pas — ce qui change, c'est le tempérament de l'unique accent qui perce ce calme : un lime néon franchement saturé (`#C6FF00`), choisi délibérément énergique plutôt que sobre, mais gouverné par la même discipline qu'avant — **un accent, pas deux**, réservé aux actions principales et aux états actifs. Le reste de l'interface reste des neutres chauds (beige/brun) plats, sans dégradé ni fioriture décorative. Le contraste entre le calme des neutres et l'énergie ponctuelle du lime est volontaire : il signale sans jamais dominer.
+bmad-demo reste un outil interne, pas un produit vitrine : **le contenu (les documents) doit être la star, l'interface doit s'effacer**. Ce principe ne change pas — ce qui change, c'est le tempérament de l'unique accent qui perce ce calme : un lime néon franchement saturé (`#C6FF00`), choisi délibérément énergique plutôt que sobre, mais gouverné par la même discipline qu'avant — **un accent, pas deux**, réservé aux actions principales et aux états actifs. Le reste de l'interface reste des neutres chauds (beige/brun) plats, sans dégradé ni fioriture décorative. Le contraste entre le calme des neutres et l'énergie ponctuelle du lime est volontaire : il signale sans jamais dominer.
 
 Ce fichier fixe l'identité visuelle (tokens, couleurs, typographie, composants) ; `EXPERIENCE.md` fixe le comportement (parcours, états, interactions) et référence ces tokens par leur nom. Les deux font foi en cas de conflit avec une maquette.
 

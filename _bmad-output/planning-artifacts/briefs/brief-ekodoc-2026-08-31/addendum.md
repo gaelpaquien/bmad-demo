@@ -1,5 +1,5 @@
 ---
-title: Addendum — EkoDoc
+title: Addendum — bmad-demo
 related_brief: brief.md
 updated: 2026-08-31
 ---

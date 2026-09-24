@@ -1,12 +1,12 @@
 ---
 title: Reconciliation — EXPERIENCE.md / DESIGN.md vs ARCHITECTURE-SPINE.md
-name: EkoDoc
+name: bmad-demo
 status: draft
 created: 2026-08-31
 sources:
-  - ux-designs/ux-ekodoc-2026-08-31/DESIGN.md
-  - ux-designs/ux-ekodoc-2026-08-31/EXPERIENCE.md
-  - architecture/architecture-ekodoc-2026-08-31/ARCHITECTURE-SPINE.md
+  - ux-designs/ux-bmad-demo-2026-08-31/DESIGN.md
+  - ux-designs/ux-bmad-demo-2026-08-31/EXPERIENCE.md
+  - architecture/architecture-bmad-demo-2026-08-31/ARCHITECTURE-SPINE.md
 ---
 
 # Reconciliation — UX spines vs Architecture Spine

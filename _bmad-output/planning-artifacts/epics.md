@@ -1,18 +1,18 @@
 ---
 stepsCompleted: [step-01, step-02, step-03]
 inputDocuments:
-  - _bmad-output/planning-artifacts/prds/prd-ekodoc-2026-08-31/prd.md
-  - _bmad-output/planning-artifacts/architecture/architecture-ekodoc-2026-08-31/ARCHITECTURE-SPINE.md
-  - _bmad-output/planning-artifacts/ux-designs/ux-ekodoc-2026-08-31/DESIGN.md
-  - _bmad-output/planning-artifacts/ux-designs/ux-ekodoc-2026-08-31/EXPERIENCE.md
+  - _bmad-output/planning-artifacts/prds/prd-bmad-demo-2026-08-31/prd.md
+  - _bmad-output/planning-artifacts/architecture/architecture-bmad-demo-2026-08-31/ARCHITECTURE-SPINE.md
+  - _bmad-output/planning-artifacts/ux-designs/ux-bmad-demo-2026-08-31/DESIGN.md
+  - _bmad-output/planning-artifacts/ux-designs/ux-bmad-demo-2026-08-31/EXPERIENCE.md
   - _bmad-output/planning-artifacts/sprint-change-proposal-2026-09-09.md
 ---
 
-# EkoDoc - Epic Breakdown
+# bmad-demo - Epic Breakdown
 
 ## Overview
 
-This document provides the complete epic and story breakdown for EkoDoc, decomposing the requirements from the PRD, UX Design (DESIGN.md/EXPERIENCE.md), and Architecture Spine into implementable stories.
+This document provides the complete epic and story breakdown for bmad-demo, decomposing the requirements from the PRD, UX Design (DESIGN.md/EXPERIENCE.md), and Architecture Spine into implementable stories.
 
 ## Requirements Inventory
 
@@ -155,7 +155,7 @@ So that il rejoint ma base de documents sans ressaisie.
 
 **Acceptance Criteria:**
 
-**Given** l'application EkoDoc n'existe pas encore
+**Given** l'application bmad-demo n'existe pas encore
 **When** le projet est initialisé
 **Then** un scaffold Laravel 13 + Inertia.js 3.0 + Vue 3 + Vite 8 + Tailwind CSS 4 est en place (pas de Breeze/Jetstream, cohérent avec NFR3), avec la table `documents` (id, title, source, file_path, mime_type, timestamps)
 
@@ -176,17 +176,17 @@ So that il rejoint ma base de documents sans ressaisie.
 ### Story 1.2: Parcourir la bibliothèque de documents
 
 As a utilisateur,
-I want voir la liste de tous mes documents dès l'ouverture d'EkoDoc,
+I want voir la liste de tous mes documents dès l'ouverture d'bmad-demo,
 So that je retrouve visuellement ce que j'ai déjà importé.
 
 **Acceptance Criteria:**
 
 **Given** au moins un document existe
-**When** j'ouvre EkoDoc
+**When** j'ouvre bmad-demo
 **Then** la Bibliothèque affiche une carte par document (badge type, titre, catégorie/dossier, date — UX-DR3), toute la carte cliquable vers la Fiche document
 
 **Given** aucun document n'existe encore
-**When** j'ouvre EkoDoc
+**When** j'ouvre bmad-demo
 **Then** le message "Aucun document pour l'instant." s'affiche avec un bouton primaire "Importer un document" ou "Créer un document" (UX-DR12)
 **And** un bouton de bascule clair/sombre est disponible dans l'interface, respectant la préférence système par défaut (UX-DR2)
 **And** les tokens de design (`DESIGN.md`) sont appliqués : neutres + accent unique, pas de couleur par type de fichier (UX-DR1)
@@ -301,7 +301,7 @@ Un utilisateur peut rédiger un nouveau document dans un éditeur WYSIWYG, y ins
 ### Story 2.1: Créer et enregistrer un document dans l'éditeur WYSIWYG
 
 As a utilisateur,
-I want rédiger un document directement dans EkoDoc et l'enregistrer,
+I want rédiger un document directement dans bmad-demo et l'enregistrer,
 So that il devient disponible pour consultation/recherche future comme un document importé.
 
 **Acceptance Criteria:**
@@ -437,12 +437,12 @@ So that je peux structurer et retrouver ma bibliothèque sans les limites d'une 
 ### Story 3.2: Nouvelle identité visuelle et navigation par sidebar
 
 As a utilisateur,
-I want naviguer entre les surfaces d'EkoDoc depuis une sidebar fixe, avec la nouvelle identité visuelle,
+I want naviguer entre les surfaces d'bmad-demo depuis une sidebar fixe, avec la nouvelle identité visuelle,
 So that je retrouve mes repères dans une interface qui reflète le passage à un modèle de classement plus riche (tags, pièces jointes, configuration).
 
 **Acceptance Criteria:**
 
-**Given** l'application EkoDoc existante (palette bleu sobre v1)
+**Given** l'application bmad-demo existante (palette bleu sobre v1)
 **When** cette story est implémentée
 **Then** les tokens de couleur `DESIGN.md` v2 sont appliqués partout : neutres chauds beige/brun (jamais blanc/noir pur) et accent unique lime néon `#C6FF00`, chaque couleur avec sa paire clair/sombre (UX-DR1) — aucune validation de contraste WCAG n'est requise sur cette palette (décision produit explicite, projet interne)
 

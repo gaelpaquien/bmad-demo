@@ -59,8 +59,8 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 - [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- retirer les deux entrées résolues.
 
 **Acceptance Criteria:**
-- Given au moins un document existe, when j'ouvre EkoDoc, then la Bibliothèque affiche une carte par document (badge type, titre, "Non classé", date), carte cliquable vers la Fiche.
-- Given aucun document n'existe, when j'ouvre EkoDoc, then "Aucun document pour l'instant." s'affiche avec un bouton primaire "Importer un document".
+- Given au moins un document existe, when j'ouvre bmad-demo, then la Bibliothèque affiche une carte par document (badge type, titre, "Non classé", date), carte cliquable vers la Fiche.
+- Given aucun document n'existe, when j'ouvre bmad-demo, then "Aucun document pour l'instant." s'affiche avec un bouton primaire "Importer un document".
 - Given plusieurs documents existent, when j'ouvre la Bibliothèque, then les cartes sont triées de la plus récente à la plus ancienne.
 
 ## Spec Change Log

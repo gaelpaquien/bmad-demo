@@ -11,9 +11,9 @@
                 try {
                     var stored = localStorage.getItem('bmad-demo-theme');
                     if (!stored) {
-                        // Migration EkoDoc -> BMAD Démo : reprend la préférence sauvegardée
+                        // Migration bmad-demo -> BMAD Démo : reprend la préférence sauvegardée
                         // sous l'ancienne clé pour ne pas la perdre au premier chargement.
-                        var legacy = localStorage.getItem('ekodoc-theme');
+                        var legacy = localStorage.getItem('bmad-demo-theme');
                         if (legacy) {
                             stored = legacy;
                             localStorage.setItem('bmad-demo-theme', legacy);

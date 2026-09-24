@@ -12,7 +12,7 @@ baseline_commit: '2ee5842cc14af4fc8db1f5c4c977cdb9dd37c77b'
 
 ## Intent
 
-**Problem:** EkoDoc n'existe pas encore — aucun projet, aucune base pour importer un document PDF/Word/Excel existant et le retrouver plus tard.
+**Problem:** bmad-demo n'existe pas encore — aucun projet, aucune base pour importer un document PDF/Word/Excel existant et le retrouver plus tard.
 
 **Approach:** Amorcer un projet Laravel 13 frais (Inertia.js 3.0 + Vue 3 + Vite 8.x + Tailwind CSS 4.x, sans starter d'auth) avec la table `documents`, puis livrer le flux d'import complet : modale drag-and-drop → validation de format → stockage privé → extraction de texte best-effort → redirection vers la Fiche document.
 
@@ -54,7 +54,7 @@ baseline_commit: '2ee5842cc14af4fc8db1f5c4c977cdb9dd37c77b'
 ## Code Map
 
 - Repo racine -- vide hors `.claude/`, `_bmad/`, `_bmad-output/`, `.git/` : aucun code existant. Cible d'installation Laravel directement à la racine (`composer create-project laravel/laravel .`), sans conflit avec les dossiers BMad déjà présents.
-- `_bmad-output/planning-artifacts/architecture/architecture-ekodoc-2026-08-31/ARCHITECTURE-SPINE.md` -- référence stack/paradigme (AD-1 à AD-10).
+- `_bmad-output/planning-artifacts/architecture/architecture-bmad-demo-2026-08-31/ARCHITECTURE-SPINE.md` -- référence stack/paradigme (AD-1 à AD-10).
 - `_bmad-output/implementation-artifacts/epic-1-context.md` -- contexte distillé de l'Epic 1, à charger avec cette spec.
 
 ## Tasks & Acceptance
@@ -101,7 +101,7 @@ baseline_commit: '2ee5842cc14af4fc8db1f5c4c977cdb9dd37c77b'
   3. `php.ini` : `max_execution_time` → `180` (défense en profondeur, cohérent avec le point 2).
 - **Limite connue** : si l'hébergement local de Herd applique un timeout au niveau du pool PHP-FPM (`request_terminate_timeout`) distinct de `max_execution_time`, `set_time_limit()` ne peut pas le contourner — à vérifier si le problème persiste malgré ce correctif.
 - Vérification : `php artisan test` → 11/11 toujours au vert. Reproduction du timeout non couverte par un test automatisé (nécessiterait un vrai fichier volumineux/complexe ou un sleep artificiel, coûteux pour la suite) ; vérification manuelle avec le fichier réel de l'utilisateur requise.
-- **Suite (même jour)** : après ce correctif, le document volumineux était bien créé/stocké (comportement voulu), mais une 502 apparaissait côté navigateur et `extracted_text` restait `NULL` — la limite en cause n'était pas `php.ini` mais le proxy **nginx** de Herd, dont le timeout FastCGI par défaut (60s, non explicite dans la config) est plus court que le budget PHP de 180s : nginx coupe la réponse au client avant que PHP n'ait fini, même si PHP continue et committe en arrière-plan. Corrigé en ajoutant `fastcgi_read_timeout 200s` / `fastcgi_send_timeout 200s` à `C:\Users\g.paquien\.config\herd\config\valet\Nginx\ekodoc.test.conf` (config générée par Herd pour ce site — hors du dépôt Git, local à la machine ; **note** : un futur `herd link`/`herd secure` sur ce site pourrait régénérer ce fichier et effacer cet ajout, à surveiller). `herd restart` exécuté pour appliquer.
+- **Suite (même jour)** : après ce correctif, le document volumineux était bien créé/stocké (comportement voulu), mais une 502 apparaissait côté navigateur et `extracted_text` restait `NULL` — la limite en cause n'était pas `php.ini` mais le proxy **nginx** de Herd, dont le timeout FastCGI par défaut (60s, non explicite dans la config) est plus court que le budget PHP de 180s : nginx coupe la réponse au client avant que PHP n'ait fini, même si PHP continue et committe en arrière-plan. Corrigé en ajoutant `fastcgi_read_timeout 200s` / `fastcgi_send_timeout 200s` à `C:\Users\g.paquien\.config\herd\config\valet\Nginx\bmad-demo.test.conf` (config générée par Herd pour ce site — hors du dépôt Git, local à la machine ; **note** : un futur `herd link`/`herd secure` sur ce site pourrait régénérer ce fichier et effacer cet ajout, à surveiller). `herd restart` exécuté pour appliquer.
 
 ### 2026-09-01 — Révision d'architecture : extraction de texte passée en file d'attente (AD-6 amendé)
 
@@ -138,7 +138,7 @@ baseline_commit: '2ee5842cc14af4fc8db1f5c4c977cdb9dd37c77b'
 ### 2026-09-01 — Résolution de la décision "Ask First" : base de données
 
 - Décision utilisateur : MySQL installé indépendamment de Herd (Herd étant en édition gratuite, sans le service MySQL). MySQL Community Server 8.0 installé localement (service Windows `MySQL80`), son dossier `bin` ajouté au PATH utilisateur.
-- Base `ekodoc` créée (utf8mb4/utf8mb4_unicode_ci) ; `.env` basculé de `DB_CONNECTION=sqlite` à `mysql` (`DB_HOST=127.0.0.1`, `DB_PORT=3306`, `DB_DATABASE=ekodoc`, `DB_USERNAME=root`).
+- Base `bmad-demo` créée (utf8mb4/utf8mb4_unicode_ci) ; `.env` basculé de `DB_CONNECTION=sqlite` à `mysql` (`DB_HOST=127.0.0.1`, `DB_PORT=3306`, `DB_DATABASE=bmad-demo`, `DB_USERNAME=root`).
 - `php artisan migrate:fresh` exécuté avec succès contre MySQL ; `php artisan test` rejoué (8/8, isolé sur SQLite mémoire via `phpunit.xml`, sans changement) — aucune régression.
 - L'architecture (`ARCHITECTURE-SPINE.md`, stack MySQL 8.x) est donc respectée telle quelle ; aucune mise à jour de la spine nécessaire.
 

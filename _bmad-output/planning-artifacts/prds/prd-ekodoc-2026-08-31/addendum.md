@@ -1,5 +1,5 @@
 ---
-title: Addendum — PRD EkoDoc
+title: Addendum — PRD bmad-demo
 related_prd: prd.md
 updated: 2026-08-31
 ---
@@ -28,4 +28,4 @@ La recherche fulltexte passe en scope v1 (voir `.memlog.md`, override du 2026-08
 
 ## Reprise du tour d'horizon du brief
 
-Le brief (`../../briefs/brief-ekodoc-2026-08-31/brief.md` et son addendum) reste la référence pour : comparables du marché (Confluence, Notion, SharePoint...), pièges de prévisualisation Office, et pistes de librairies pour la prévisualisation PDF/Word/Excel. Non dupliqué ici.
+Le brief (`../../briefs/brief-bmad-demo-2026-08-31/brief.md` et son addendum) reste la référence pour : comparables du marché (Confluence, Notion, SharePoint...), pièges de prévisualisation Office, et pistes de librairies pour la prévisualisation PDF/Word/Excel. Non dupliqué ici.

@@ -4,7 +4,7 @@ status: approved
 created: 2026-09-09
 ---
 
-# Sprint Change Proposal — EkoDoc
+# Sprint Change Proposal — bmad-demo
 
 ## 1. Issue Summary
 
@@ -58,7 +58,7 @@ Aucune de ces stories n'est rouverte individuellement — leur remplacement est 
 
 ## 4. Detailed Change Proposals
 
-### PRD (`prd-ekodoc-2026-08-31/prd.md`)
+### PRD (`prd-bmad-demo-2026-08-31/prd.md`)
 
 ```
 OLD FR2: Classer les documents (importés et créés) par dossiers et/ou catégories.
@@ -83,7 +83,7 @@ NEW FR14: Gérer les tags (créer, renommer, supprimer) depuis une page de
 
 Section "Questions ouvertes" : retirer *"Granularité de classement à trancher..."* (sans objet).
 
-### Architecture (`architecture-ekodoc-2026-08-31/ARCHITECTURE-SPINE.md`)
+### Architecture (`architecture-bmad-demo-2026-08-31/ARCHITECTURE-SPINE.md`)
 
 ```
 OLD AD-5 — Classement à plat, une catégorie par document [ADOPTED]
@@ -130,7 +130,7 @@ Capability → Architecture Map : retirer les lignes catégorie (FR2/FR10) ; ajo
 
 Structural Seed : retirer `Category.php`, `CategoryController.php`, `Actions/Category/` ; ajouter `Tag.php`, `TagController.php`, `Actions/Tag/`, tables `document_tag` et `document_attachments`, dossier `documents/{id}/attachments/`.
 
-### UX (`ux-ekodoc-2026-08-31/DESIGN.md` + `EXPERIENCE.md`) — work-order pour session `bmad-ux` dédiée
+### UX (`ux-bmad-demo-2026-08-31/DESIGN.md` + `EXPERIENCE.md`) — work-order pour session `bmad-ux` dédiée
 
 **DESIGN.md**
 - Tokens couleur : fonds gris clair/gris foncé (jamais totalement blanc/noir) ; accent lime au lieu de bleu. **Aucune validation de contraste WCAG requise** (décision explicite 2026-09-09) — seule la cible WCAG 2.2 AA générale (`UX-DR23`, hors contraste couleur) reste en vigueur.

@@ -1,15 +1,15 @@
 ---
-title: Product Brief EkoDoc
+title: Product Brief bmad-demo
 status: draft
 created: 2026-08-31
 updated: 2026-08-31
 ---
 
-# Product Brief : EkoDoc
+# Product Brief : bmad-demo
 
 ## Résumé exécutif
 
-EkoDoc est une base de connaissance interne qui réunit en un seul endroit les documents existants (PDF, Word, Excel...) et permet d'en créer de nouveaux directement dans l'outil, exportables ensuite au format PDF ou Word. Aujourd'hui, la documentation interne est éparpillée un peu partout — aucun outil ne centralise l'existant ni ne facilite la création de nouveaux contenus. EkoDoc démarre volontairement petit : un outil local, pour une poignée d'utilisateurs, dont la vocation est de prouver son utilité avant d'envisager toute évolution.
+bmad-demo est une base de connaissance interne qui réunit en un seul endroit les documents existants (PDF, Word, Excel...) et permet d'en créer de nouveaux directement dans l'outil, exportables ensuite au format PDF ou Word. Aujourd'hui, la documentation interne est éparpillée un peu partout — aucun outil ne centralise l'existant ni ne facilite la création de nouveaux contenus. bmad-demo démarre volontairement petit : un outil local, pour une poignée d'utilisateurs, dont la vocation est de prouver son utilité avant d'envisager toute évolution.
 
 ## Le problème
 
@@ -17,7 +17,7 @@ Les documents internes sont dispersés (fichiers locaux, échanges, dossiers div
 
 ## La solution
 
-EkoDoc offre deux usages complémentaires dès la première version :
+bmad-demo offre deux usages complémentaires dès la première version :
 
 - **Déposer et consulter** les documents existants (PDF, Word, Excel...) : import dans l'outil, prévisualisation rapide dans le navigateur, et téléchargement du fichier original à tout moment.
 - **Créer et exporter** des documents directement depuis l'outil, avec export vers PDF et Word pour pouvoir les partager ou les utiliser hors de l'outil.
@@ -35,7 +35,7 @@ Utilisateurs initiaux : un petit groupe de 2 à 3 personnes en interne, qui alim
 ## Critères de réussite
 
 - Usage quotidien réel par les 2-3 utilisateurs initiaux (pas juste un dépôt ponctuel de documents qu'on ne rouvre jamais).
-- L'outil devient le réflexe pour l'onboarding d'un nouvel arrivant : on le pointe vers EkoDoc plutôt que vers des fichiers épars.
+- L'outil devient le réflexe pour l'onboarding d'un nouvel arrivant : on le pointe vers bmad-demo plutôt que vers des fichiers épars.
 - `[ASSUMPTION]` Ce succès d'usage est le signal qui déclenche la décision de faire évoluer l'outil (nouveaux utilisateurs, nouvelles fonctionnalités) — pas une échéance fixée à l'avance.
 
 ## Périmètre
@@ -55,4 +55,4 @@ Utilisateurs initiaux : un petit groupe de 2 à 3 personnes en interne, qui alim
 
 ## Vision
 
-Si l'usage prouve sa valeur, EkoDoc peut évoluer progressivement : recherche fulltexte et par tags pour naviguer dans un volume de documents grandissant, puis un agent IA capable de répondre en s'appuyant sur le contenu de la base (via MCP), et potentiellement l'ouverture à plus d'utilisateurs. Chaque étape ne se justifie que si l'étape précédente a démontré son utilité réelle — pas de sur-ingénierie anticipée.
+Si l'usage prouve sa valeur, bmad-demo peut évoluer progressivement : recherche fulltexte et par tags pour naviguer dans un volume de documents grandissant, puis un agent IA capable de répondre en s'appuyant sur le contenu de la base (via MCP), et potentiellement l'ouverture à plus d'utilisateurs. Chaque étape ne se justifie que si l'étape précédente a démontré son utilité réelle — pas de sur-ingénierie anticipée.

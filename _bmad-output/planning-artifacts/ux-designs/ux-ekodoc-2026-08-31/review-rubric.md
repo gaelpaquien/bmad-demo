@@ -1,4 +1,4 @@
-# Spine Pair Review — EkoDoc
+# Spine Pair Review — bmad-demo
 
 ## Overall verdict
 
@@ -41,7 +41,7 @@ Checked: each IA surface (Bibliothèque, Fiche document, Éditeur, plus the Impo
 
 ## 5. Visual reference coverage — clean
 
-Checked `.working/`, `mockups/`, `wireframes/`, and `imports/` under `ux-ekodoc-2026-08-31/`. None of these directories exist — the only files present are `DESIGN.md`, `EXPERIENCE.md`, `.memlog.md`, and `reconcile-prd.md`. This matches EXPERIENCE.md's own IA section, which states explicitly that no mockup has been produced yet ("mode rapide"). Nothing is orphaned; nothing to reconcile.
+Checked `.working/`, `mockups/`, `wireframes/`, and `imports/` under `ux-bmad-demo-2026-08-31/`. None of these directories exist — the only files present are `DESIGN.md`, `EXPERIENCE.md`, `.memlog.md`, and `reconcile-prd.md`. This matches EXPERIENCE.md's own IA section, which states explicitly that no mockup has been produced yet ("mode rapide"). Nothing is orphaned; nothing to reconcile.
 
 ### Findings
 - None.
@@ -59,7 +59,7 @@ Checked: EXPERIENCE.md `sources` frontmatter resolution, verbatim FR/NFR usage, 
 
 ### Findings
 - **low** "Bouton Export" (EXPERIENCE.md) does not use a name that appears anywhere in DESIGN.md — it's presumably an instance of "Bouton primaire" (or a mix of primary/secondary), but the two files never state the link explicitly, which breaks the "component names identical across all sections" rule literally even though the intent is inferable. (Cross-ref with §3.) *Fix:* rename to match a DESIGN.md component name, or add a one-line cross-reference.
-- No other findings: both `sources` paths (`../../briefs/brief-ekodoc-2026-08-31/brief.md`, `../../prds/prd-ekodoc-2026-08-31/prd.md`) resolve correctly from the file's location; FR1 through FR12 are all cited with their verbatim PRD numbers (including FR10 via the "FR8–FR12" IA range) with no renamed or invented requirement labels; "Carte document," "Barre de recherche," and "Filtres (chips)" and "Barre d'outils éditeur" are spelled identically in both files; the sole `{colors.primary}` reference in EXPERIENCE.md (Accessibility Floor, focus ring) resolves to a token DESIGN.md actually defines.
+- No other findings: both `sources` paths (`../../briefs/brief-bmad-demo-2026-08-31/brief.md`, `../../prds/prd-bmad-demo-2026-08-31/prd.md`) resolve correctly from the file's location; FR1 through FR12 are all cited with their verbatim PRD numbers (including FR10 via the "FR8–FR12" IA range) with no renamed or invented requirement labels; "Carte document," "Barre de recherche," and "Filtres (chips)" and "Barre d'outils éditeur" are spelled identically in both files; the sole `{colors.primary}` reference in EXPERIENCE.md (Accessibility Floor, focus ring) resolves to a token DESIGN.md actually defines.
 
 ## 8. Shape fit — pass
 

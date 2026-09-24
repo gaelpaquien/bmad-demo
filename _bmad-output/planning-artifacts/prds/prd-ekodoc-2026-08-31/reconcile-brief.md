@@ -1,11 +1,11 @@
 ---
-title: Reconciliation — Brief vs PRD (EkoDoc)
-source: briefs/brief-ekodoc-2026-08-31/{brief.md,addendum.md}
-target: prds/prd-ekodoc-2026-08-31/{prd.md,addendum.md}
+title: Reconciliation — Brief vs PRD (bmad-demo)
+source: briefs/brief-bmad-demo-2026-08-31/{brief.md,addendum.md}
+target: prds/prd-bmad-demo-2026-08-31/{prd.md,addendum.md}
 generated: 2026-08-31
 ---
 
-# Reconciliation: brief-ekodoc-2026-08-31 → prd-ekodoc-2026-08-31
+# Reconciliation: brief-bmad-demo-2026-08-31 → prd-bmad-demo-2026-08-31
 
 Known, already-logged deviation (NOT flagged below): fulltext search + filtering was
 explicitly moved from "hors v1" (brief) into v1 scope (PRD FR6/FR7, PRD addendum

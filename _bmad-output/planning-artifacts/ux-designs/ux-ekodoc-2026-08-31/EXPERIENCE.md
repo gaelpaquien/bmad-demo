@@ -1,16 +1,16 @@
 ---
-title: EXPERIENCE.md EkoDoc
-name: EkoDoc
+title: EXPERIENCE.md bmad-demo
+name: bmad-demo
 status: final
 sources:
-  - ../../briefs/brief-ekodoc-2026-08-31/brief.md
-  - ../../prds/prd-ekodoc-2026-08-31/prd.md
+  - ../../briefs/brief-bmad-demo-2026-08-31/brief.md
+  - ../../prds/prd-bmad-demo-2026-08-31/prd.md
   - ../../sprint-change-proposal-2026-09-09.md
 created: 2026-08-31
 updated: 2026-09-09
 ---
 
-# EkoDoc — Experience Spine
+# bmad-demo — Experience Spine
 
 > Statut au 2026-09-09 : révision majeure suite au `sprint-change-proposal-2026-09-09` (retrait du classement par catégorie, tags illimités, pièces jointes sur document créé, page Configuration). Session `bmad-ux` dédiée en mode coaching — palette et layout tranchés avec l'utilisateur (voir `.memlog.md`). Quatre surfaces sur cinq ont une maquette visuelle de référence dans `mockups/` (Bibliothèque, Éditeur, Recherche, Configuration) ; Fiche document et la modale d'import restent construites depuis les tables ci-dessous seules (décision explicite, voir `.memlog.md`). `DESIGN.md` fait foi pour l'identité visuelle ; ce fichier fait foi pour le comportement ; les deux priment en cas de conflit avec une maquette.
 
@@ -122,7 +122,7 @@ Comportemental — le contraste visuel est dans `DESIGN.md` (aucune validation d
 
 ### Flow 2 — Retrouver et partager un document (Camille, 15h un jeudi)
 
-1. Camille ouvre EkoDoc dans son navigateur ; la Bibliothèque affiche le listing paginé des documents.
+1. Camille ouvre bmad-demo dans son navigateur ; la Bibliothèque affiche le listing paginé des documents.
 2. Elle clique "Recherche" dans la sidebar — la surface Recherche s'ouvre, focus déjà sur le champ (raccourci `/` disponible).
 3. Elle tape "procédure export compta" ; les résultats se filtrent en direct sur le contenu fulltexte, pièces jointes incluses (FR6, FR13).
 4. Elle affine avec le filtre de tag "Finance" (FR7) — un seul résultat reste.

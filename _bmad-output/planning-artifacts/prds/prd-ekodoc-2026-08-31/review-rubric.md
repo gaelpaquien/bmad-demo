@@ -1,4 +1,4 @@
-# PRD Quality Review — EkoDoc (prd-ekodoc-2026-08-31)
+# PRD Quality Review — bmad-demo (prd-bmad-demo-2026-08-31)
 
 ## Overall verdict
 This update cleanly executes the sprint-change proposal: the folder/category split is fully gone, terminology is now consistently "tags" across FR2/FR3/FR7/FR14, and two of the three prior review's findings (NFR2's missing bound, the missing Assumptions Index) are genuinely fixed rather than papered over. The new attachments capability (FR13) is the weak spot — it states the "associate" action but leaves consultation, removal, and search/filter applicability of attached files unspecified, which the architecture spine has already had to resolve on its own (a `DetachDocumentFileAction` with no FR behind it). The tags model also lands a real UX trade-off (no free-text tagging) without naming what was given up.
@@ -19,7 +19,7 @@ The tags redesign tightens rather than dilutes the thesis: "classer par tags ill
 ## Done-ness clarity — thin
 This dimension moved in both directions. Two prior findings are now genuinely resolved:
 - NFR2 now reads "Recherche fulltexte en moins d'1 seconde sur un corpus de l'ordre de 350 documents (cible indicative, pas un SLA)" — a real, testable bound. Fixed.
-- FR4's addendum cross-reference now points at `../../briefs/brief-ekodoc-2026-08-31/addendum.md` § *Pièges techniques à anticiper*, and that section exists (verified). Fixed.
+- FR4's addendum cross-reference now points at `../../briefs/brief-bmad-demo-2026-08-31/addendum.md` § *Pièges techniques à anticiper*, and that section exists (verified). Fixed.
 
 But the new attachments FR introduces a gap at least as serious as what it replaced. FR13 says only: "Associer un ou plusieurs fichiers (PDF, Word, Excel) à un document créé, indépendamment du contenu rédigé dans l'éditeur WYSIWYG (FR8)." It states the association action and nothing else — no testable consequence for what happens after. Compare FR10, which explicitly says "FR2, FR3, FR6, FR7 s'appliquent aussi aux documents créés" — FR13 has no equivalent clause. Concretely, unanswered: can an attached file be previewed (FR4) or downloaded (FR5) individually? Can it be removed after attaching? Is it covered by fulltext search (FR6) or filtering (FR7)? The sprint-change-proposal's own architecture section (AD-17) already commits to a `DetachDocumentFileAction` — a capability with no FR behind it, meaning architecture is inventing requirements the PRD didn't state. That's the traceability direction the rubric warns against (downstream should source-extract from the PRD, not the reverse).
 

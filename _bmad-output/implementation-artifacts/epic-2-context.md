@@ -4,7 +4,7 @@
 
 ## Goal
 
-This epic lets a user draft a brand-new document directly inside EkoDoc, illustrate it with inline images, save it into the same library used for imported files, come back to edit it later, and export it as PDF or Word. It delivers the PRD's second core journey ("create a document for future use or sharing"), completing EkoDoc alongside Epic 1's "find and use an existing document" journey. It builds on the `documents`/`categories` tables and category selector already established by Epic 1 — no new data modeling here.
+This epic lets a user draft a brand-new document directly inside bmad-demo, illustrate it with inline images, save it into the same library used for imported files, come back to edit it later, and export it as PDF or Word. It delivers the PRD's second core journey ("create a document for future use or sharing"), completing bmad-demo alongside Epic 1's "find and use an existing document" journey. It builds on the `documents`/`categories` tables and category selector already established by Epic 1 — no new data modeling here.
 
 ## Stories
 

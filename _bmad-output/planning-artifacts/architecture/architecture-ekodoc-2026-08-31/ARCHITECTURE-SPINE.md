@@ -1,29 +1,29 @@
 ---
-name: 'EkoDoc'
+name: 'bmad-demo'
 type: architecture-spine
 purpose: build-substrate
 altitude: initiative
 paradigm: 'Thin Controller -> Action -> DTO -> Eloquent Model'
-scope: 'EkoDoc v1 complet - import, bibliotheque, recherche, edition WYSIWYG, export'
+scope: 'bmad-demo v1 complet - import, bibliotheque, recherche, edition WYSIWYG, export'
 status: final
 created: '2026-08-31'
 updated: '2026-09-09'
 binds: [FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14, NFR1, NFR2, NFR3, NFR4, NFR5]
 sources:
-  - '../../briefs/brief-ekodoc-2026-08-31/brief.md'
-  - '../../briefs/brief-ekodoc-2026-08-31/addendum.md'
-  - '../../prds/prd-ekodoc-2026-08-31/prd.md'
-  - '../../ux-designs/ux-ekodoc-2026-08-31/DESIGN.md'
-  - '../../ux-designs/ux-ekodoc-2026-08-31/EXPERIENCE.md'
+  - '../../briefs/brief-bmad-demo-2026-08-31/brief.md'
+  - '../../briefs/brief-bmad-demo-2026-08-31/addendum.md'
+  - '../../prds/prd-bmad-demo-2026-08-31/prd.md'
+  - '../../ux-designs/ux-bmad-demo-2026-08-31/DESIGN.md'
+  - '../../ux-designs/ux-bmad-demo-2026-08-31/EXPERIENCE.md'
   - '../../sprint-change-proposal-2026-09-09.md'
 companions: []
 ---
 
-# Architecture Spine — EkoDoc
+# Architecture Spine — bmad-demo
 
 ## Design Paradigm
 
-**Thin Controller → Action → DTO → Eloquent Model.** Convention transverse à tous les projets solo de l'utilisateur, pas une spécificité d'EkoDoc.
+**Thin Controller → Action → DTO → Eloquent Model.** Convention transverse à tous les projets solo de l'utilisateur, pas une spécificité d'bmad-demo.
 
 - **Controller** : ne contient aucune logique métier. Valide la requête (Form Request), construit un DTO, appelle une Action, retourne une réponse Inertia.
 - **Action** : classe PHP pure, invokable (`__invoke`), une seule responsabilité (`CreateDocumentAction`, `ImportDocumentAction`, `DeleteDocumentAction`, `ExportDocumentToPdfAction`...). Zéro dépendance à un package d'action (pas de `lorisleiva/laravel-actions`).

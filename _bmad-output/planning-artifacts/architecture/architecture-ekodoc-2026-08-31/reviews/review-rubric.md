@@ -1,11 +1,11 @@
 ---
 title: Rubric Review — ARCHITECTURE-SPINE.md (post sprint-change-proposal-2026-09-09)
 reviewed: 2026-09-09
-target: architecture-ekodoc-2026-08-31/ARCHITECTURE-SPINE.md
+target: architecture-bmad-demo-2026-08-31/ARCHITECTURE-SPINE.md
 inputs:
   - sprint-change-proposal-2026-09-09.md (§4 Architecture)
-  - architecture-ekodoc-2026-08-31/.memlog.md (last ~20 entries)
-  - prds/prd-ekodoc-2026-08-31/prd.md (current, updated 2026-09-09)
+  - architecture-bmad-demo-2026-08-31/.memlog.md (last ~20 entries)
+  - prds/prd-bmad-demo-2026-08-31/prd.md (current, updated 2026-09-09)
 verdict: NOT READY for Epic 3 story breakdown — one critical divergence point (FR13/FR6 attachment search + per-attachment download/preview) is entirely unaddressed by any AD.
 ---
 

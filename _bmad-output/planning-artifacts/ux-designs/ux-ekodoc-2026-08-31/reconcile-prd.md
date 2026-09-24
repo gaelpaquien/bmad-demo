@@ -1,11 +1,11 @@
 ---
 title: Réconciliation PRD → UX (DESIGN.md + EXPERIENCE.md)
-input: prd-ekodoc-2026-08-31
-target: ux-ekodoc-2026-08-31
+input: prd-bmad-demo-2026-08-31
+target: ux-bmad-demo-2026-08-31
 created: 2026-08-31
 ---
 
-# Réconciliation PRD → UX — EkoDoc
+# Réconciliation PRD → UX — bmad-demo
 
 Vérification que chaque FR (FR1–FR12) et NFR pertinent (NFR1–NFR5) du PRD a une représentation concrète dans `EXPERIENCE.md` (IA, component pattern, state pattern, ou key flow) — pas seulement une citation en passant.
 

@@ -1,11 +1,11 @@
 ---
-title: Reconciliation — Brief/Addendum vs Architecture Spine (EkoDoc)
-source: briefs/brief-ekodoc-2026-08-31/{brief.md,addendum.md}
-target: architecture/architecture-ekodoc-2026-08-31/ARCHITECTURE-SPINE.md
+title: Reconciliation — Brief/Addendum vs Architecture Spine (bmad-demo)
+source: briefs/brief-bmad-demo-2026-08-31/{brief.md,addendum.md}
+target: architecture/architecture-bmad-demo-2026-08-31/ARCHITECTURE-SPINE.md
 generated: 2026-08-31
 ---
 
-# Reconciliation: brief/addendum → ARCHITECTURE-SPINE.md (EkoDoc)
+# Reconciliation: brief/addendum → ARCHITECTURE-SPINE.md (bmad-demo)
 
 Scope of this check: (1) did the architecture spine actually address the three technical
 pitfalls the addendum flagged for the architecture phase (Office preview conversion,
@@ -17,7 +17,7 @@ value" posture) at the architecture layer.
 Note on scope inheritance: the architecture spine's direct source is the PRD, not the brief
 directly. One deviation between brief and architecture — fulltext search (FR6/FR7) moved
 from "hors v1" (brief) into v1 scope — was already identified, justified, and logged as
-intentional at the PRD stage (see `prds/prd-ekodoc-2026-08-31/reconcile-brief.md`, "Known,
+intentional at the PRD stage (see `prds/prd-bmad-demo-2026-08-31/reconcile-brief.md`, "Known,
 already-logged deviation"). It is not re-flagged as an architecture-level gap here, but it
 does change which addendum pitfalls are now "live" in v1 rather than deferred (see Gap 1
 below).

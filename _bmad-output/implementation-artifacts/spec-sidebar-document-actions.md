@@ -22,7 +22,7 @@ baseline_commit: '9c3e3954a3361910baef490252d2bfd2c3c8cfb4'
 - "Créer un document" reste un `Link` Inertia vers `/documents/create` (inchangé).
 - "Importer" reste un déclencheur de `ImportModal.vue`, réutilisé tel quel sans modification (il est déjà autonome : POST `/documents`, redirige vers `documents.show` en cas de succès, gère son propre focus trap/Escape).
 - L'état `isImportModalOpen` et le rendu de `<ImportModal>` migrent dans `Sidebar.vue` (le composant qui les déclenche porte leur état, même convention que l'actuel `Index.vue`).
-- Les deux actions sont placées en haut de la sidebar, sous le libellé "EkoDoc" et avant la `<nav>` des 3 liens.
+- Les deux actions sont placées en haut de la sidebar, sous le libellé "bmad-demo" et avant la `<nav>` des 3 liens.
 - Garder le style visuel actuel des boutons (bouton secondaire bordé pour "Créer un document", bouton `bg-primary` plein pour "Importer") tel que défini aujourd'hui dans `Index.vue`.
 
 **Ask First:** _Aucune décision supplémentaire nécessaire — le scope a été validé avec l'utilisateur avant la rédaction de ce spec._
@@ -126,13 +126,13 @@ Tests : `resources/js/Components/__tests__/Sidebar.spec.js` mis à jour en cons�
 Commit `b8c1ea2` (retouches demandées hors epic, voir `spec-sidebar-menu-adjustments.md`) :
 
 - **Toggle thème** : sorti de `<nav aria-label="Navigation principale">` (ce n'est pas une destination de navigation) mais reste visuellement dans la même liste, juste après "Configuration", via un conteneur `flex flex-col gap-0.5` partagé et `<nav class="contents">`.
-- **Séparateur** : un `<hr>` a été ajouté entre le bloc "EkoDoc - Démo" et la liste des boutons.
+- **Séparateur** : un `<hr>` a été ajouté entre le bloc "bmad-demo - Démo" et la liste des boutons.
 - **Footer** : l'emoji "💔" a été remplacé par une icône SVG cœur barrée de deux traits en croix (rendu "annulé", pas "brisé").
 
 Commit `a183c58` (correction sur retour humain du commit `b8c1ea2` ci-dessus) :
 
 - **Cœur du footer** : le tracé SVG n'était pas centré (croix décalée par rapport au cœur) et sa couleur héritait du gris `text-muted` du paragraphe. Remplacé par un tracé symétrique (centré en x=12) et une couleur fixe `text-red-600 dark:text-red-400` appliquée à tout le SVG (cœur + croix).
-- **Second séparateur** : un `<hr>` a été ajouté entre la liste des boutons et le footer "Made with ... Claude", symétrique à celui déjà présent sous "EkoDoc - Démo".
+- **Second séparateur** : un `<hr>` a été ajouté entre la liste des boutons et le footer "Made with ... Claude", symétrique à celui déjà présent sous "bmad-demo - Démo".
 
 Commit `2d8fc19` (2ᵉ correction sur retour humain du commit `a183c58` ci-dessus) :
 
