@@ -129,47 +129,13 @@ function tagName(tagId) {
     return allTags.value.find((tag) => tag.id === tagId)?.name ?? 'Tag';
 }
 
-// `/` focuses the search bar unless a field is already active, so the
-// character itself is never inserted into whatever the user is typing
-// (Boundaries & Constraints, spec-1-6) — moved as-is from Index.vue, minus
-// the Import modal guard: this surface has no Import modal (Code Map,
-// spec-3-4). Also ignored with any modifier held, so an OS/browser
-// shortcut like Ctrl+/ is never hijacked.
-function onGlobalKeydown(event) {
-    if (
-        event.key !== '/'
-        || event.ctrlKey
-        || event.metaKey
-        || event.altKey
-    ) {
-        return;
-    }
-
-    const active = document.activeElement;
-    const isEditable = active && (
-        active.tagName === 'INPUT'
-        || active.tagName === 'TEXTAREA'
-        || active.isContentEditable
-    );
-
-    if (isEditable) {
-        return;
-    }
-
-    event.preventDefault();
-    searchInputRef.value?.focus();
-}
-
 onMounted(() => {
-    window.addEventListener('keydown', onGlobalKeydown);
     // AC2: the field carries focus as soon as the surface loads, before any
     // term has been typed.
     searchInputRef.value?.focus();
 });
 
 onUnmounted(() => {
-    window.removeEventListener('keydown', onGlobalKeydown);
-
     if (debounceTimer) {
         clearTimeout(debounceTimer);
     }
@@ -203,7 +169,7 @@ function formatDate(dateString) {
                     ref="searchInputRef"
                     v-model="searchTerm"
                     type="search"
-                    placeholder="Rechercher un document (appuyez sur / pour y accéder)"
+                    placeholder="Rechercher un document"
                 />
             </div>
 

@@ -103,7 +103,7 @@ UX-DR30: État Configuration aucun tag créé `[NOUVEAU 2026-09-09]` — "Aucun 
 UX-DR31: État Suppression de tag confirmée `[NOUVEAU 2026-09-09]` — boîte de dialogue nommant le nombre de documents concernés ; message factuel après suppression ("Tag supprimé — détaché de N documents.").
 UX-DR32: Interaction — suppression de document toujours confirmée par boîte de dialogue (pas d'undo en v1).
 UX-DR33: Interaction — suppression de tag `[NOUVEAU 2026-09-09]` toujours confirmée par boîte de dialogue nommant le nombre de documents concernés — même discipline que la suppression de document.
-UX-DR34: Interaction — raccourci `/` donne le focus à la barre de recherche depuis la surface Recherche `[AMENDED 2026-09-09]` (déplacé depuis la Bibliothèque, la barre n'y est plus intégrée).
+UX-DR34: ~~Interaction — raccourci `/` donne le focus à la barre de recherche depuis la surface Recherche~~ `[AMENDED 2026-09-09]` (déplacé depuis la Bibliothèque) `[REMOVED 2026-09-28]` — raccourci retiré : la surface Recherche dédiée (onglet sidebar) donne déjà le focus au champ au chargement, et un raccourci à caractère unique sans modificateur va à l'encontre de WCAG 2.2 SC 2.1.4 (cible UX-DR35). Compromis accepté : revenir au champ en cours de recherche passe par Shift+Tab ou la souris.
 UX-DR35: Accessibilité — cible WCAG 2.2 AA sur l'ensemble de la surface web, hors contraste couleur (aucune validation de contraste requise sur la palette v2, décision produit explicite du 2026-09-09) — navigation clavier, focus visible, texte alternatif obligatoire restent intégralement en vigueur.
 UX-DR36: Accessibilité — texte alternatif obligatoire à la saisie pour toute image insérée dans l'éditeur.
 UX-DR37: Accessibilité — formulaires (import, filtres, sélecteur de tags, éditeur, Configuration) intégralement navigables au clavier, focus visible partout, ordre de tabulation cohérent avec l'ordre de lecture.
@@ -262,7 +262,7 @@ So that je n'ai pas à fouiller manuellement parmi ~350 fichiers.
 **Given** aucun document ne correspond au terme recherché
 **When** les résultats s'affichent
 **Then** le message "Aucun document ne correspond à votre recherche." apparaît avec suggestion de retirer les filtres actifs (UX-DR13)
-**And** le raccourci `/` donne le focus à la barre de recherche depuis la Bibliothèque (UX-DR22)
+~~**And** le raccourci `/` donne le focus à la barre de recherche depuis la Bibliothèque (UX-DR22)~~ `[REMOVED 2026-09-28]` — raccourci retiré (voir UX-DR34).
 
 ### Story 1.7: Filtrer les documents par catégorie et par type
 
@@ -523,9 +523,9 @@ So that je distingue clairement parcourir ma bibliothèque et chercher un docume
 **When** les résultats s'affichent
 **Then** le message "Aucun document ne correspond à votre recherche." apparaît avec suggestion de retirer le filtre tag actif s'il y en a un (UX-DR20)
 
-**Given** n'importe quelle surface
-**When** j'appuie sur `/`
-**Then** le focus va directement au champ de recherche de la surface Recherche (déplacé depuis la Bibliothèque, UX-DR34)
+~~**Given** n'importe quelle surface~~
+~~**When** j'appuie sur `/`~~
+~~**Then** le focus va directement au champ de recherche de la surface Recherche (déplacé depuis la Bibliothèque, UX-DR34)~~ `[REMOVED 2026-09-28]` — raccourci retiré (voir UX-DR34).
 
 ### Story 3.5: Gérer les tags depuis une page de configuration
 

@@ -7,7 +7,7 @@ sources:
   - ../../prds/prd-bmad-demo-2026-08-31/prd.md
   - ../../sprint-change-proposal-2026-09-09.md
 created: 2026-08-31
-updated: 2026-09-09
+updated: 2026-09-28
 ---
 
 # bmad-demo — Experience Spine
@@ -94,7 +94,7 @@ Comportemental — les specs visuelles sont dans `DESIGN.md.Components`.
 
 ## Interaction Primitives
 
-- `[ASSUMPTION]` Raccourci `/` pour donner le focus à la barre de recherche depuis la surface Recherche (déplacé depuis la Bibliothèque en v1, la barre n'y est plus intégrée).
+- ~~Raccourci `/` pour donner le focus à la barre de recherche depuis la surface Recherche~~ `[REMOVED 2026-09-28]` — hypothèse abandonnée par décision produit : la surface Recherche dédiée donne déjà le focus au champ au chargement, et un raccourci à caractère unique contrevient à WCAG 2.2 SC 2.1.4.
 - Suppression de document : toujours confirmée par une boîte de dialogue (pas d'annulation "undo" prévue en v1).
 - Suppression de tag (Configuration) : toujours confirmée par une boîte de dialogue nommant le nombre de documents concernés — même discipline que la suppression de document, cohérente avec le fait qu'un tag peut être partagé par de nombreux documents.
 
@@ -123,7 +123,7 @@ Comportemental — le contraste visuel est dans `DESIGN.md` (aucune validation d
 ### Flow 2 — Retrouver et partager un document (Camille, 15h un jeudi)
 
 1. Camille ouvre bmad-demo dans son navigateur ; la Bibliothèque affiche le listing paginé des documents.
-2. Elle clique "Recherche" dans la sidebar — la surface Recherche s'ouvre, focus déjà sur le champ (raccourci `/` disponible).
+2. Elle clique "Recherche" dans la sidebar — la surface Recherche s'ouvre, focus déjà sur le champ.
 3. Elle tape "procédure export compta" ; les résultats se filtrent en direct sur le contenu fulltexte, pièces jointes incluses (FR6, FR13).
 4. Elle affine avec le filtre de tag "Finance" (FR7) — un seul résultat reste.
 5. Elle clique sur la ligne : la Fiche document s'ouvre, le PDF s'affiche directement dans le panneau de prévisualisation (FR4).
