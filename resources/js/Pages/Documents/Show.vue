@@ -435,9 +435,30 @@ onBeforeUnmount(() => {
                     </button>
                 </div>
 
+                <!-- Same actions, same order for both document types:
+                     Télécharger · Modifier · Supprimer. -->
                 <div v-else class="flex shrink-0 items-center gap-3">
+                    <!-- A created document has no original file (AD-9):
+                         "Télécharger" exports its content_html to PDF
+                         (FR11/spec-2-4). Only :disabled changes while
+                         exporting or after a failure (UX-DR11), so a retry
+                         never requires a page reload. -->
+                    <button
+                        v-if="isCreated"
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="isExportingPdf"
+                        @click="exportToPdf"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                            <path d="M12 3v12" />
+                            <path d="m7 10 5 5 5-5" />
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        </svg>
+                        {{ isExportingPdf ? 'Téléchargement…' : 'Télécharger' }}
+                    </button>
                     <a
-                        v-if="!isCreated && !sourceMissing"
+                        v-else-if="!sourceMissing"
                         :href="downloadUrl"
                         class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                     >
@@ -449,7 +470,7 @@ onBeforeUnmount(() => {
                         Télécharger
                     </a>
                     <button
-                        v-else-if="!isCreated"
+                        v-else
                         type="button"
                         disabled
                         class="inline-flex cursor-not-allowed items-center gap-2 rounded-md bg-surface-alt px-4 py-2 text-sm font-medium text-muted"
@@ -469,7 +490,7 @@ onBeforeUnmount(() => {
                     <Link
                         v-if="isCreated"
                         :href="`/documents/${document.id}/edit`"
-                        class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        class="inline-flex items-center gap-2 rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
                             <path d="M12 20h9" />
@@ -489,27 +510,6 @@ onBeforeUnmount(() => {
                             <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
                         </svg>
                         Modifier
-                    </button>
-
-                    <!-- FR11/spec-2-4: only a created document has content_html
-                         to export. Stays visible/style primaire even while
-                         exporting or after a failed attempt (UX-DR11): only
-                         :disabled changes, so retrying never requires a page
-                         reload. -->
-                    <button
-                        v-if="isCreated"
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="isExportingPdf"
-                        @click="exportToPdf"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
-                            <path d="M14 3v5h5" />
-                            <path d="M12 12v6" />
-                            <path d="m9.5 15.5 2.5 2.5 2.5-2.5" />
-                        </svg>
-                        {{ isExportingPdf ? 'Export en cours…' : 'Exporter' }}
                     </button>
 
                     <button
@@ -536,7 +536,9 @@ onBeforeUnmount(() => {
                     <dt class="font-medium">Ajouté le :</dt>
                     <dd>{{ formattedDate }}</dd>
                 </div>
-                <div class="flex items-start gap-2">
+                <!-- Empty rows are hidden entirely, except Tags while its
+                     edit mode is open (the TagSelector lives there). -->
+                <div v-if="documentTags.length > 0 || isEditing" class="flex items-start gap-2">
                     <dt class="font-medium" :class="{ 'mt-2': isEditing }">Tags :</dt>
                     <dd v-if="isEditing" ref="tagsEditorRef" class="w-full max-w-md">
                         <TagSelector
@@ -549,20 +551,14 @@ onBeforeUnmount(() => {
                             {{ tagsError }}
                         </p>
                     </dd>
-                    <dd v-else-if="documentTags.length > 0" class="flex flex-wrap gap-2">
+                    <dd v-else class="flex flex-wrap gap-2">
                         <TagChip v-for="tag in documentTags" :key="tag.id" :name="tag.name" />
                     </dd>
-                    <dd v-else class="text-muted">
-                        Aucun tag.
-                    </dd>
                 </div>
-                <div class="flex items-start gap-2">
+                <div v-if="attachments.length > 0" class="flex items-start gap-2">
                     <dt class="mt-2 font-medium">Pièces jointes :</dt>
                     <dd class="w-full max-w-xs">
-                        <p v-if="attachments.length === 0" class="mt-2 text-sm text-muted">
-                            Aucune pièce jointe.
-                        </p>
-                        <ul v-else class="mt-2 flex flex-col gap-2">
+                        <ul class="mt-2 flex flex-col gap-2">
                             <li
                                 v-for="attachment in attachments"
                                 :key="attachment.id"

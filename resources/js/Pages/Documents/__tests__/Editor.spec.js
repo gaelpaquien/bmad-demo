@@ -70,10 +70,7 @@ vi.mock('@tiptap/vue-3', async () => {
 
     return {
         // Invoking `onCreate` synchronously (as TipTap does in practice, same
-        // tick) lets tests reach a mounted state where `initialSnapshot` is
-        // set and `isDirty` reflects real edits — needed by the navigation
-        // guard tests below. Harmless for the table tests above, which never
-        // read `isDirty`/`isLoadingContent`.
+        // tick) lets tests reach the fully loaded, editable state.
         useEditor: (options) => {
             options?.onCreate?.({ editor: mockEditor });
 
@@ -201,63 +198,101 @@ describe('Documents/Editor — tableaux imbriqués (spec-3-6)', () => {
     });
 });
 
-// Retrospective Epic 3, action item 7: AttachmentsPanel's own immediate-mode
-// attach/detach requests must not trip Editor's unsaved-changes guard even
-// while the document is genuinely dirty elsewhere (title/content/tags).
-// `AttachmentsPanel` is left stubbed (see `globalStubs` above) — only its
-// `before-request`/`after-request` emits matter here, not its internal
-// upload/delete plumbing (already covered by AttachmentsPanel.spec.js).
-describe('Documents/Editor — garde de navigation vs AttachmentsPanel (retro Epic 3, item 7)', () => {
-    async function mountDirtyEditor() {
-        const wrapper = mount(Editor, {
-            props: {
-                document: { id: 1, title: 'Titre initial', content_html: '', tags: [], attachments: [] },
-            },
+// spec-ajustements-consultation-editeur: the unsaved-changes notion is gone
+// entirely — no pastille, no label, no exit confirmation — and "Annuler"
+// leaves without any request.
+describe('Documents/Editor — Annuler et absence de garde de sortie', () => {
+    const existingDocument = { id: 12, title: 'Titre initial', content_html: '', tags: [], attachments: [] };
+
+    beforeEach(() => {
+        router.on.mockClear();
+        router.post.mockClear();
+        formPostMock.mockReset();
+        formPatchMock.mockReset();
+        window.confirm = vi.fn(() => true);
+    });
+
+    function mountExistingEditor() {
+        return mount(Editor, {
+            props: { document: existingDocument },
             global: { stubs: globalStubs },
         });
+    }
+
+    function findCancelLink(wrapper) {
+        return wrapper.findAll('a').find((link) => link.text() === 'Annuler');
+    }
+
+    it('shows neither the pastille nor the "Modifications non enregistrées" label after an edit', async () => {
+        const wrapper = mountExistingEditor();
 
         await wrapper.find('#document-title').setValue('Titre modifié');
 
-        return wrapper;
-    }
-
-    function latestBeforeGuard() {
-        const call = router.on.mock.calls.filter(([event]) => event === 'before').at(-1);
-
-        return call[1];
-    }
-
-    it('shows the confirmation when a real navigation is attempted while dirty (sanity baseline)', async () => {
-        window.confirm = vi.fn(() => true);
-        await mountDirtyEditor();
-
-        latestBeforeGuard()({ preventDefault: vi.fn() });
-
-        expect(window.confirm).toHaveBeenCalledTimes(1);
+        expect(wrapper.text()).not.toContain('Modifications non enregistrées');
+        expect(wrapper.find('.bg-amber-500').exists()).toBe(false);
     });
 
-    it('does not show the confirmation while an AttachmentsPanel immediate-mode request is in flight', async () => {
-        window.confirm = vi.fn(() => true);
-        const wrapper = await mountDirtyEditor();
-        const beforeGuard = latestBeforeGuard();
+    it('registers no Inertia navigation guard and never asks for confirmation on leaving after an edit', async () => {
+        const wrapper = mountExistingEditor();
 
-        wrapper.findComponent(AttachmentsPanel).vm.$emit('before-request');
-        beforeGuard({ preventDefault: vi.fn() });
+        await wrapper.find('#document-title').setValue('Titre modifié');
 
+        expect(router.on).not.toHaveBeenCalledWith('before', expect.anything());
+
+        const unloadEvent = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(unloadEvent);
+
+        expect(unloadEvent.defaultPrevented).toBe(false);
         expect(window.confirm).not.toHaveBeenCalled();
     });
 
-    it('re-arms the confirmation once the AttachmentsPanel request completes', async () => {
-        window.confirm = vi.fn(() => true);
-        const wrapper = await mountDirtyEditor();
-        const beforeGuard = latestBeforeGuard();
-        const attachmentsPanel = wrapper.findComponent(AttachmentsPanel);
+    it('points "Annuler" back to the document when editing an existing one', () => {
+        const wrapper = mountExistingEditor();
 
-        attachmentsPanel.vm.$emit('before-request');
-        attachmentsPanel.vm.$emit('after-request');
-        beforeGuard({ preventDefault: vi.fn() });
+        expect(findCancelLink(wrapper).attributes('href')).toBe('/documents/12');
+    });
 
-        expect(window.confirm).toHaveBeenCalledTimes(1);
+    it('points "Annuler" back to the list when drafting a new document', () => {
+        const wrapper = mountEditor();
+
+        expect(findCancelLink(wrapper).attributes('href')).toBe('/documents');
+    });
+
+    it('sends no request when clicking "Annuler"', async () => {
+        const wrapper = mountExistingEditor();
+
+        await wrapper.find('#document-title').setValue('Titre modifié');
+        await findCancelLink(wrapper).trigger('click');
+
+        expect(formPatchMock).not.toHaveBeenCalled();
+        expect(formPostMock).not.toHaveBeenCalled();
+        expect(router.post).not.toHaveBeenCalled();
+        expect(window.confirm).not.toHaveBeenCalled();
+    });
+
+    it('makes "Annuler" inert while a save is in flight', async () => {
+        formPatchMock.mockImplementation(function markProcessing() {
+            this.processing = true;
+        });
+        const wrapper = mountExistingEditor();
+
+        const saveButton = wrapper.findAll('button').find((button) => button.text() === 'Enregistrer');
+        await saveButton.trigger('click');
+
+        expect(findCancelLink(wrapper)).toBeUndefined();
+        const inertCancel = wrapper.findAll('button').find((button) => button.text() === 'Annuler');
+        expect(inertCancel.attributes('disabled')).toBeDefined();
+    });
+
+    it('makes "Annuler" inert while an attachment upload is in flight', async () => {
+        const wrapper = mountExistingEditor();
+
+        await wrapper.findComponent(AttachmentsPanel).vm.$emit('update:uploading', true);
+        await wrapper.vm.$nextTick();
+
+        expect(findCancelLink(wrapper)).toBeUndefined();
+        const inertCancel = wrapper.findAll('button').find((button) => button.text() === 'Annuler');
+        expect(inertCancel.attributes('disabled')).toBeDefined();
     });
 });
 

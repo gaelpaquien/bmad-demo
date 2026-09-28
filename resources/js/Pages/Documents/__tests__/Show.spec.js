@@ -1,6 +1,6 @@
 import { nextTick } from 'vue';
-import { mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises, mount } from '@vue/test-utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { router } from '@inertiajs/vue3';
 import Show from '@/Pages/Documents/Show.vue';
 import TagSelector from '@/Components/TagSelector.vue';
@@ -71,6 +71,16 @@ function mountShow(overrides = {}) {
     });
 }
 
+function mountCreated(overrides = {}) {
+    return mount(Show, {
+        props: {
+            document: makeDocument({ source: 'created', content_html: '<p>x</p>', ...overrides }),
+            sourceMissing: true,
+        },
+        global: { stubs: globalStubs },
+    });
+}
+
 function findButton(wrapper, text) {
     return wrapper.findAll('button').find((button) => button.text() === text);
 }
@@ -115,26 +125,34 @@ describe('Documents/Show — consultation', () => {
         expect(headerButtons).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
     });
 
-    it('lists a created document\'s header actions in order: Modifier (link), exports, Supprimer', () => {
-        const wrapper = mountShow({ source: 'created', content_html: '<p>x</p>' });
+    it('lists the same header actions in the same order for an imported and a created document', () => {
+        const headerLabels = (wrapper) => Array.from(wrapper.find('h1').element.parentElement.querySelectorAll('button, a'))
+            .map((element) => element.textContent.trim());
 
-        const header = wrapper.find('h1').element.parentElement;
-        const headerActions = Array.from(header.querySelectorAll('button, a')).map((element) => [
-            element.tagName,
-            element.textContent.trim(),
-        ]);
-        expect(headerActions).toEqual([
-            ['A', 'Modifier'],
-            ['BUTTON', 'Exporter'],
-            ['BUTTON', 'Supprimer'],
-        ]);
+        const imported = mountShow();
+        // In production a created document always arrives with sourceMissing
+        // true (no file_path), so it is mounted that way here.
+        const created = mountCreated();
+
+        expect(headerLabels(imported)).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
+        expect(headerLabels(created)).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
     });
 
-    it('shows "Aucun tag." when the document has no tags', () => {
-        const wrapper = mountShow({ tags: [] });
+    it('hides the Tags and Pièces jointes rows entirely when both are empty', () => {
+        const wrapper = mountShow({ tags: [], attachments: [] });
 
-        expect(wrapper.text()).toContain('Aucun tag.');
-        expect(wrapper.findAllComponents(TagChip)).toHaveLength(0);
+        expect(wrapper.text()).not.toContain('Tags :');
+        expect(wrapper.text()).not.toContain('Aucun tag.');
+        expect(wrapper.text()).not.toContain('Pièces jointes :');
+        expect(wrapper.text()).not.toContain('Aucune pièce jointe.');
+        expect(wrapper.text()).toContain('Ajouté le :');
+    });
+
+    it('shows the Pièces jointes row when the document has attachments', () => {
+        const wrapper = mountShow({ attachments: [{ id: 3, original_filename: 'annexe.pdf' }] });
+
+        expect(wrapper.text()).toContain('Pièces jointes :');
+        expect(wrapper.text()).toContain('annexe.pdf');
     });
 
     it('keeps "Modifier" as a link to the editor for a created document, with no in-page edit mode', async () => {
@@ -147,9 +165,94 @@ describe('Documents/Show — consultation', () => {
     });
 });
 
+describe('Documents/Show — Télécharger', () => {
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+
+    beforeEach(() => {
+        URL.createObjectURL = vi.fn(() => 'blob:pdf');
+        URL.revokeObjectURL = vi.fn();
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        URL.createObjectURL = originalCreateObjectURL;
+        URL.revokeObjectURL = originalRevokeObjectURL;
+    });
+
+    it('keeps Télécharger · Modifier · Supprimer with an enabled "Télécharger" on a created document despite sourceMissing', () => {
+        const wrapper = mountCreated();
+
+        const headerLabels = Array.from(wrapper.find('h1').element.parentElement.querySelectorAll('button, a'))
+            .map((element) => element.textContent.trim());
+        expect(headerLabels).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
+        expect(findButton(wrapper, 'Télécharger').attributes('disabled')).toBeUndefined();
+        expect(wrapper.find('a[href="/documents/7/download"]').exists()).toBe(false);
+    });
+
+    it('exports the PDF on "Télécharger" for a created document and shows the toast', async () => {
+        const fetchMock = vi.fn(async () => ({
+            ok: true,
+            blob: async () => new Blob(['%PDF']),
+            headers: { get: () => 'attachment; filename="document-de-test.pdf"' },
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+        const wrapper = mountCreated();
+
+        await findButton(wrapper, 'Télécharger').trigger('click');
+        await flushPromises();
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock.mock.calls[0][0]).toBe('/documents/7/export/pdf');
+        expect(wrapper.find('[role="status"]').text()).toBe('Export PDF généré.');
+    });
+
+    it('reads "Téléchargement…" and is disabled while the export is in flight', async () => {
+        vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+        const wrapper = mountCreated();
+
+        await findButton(wrapper, 'Télécharger').trigger('click');
+        await settle();
+
+        expect(findButton(wrapper, 'Télécharger')).toBeUndefined();
+        expect(findButton(wrapper, 'Téléchargement…').attributes('disabled')).toBeDefined();
+    });
+
+    it('shows the existing alert on failure and leaves "Télécharger" usable', async () => {
+        vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false })));
+        const wrapper = mountCreated();
+
+        await findButton(wrapper, 'Télécharger').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[role="alert"]').text()).toBe('Export PDF impossible pour l\'instant, merci de réessayer.');
+        expect(findButton(wrapper, 'Télécharger').attributes('disabled')).toBeUndefined();
+    });
+
+    it('renders a disabled "Télécharger" button and no download link for an imported document whose source is missing', () => {
+        const wrapper = mount(Show, {
+            props: { document: makeDocument(), sourceMissing: true },
+            global: { stubs: globalStubs },
+        });
+
+        expect(findButton(wrapper, 'Télécharger').attributes('disabled')).toBeDefined();
+        expect(wrapper.find('a[href="/documents/7/download"]').exists()).toBe(false);
+    });
+});
+
 describe('Documents/Show — mode modification des tags', () => {
     beforeEach(() => {
         router.patch.mockClear();
+    });
+
+    it('shows the Tags row with the TagSelector when editing a document that has no tag', async () => {
+        const wrapper = mountShow({ tags: [] });
+        expect(wrapper.text()).not.toContain('Tags :');
+
+        await enterEditMode(wrapper);
+
+        expect(wrapper.text()).toContain('Tags :');
+        expect(wrapper.findComponent(TagSelector).exists()).toBe(true);
     });
 
     it('holds several selections locally, then sends them in a single PATCH on "Enregistrer" and returns to consultation', async () => {

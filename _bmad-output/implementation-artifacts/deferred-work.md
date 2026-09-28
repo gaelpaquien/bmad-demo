@@ -317,3 +317,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-refonte-page-consultation-document.md`
   summary: Sur un écran très étroit, l'en-tête de `Show.vue` (titre + actions `shrink-0`, sans `flex-wrap`) peut déborder horizontalement pour un document créé (4 boutons) — le titre se réduit à zéro et les actions sortent de la vue.
   evidence: Blind Hunter + Edge Case Hunter (step-04 review) — préexistant : l'ancienne barre d'actions (`flex gap-3`, sans wrap) débordait déjà de la même façon ; l'intention validée impose un en-tête « sur une ligne » sans menu « ⋯ », donc corriger (retour à la ligne responsive ou regroupement) demande une décision de design.
+
+- source_spec: none
+  summary: Refonte de l'import en formulaire unique — fichier retirable/remplaçable, tags et pièces jointes dès la création, bouton « Annuler », traitement (création du document + extraction de texte) lancé uniquement au clic sur « Enregistrer » (remplace l'étape de revue `flash.uploadedDocument` / `?redirect=import|show`).
+  evidence: Séparé du lot « ajustements UI consultation/éditeur » (2026-09-28) — livrable indépendant touchant le backend (`DocumentController::store()`, `ImportDocumentAction`, pièces jointes en brouillon) et ses tests ; décisions déjà validées : le titre reste le nom du fichier, ajout d'un bouton « Annuler » sur la page d'import.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ajustements-consultation-editeur.md`
+  summary: `AttachmentsPanel.vue` émet toujours `before-request`/`after-request` et ses commentaires (L.16, L.57-67) décrivent encore la garde de navigation de l'éditeur, alors qu'`Editor.vue` n'écoute plus ces événements depuis la suppression de la confirmation de sortie — API morte et commentaires obsolètes à retirer.
+  evidence: Blind Hunter + Verification Gap (step-04 review) — la spec plaçait `AttachmentsPanel.vue` en « Ask First », donc le composant n'a pas été modifié ; les émissions sont inoffensives mais n'ont plus aucun consommateur.

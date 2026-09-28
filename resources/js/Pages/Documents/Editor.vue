@@ -1,5 +1,5 @@
 <script setup>
-import { router, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import { Table } from '@tiptap/extension-table';
@@ -7,7 +7,7 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import TableRow from '@tiptap/extension-table-row';
 import Image from '@tiptap/extension-image';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { nextTick, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
@@ -50,9 +50,8 @@ const form = useForm({
 // Pièces jointes (spec-3-3, FR13) — mirrors props.document.tags above:
 // pre-loaded for an existing document (DocumentController::edit()), empty
 // for a brand-new draft. Deliberately its own ref, never folded into
-// `form`/`snapshotCurrentState()`/isDirty (Boundaries & Constraints:
-// "ajout/retrait ne touche jamais content_html ni isDirty") — attaching or
-// detaching a file is never part of what makes this editor "dirty".
+// `form` (Boundaries & Constraints: "ajout/retrait ne touche jamais
+// content_html").
 const attachments = ref(props.document?.attachments ?? []);
 
 // Immediate mode only (an already-saved document): AttachmentsPanel's own
@@ -83,56 +82,9 @@ const isAttachmentUploading = ref(false);
 
 const titleInputRef = ref(null);
 
-// Tracks the editor's current HTML outside of TipTap itself so it can be
-// compared reactively against the snapshot below — TipTap's own state
-// isn't reactive to Vue on its own.
+// Tracks the editor's current HTML outside of TipTap itself — submit()'s
+// fallback should the editor instance be unavailable.
 const currentContentHtml = ref(form.content_html);
-
-// Set once, right after the editor mounts (onCreate below), to the
-// title/content/tags the form actually started from — comparing
-// against a live loaded state rather than a mutation counter avoids a
-// false "dirty" positive from e.g. a click into the editor that changes
-// nothing (Design Notes, spec-2-3). Null until then, during which isDirty
-// stays false: nothing typed yet is nothing to lose.
-const initialSnapshot = ref(null);
-
-function snapshotCurrentState() {
-    return {
-        title: form.title,
-        contentHtml: currentContentHtml.value,
-        tagIds: form.tag_ids,
-    };
-}
-
-// Order-insensitive comparison — reselecting the same set of tags in a
-// different order (remove then re-add, say) is not a real change.
-function sameTagIds(a, b) {
-    if (a.length !== b.length) {
-        return false;
-    }
-
-    const sortedA = [...a].sort((x, y) => x - y);
-    const sortedB = [...b].sort((x, y) => x - y);
-
-    return sortedA.every((value, index) => value === sortedB[index]);
-}
-
-// Discreet "unsaved changes" indicator on the Save button (Boundaries &
-// Constraints, spec-2-3) — compares the live title/content/tags against
-// the snapshot taken when the editor became ready, not an edit counter, so
-// an edit that's undone back to the original state doesn't stay flagged
-// dirty forever.
-const isDirty = computed(() => {
-    if (!initialSnapshot.value) {
-        return false;
-    }
-
-    const current = snapshotCurrentState();
-
-    return current.title !== initialSnapshot.value.title
-        || current.contentHtml !== initialSnapshot.value.contentHtml
-        || !sameTagIds(current.tagIds, initialSnapshot.value.tagIds);
-});
 
 // Existing content must be loaded into TipTap before typing is allowed
 // (Boundaries & Constraints, spec-2-3) — `editable` starts false only when
@@ -172,7 +124,6 @@ const editor = useEditor({
     },
     onCreate: ({ editor: mountedEditor }) => {
         currentContentHtml.value = mountedEditor.getHTML();
-        initialSnapshot.value = snapshotCurrentState();
 
         if (!mountedEditor.isEditable) {
             mountedEditor.setEditable(true);
@@ -190,51 +141,6 @@ const editor = useEditor({
 // document is what it's called.
 onMounted(() => {
     titleInputRef.value?.focus();
-    window.addEventListener('beforeunload', onBeforeUnload);
-});
-
-// --- Garde contre la perte de modifications non enregistrées (spec-2-3) ----
-//
-// Two exit paths exist: an Inertia navigation (a <Link>, a browser
-// back/forward the client intercepts, or this very page's own save/upload
-// requests — router.post()/form.patch() are visits too) and closing the
-// tab/browser outright, which Inertia's router never sees. Both are guarded
-// the same way — confirm if isDirty, otherwise let it through — but the
-// save and image-upload requests below are this component's own doing, not
-// the user trying to leave, so `programmaticNavigation` lets them bypass
-// the confirmation entirely rather than asking the user to confirm leaving
-// a page they never asked to leave. AttachmentsPanel's own immediate-mode
-// attach/detach requests are the same kind of self-inflicted visit
-// (retrospective Epic 3, action item 7) — its `before-request`/
-// `after-request` emits, wired below on the panel's own mount, bracket this
-// same flag around those requests too.
-let programmaticNavigation = false;
-
-const unregisterNavigationGuard = router.on('before', (event) => {
-    if (programmaticNavigation || !isDirty.value) {
-        return;
-    }
-
-    if (!window.confirm('Des modifications non enregistrées seront perdues si vous quittez cette page. Voulez-vous continuer ?')) {
-        event.preventDefault();
-    }
-});
-
-function onBeforeUnload(event) {
-    if (!isDirty.value) {
-        return;
-    }
-
-    // Both are required for the confirmation prompt to appear across
-    // browsers — the string itself is never actually shown (browsers use
-    // their own generic wording), but a value must still be set.
-    event.preventDefault();
-    event.returnValue = '';
-}
-
-onBeforeUnmount(() => {
-    window.removeEventListener('beforeunload', onBeforeUnload);
-    unregisterNavigationGuard();
 });
 
 function insertTable() {
@@ -357,14 +263,9 @@ function uploadPendingImage() {
     isUploadingImage.value = true;
     imageDialogError.value = '';
 
-    // A background round-trip, never a real navigation away from the
-    // editor (Design Notes, spec-2-2) — bypasses the unsaved-changes guard
-    // above for the same reason (it's this component's own request, not
-    // the user trying to leave). The upload endpoint itself is shared
-    // as-is between create and edit (Boundaries & Constraints, spec-2-3) —
-    // draftToken alone keys where the file lands and, later, which prefix
-    // the sanitizer allows it under.
-    programmaticNavigation = true;
+    // The upload endpoint itself is shared as-is between create and edit
+    // (Boundaries & Constraints, spec-2-3) — draftToken alone keys where the
+    // file lands and, later, which prefix the sanitizer allows it under.
     router.post('/documents/create/images', {
         draft_token: draftToken,
         image: pendingImageFile.value,
@@ -390,7 +291,6 @@ function uploadPendingImage() {
             isUploadingImage.value = false;
         },
     });
-    programmaticNavigation = false;
 }
 
 function onImageDialogKeydown(event) {
@@ -494,36 +394,20 @@ function submit() {
         original_filename: attachment.original_filename,
     }));
 
-    const options = {
-        onSuccess: () => {
-            // The save succeeded and content_html/tag_ids now match what's
-            // persisted — re-baseline so isDirty drops back to false rather
-            // than staying stuck true from the comparison above (relevant
-            // mainly if the redirect result is ever rendered as this same
-            // component instance).
-            initialSnapshot.value = snapshotCurrentState();
-        },
-        onError: () => {
-            // Validation errors (e.g. an empty title) surface inline via
-            // form.errors below — the drafted content and tag choices are
-            // left untouched so the user can fix the title and retry.
-        },
-    };
-
-    // This is the editor's own intentional save request, not the user
-    // trying to leave — bypasses the unsaved-changes navigation guard
-    // above rather than asking them to confirm leaving the very page they
-    // asked to save.
-    programmaticNavigation = true;
-
+    // Validation errors (e.g. an empty title) surface inline via
+    // form.errors below — the drafted content and tag choices are left
+    // untouched so the user can fix the title and retry.
     if (props.document) {
-        form.patch(`/documents/${props.document.id}`, options);
+        form.patch(`/documents/${props.document.id}`);
     } else {
-        form.post('/documents/create', options);
+        form.post('/documents/create');
     }
-
-    programmaticNavigation = false;
 }
+
+// "Annuler" abandons the session with no request and no confirmation
+// (spec-ajustements-consultation-editeur): back to the document when
+// editing one, back to the list when drafting a new one.
+const cancelUrl = props.document ? `/documents/${props.document.id}` : '/documents';
 </script>
 
 <template>
@@ -665,33 +549,37 @@ function submit() {
                     :mode="props.document ? 'immediate' : 'draft'"
                     :document-id="props.document?.id ?? null"
                     :draft-token="draftToken"
-                    @before-request="programmaticNavigation = true"
-                    @after-request="programmaticNavigation = false"
                 />
             </div>
 
             <div class="mt-6 flex items-center gap-3">
-                <span class="relative inline-flex">
-                    <button
-                        type="button"
-                        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                        :disabled="form.processing || isAttachmentUploading"
-                        @click="onSaveClick"
-                    >
-                        {{ form.processing ? 'Enregistrement…' : (isAttachmentUploading ? 'Envoi de la pièce jointe…' : 'Enregistrer') }}
-                    </button>
-                    <!-- Discreet "unsaved changes" pastille (Boundaries & Constraints,
-                         spec-2-3) — decorative only, the adjacent text carries the
-                         same information for assistive tech. -->
-                    <span
-                        v-if="isDirty"
-                        class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-background"
-                        aria-hidden="true"
-                    ></span>
-                </span>
-                <span v-if="isDirty" class="text-sm text-muted">
-                    Modifications non enregistrées
-                </span>
+                <button
+                    type="button"
+                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                    :disabled="form.processing || isAttachmentUploading"
+                    @click="onSaveClick"
+                >
+                    {{ form.processing ? 'Enregistrement…' : (isAttachmentUploading ? 'Envoi de la pièce jointe…' : 'Enregistrer') }}
+                </button>
+                <!-- Swapped for an inert button while a save or an upload is
+                     in flight (leaving would abort that Inertia visit):
+                     Inertia's <Link> overrides any click listener passed to
+                     it, so it can't be disabled in place. -->
+                <button
+                    v-if="form.processing || isAttachmentUploading || isUploadingImage"
+                    type="button"
+                    disabled
+                    class="cursor-not-allowed rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground opacity-50"
+                >
+                    Annuler
+                </button>
+                <Link
+                    v-else
+                    :href="cancelUrl"
+                    class="rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                >
+                    Annuler
+                </Link>
             </div>
         </div>
 
