@@ -9,7 +9,7 @@ updated: 2026-08-31
 
 ## Résumé exécutif
 
-bmad-demo est une base de connaissance interne qui réunit en un seul endroit les documents existants (PDF, Word, Excel...) et permet d'en créer de nouveaux directement dans l'outil, exportables ensuite au format PDF ou Word. Aujourd'hui, la documentation interne est éparpillée un peu partout — aucun outil ne centralise l'existant ni ne facilite la création de nouveaux contenus. bmad-demo démarre volontairement petit : un outil local, pour une poignée d'utilisateurs, dont la vocation est de prouver son utilité avant d'envisager toute évolution.
+bmad-demo est une base de connaissance interne qui réunit en un seul endroit les documents existants (PDF, Word, Excel...) et permet d'en créer de nouveaux directement dans l'outil, exportables ensuite au format PDF. Aujourd'hui, la documentation interne est éparpillée un peu partout — aucun outil ne centralise l'existant ni ne facilite la création de nouveaux contenus. bmad-demo démarre volontairement petit : un outil local, pour une poignée d'utilisateurs, dont la vocation est de prouver son utilité avant d'envisager toute évolution.
 
 ## Le problème
 
@@ -20,7 +20,7 @@ Les documents internes sont dispersés (fichiers locaux, échanges, dossiers div
 bmad-demo offre deux usages complémentaires dès la première version :
 
 - **Déposer et consulter** les documents existants (PDF, Word, Excel...) : import dans l'outil, prévisualisation rapide dans le navigateur, et téléchargement du fichier original à tout moment.
-- **Créer et exporter** des documents directement depuis l'outil, avec export vers PDF et Word pour pouvoir les partager ou les utiliser hors de l'outil.
+- **Créer et exporter** des documents directement depuis l'outil, avec export vers PDF pour pouvoir les partager ou les utiliser hors de l'outil.
 
 `[ASSUMPTION]` La v1 tourne en local sur le poste de l'utilisateur via Laravel Herd, sans se préoccuper pour l'instant d'hébergement partagé, d'authentification multi-utilisateurs ou d'accès distant — ces questions seront traitées si et quand l'outil doit grandir au-delà d'un usage local.
 
@@ -43,7 +43,7 @@ Utilisateurs initiaux : un petit groupe de 2 à 3 personnes en interne, qui alim
 **Dans la v1 :**
 - Import de documents existants (PDF, Word, Excel) avec prévisualisation dans le navigateur et téléchargement du fichier original.
 - Création de documents directement dans l'outil.
-- Export des documents créés vers PDF et Word.
+- Export des documents créés vers PDF (l'export Word, initialement prévu, a été retiré le 2026-09-28).
 - Organisation minimale des documents (de quoi retrouver un document sans recherche avancée).
 
 **Explicitement hors v1 :**
@@ -51,7 +51,7 @@ Utilisateurs initiaux : un petit groupe de 2 à 3 personnes en interne, qui alim
 - Agent IA (via MCP) permettant d'interroger la base en langage naturel — idée à explorer plus tard, non prioritaire.
 - Authentification/permissions avancées, hébergement partagé, accès multi-postes ou distant.
 
-`[ASSUMPTION]` L'usage de librairies ou modules open-source existants est privilégié dès que cela fait gagner du temps sans imposer de contrainte lourde sur la stack (Laravel), en particulier pour la prévisualisation des fichiers Office et la génération d'export PDF/Word.
+`[ASSUMPTION]` L'usage de librairies ou modules open-source existants est privilégié dès que cela fait gagner du temps sans imposer de contrainte lourde sur la stack (Laravel), en particulier pour la prévisualisation des fichiers Office et la génération d'export PDF.
 
 ## Vision
 

@@ -188,7 +188,7 @@ Inchangé : `rounded.sm` (4px) pour les champs de saisie et badges, `rounded.md`
 - **Panneau de pièces jointes** *(nouveau)* — fond `{colors.surface}`, bordure `{colors.border}`, `{rounded.md}`. Panneau latéral rétractable dans l'Éditeur, visuellement distinct du corps WYSIWYG. Liste les pièces jointes (badge type + nom + action retirer), zone d'ajout en pied de panneau. Référence visuelle : [`mockups/key-editeur.html`](mockups/key-editeur.html).
 - **Zone d'import** — fond `{colors.surface}`, bordure pointillée `{colors.border}`, `{rounded.md}`. Réutilisée à l'identique pour l'ajout de pièces jointes.
 - **Panneau de prévisualisation** — fond `{colors.background}`, bordure `{colors.border}`, `{rounded.md}`, sans ombre. Cadre neutre autour du PDF natif ou du contenu converti.
-- **Boutons Export** — réutilisent les tokens existants, pas un nouveau composant : "Exporter en PDF" utilise `button-primary`, "Exporter en Word" utilise `button-secondary`.
+- **Bouton Export** — réutilise les tokens existants, pas un nouveau composant : "Exporter" (génère un PDF) utilise `button-primary`. L'export Word a été retiré le 2026-09-28.
 
 ## Do's and Don'ts
 

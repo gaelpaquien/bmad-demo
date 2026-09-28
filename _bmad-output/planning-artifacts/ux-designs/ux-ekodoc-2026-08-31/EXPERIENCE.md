@@ -29,7 +29,7 @@ updated: 2026-09-28
 | Bibliothèque (accueil) | Ouverture de l'app, ou clic "Bibliothèque" dans la sidebar | Listing paginé (20/page) de tous les documents (importés et créés), filtres tag + type (FR2, FR3, FR7). Plus de barre de recherche intégrée — la recherche fulltexte vit sur la surface Recherche. Maquette : [`mockups/key-bibliotheque.html`](mockups/key-bibliotheque.html). |
 | Recherche | Clic "Recherche" dans la sidebar | Recherche fulltexte sur le contenu des documents, pièces jointes incluses (FR6, FR13), affinée par un filtre tag (pas de filtre type ici — le type reste un filtre de navigation propre à la Bibliothèque). Maquette : [`mockups/key-recherche.html`](mockups/key-recherche.html). |
 | Fiche document | Clic sur une ligne de document (Bibliothèque ou résultat de Recherche) | Prévisualisation, métadonnées, tags (modifiables), pièces jointes (consultation/téléchargement si document créé, FR13), téléchargement de l'original, accès à l'édition si le document a été créé dans l'outil (FR3, FR4, FR5). Construite depuis les tables seules — pas de maquette (décision explicite, voir `.memlog.md`). |
-| Éditeur | Bouton "Créer un document" (Bibliothèque) ou "Modifier" (Fiche document) | Rédaction WYSIWYG, insertion d'images inline, panneau latéral de pièces jointes (FR13), sauvegarde, export PDF/Word (FR8–FR12). Maquette : [`mockups/key-editeur.html`](mockups/key-editeur.html). |
+| Éditeur | Bouton "Créer un document" (Bibliothèque) ou "Modifier" (Fiche document) | Rédaction WYSIWYG, insertion d'images inline, panneau latéral de pièces jointes (FR13), sauvegarde, export PDF (FR8–FR11). Maquette : [`mockups/key-editeur.html`](mockups/key-editeur.html). |
 | Configuration | Clic "Configuration" dans la sidebar | Gestion des tags : créer, renommer, supprimer (FR14). Maquette : [`mockups/key-configuration.html`](mockups/key-configuration.html). |
 
 Import (FR1) n'est pas une surface séparée : c'est une modale ouverte depuis la Bibliothèque (glisser-déposer ou sélection de fichier), qui se referme sur la Fiche document du fichier importé.
@@ -67,7 +67,7 @@ Comportemental — les specs visuelles sont dans `DESIGN.md.Components`.
 | Panneau de prévisualisation | Fiche document | PDF affiché nativement dans le navigateur — perçu comme quasi instantané. Word/Excel affichés via la conversion prévue en FR4, avec état de chargement explicite (voir § State Patterns). |
 | Barre d'outils éditeur | Éditeur | Mise en forme (titres, listes, tableaux) et bouton "Insérer une image" qui insère l'image à l'emplacement du curseur (FR8, FR9). `[ASSUMPTION]` Glisser-déposer une image directement dans le corps du texte est accepté en plus du bouton. |
 | Action Enregistrer (éditeur) | Éditeur | Clic sur "Enregistrer" fait apparaître le sélecteur de tags (si pas déjà renseigné), puis intègre le document à la Bibliothèque avec les mêmes propriétés de classement et de recherche qu'un document importé (FR10). |
-| Boutons Export (PDF/Word) | Éditeur | Deux actions distinctes et visibles : "Exporter en PDF" (bouton primaire) et "Exporter en Word" (bouton secondaire) — voir `DESIGN.md.Components` (FR11, FR12). |
+| Bouton Export | Fiche document (document créé) | Une seule action visible, "Exporter" (bouton primaire), qui génère toujours un PDF — voir `DESIGN.md.Components` (FR11). L'export Word (FR12) a été retiré le 2026-09-28. |
 | Gestion des tags | Configuration | Liste des tags existants, actions créer/renommer/supprimer inline (FR14). Suppression toujours confirmée par une boîte de dialogue nommant le nombre de documents concernés (voir § Interaction Primitives) — détache le tag des documents, ne supprime jamais les documents eux-mêmes. |
 
 ## State Patterns
@@ -138,9 +138,9 @@ Comportemental — le contraste visuel est dans `DESIGN.md` (aucune validation d
 3. Elle clique "Insérer une image" à l'endroit précis où elle veut illustrer une étape — l'image s'insère entre les deux blocs de texte, à la position du curseur (FR9).
 4. Elle continue à rédiger après l'image ; la mise en page reste stable.
 5. Elle clique "Enregistrer" : le sélecteur de tags apparaît, elle tape "proc", la suggestion "Procédures" apparaît et elle la sélectionne — le document rejoint la Bibliothèque avec les mêmes propriétés de classement et de recherche qu'un document importé (FR10).
-6. **Climax** : elle clique "Exporter en PDF" (FR11) puis ouvre le fichier généré — l'image est exactement à sa place entre les deux paragraphes, comme dans l'éditeur (NFR5).
+6. **Climax** : elle clique "Exporter" (FR11) puis ouvre le fichier généré — l'image est exactement à sa place entre les deux paragraphes, comme dans l'éditeur (NFR5).
 
-Échec : l'export Word place l'image à un mauvais endroit (bug de mapping HTML → `.docx`) → message d'erreur explicite proposant de réessayer, jamais un fichier silencieusement dégradé livré sans avertissement.
+Échec : la génération du PDF échoue → message d'erreur explicite proposant de réessayer, jamais un fichier silencieusement dégradé livré sans avertissement.
 
 ### Flow 4 — Compléter un document et nettoyer les tags (Camille, vendredi après-midi)
 

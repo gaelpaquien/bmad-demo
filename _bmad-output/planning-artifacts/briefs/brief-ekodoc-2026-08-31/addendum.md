@@ -37,7 +37,7 @@ Ce document conserve le détail qui ne trouve pas sa place dans le brief mais re
 - Prévisualisation PDF : PDF.js.
 - Prévisualisation Word/Excel : conversion via LibreOffice headless / Gotenberg, ou libs JS dédiées (ex. docx-preview, sheetjs pour Excel).
 - Génération/export PDF depuis contenu créé dans l'outil : rendu HTML → PDF (ex. wkhtmltopdf, Dompdf côté PHP/Laravel, ou service headless Chromium).
-- Génération/export Word : bibliothèques PHP de génération `.docx` (ex. PHPWord) à valider selon la fidélité de mise en forme attendue.
+- Génération/export Word : bibliothèques PHP de génération `.docx` (ex. PHPWord) à valider selon la fidélité de mise en forme attendue. *(Export Word implémenté puis retiré le 2026-09-28 — seul l'export PDF est conservé.)*
 
 Ces pistes sont indicatives — à confirmer lors du passage à l'architecture (`bmad-architecture`), pas figées ici.
 

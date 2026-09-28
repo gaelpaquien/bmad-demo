@@ -7,8 +7,8 @@ paradigm: 'Thin Controller -> Action -> DTO -> Eloquent Model'
 scope: 'bmad-demo v1 complet - import, bibliotheque, recherche, edition WYSIWYG, export'
 status: final
 created: '2026-08-31'
-updated: '2026-09-09'
-binds: [FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14, NFR1, NFR2, NFR3, NFR4, NFR5]
+updated: '2026-09-28'
+binds: [FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR8, FR9, FR10, FR11, FR13, FR14, NFR1, NFR2, NFR3, NFR4, NFR5]
 sources:
   - '../../briefs/brief-bmad-demo-2026-08-31/brief.md'
   - '../../briefs/brief-bmad-demo-2026-08-31/addendum.md'
@@ -55,7 +55,7 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 
 - **Binds:** all
 - **Prevents:** deux Actions qui se recouvrent partiellement (ex. une `SaveDocumentAction` générique ET une `CreateDocumentAction` séparée) ou une Action qui fait plusieurs choses non liées.
-- **Rule:** chaque Action porte un nom `{Verbe}{Entité}Action` (ex. `ImportDocumentAction`, `CreateTagAction`, `ExportDocumentToWordAction`), a une seule méthode publique `__invoke(DTO $data): mixed`, et ne connaît pas Inertia/HTTP (testable sans requête).
+- **Rule:** chaque Action porte un nom `{Verbe}{Entité}Action` (ex. `ImportDocumentAction`, `CreateTagAction`, `ExportDocumentToPdfAction`), a une seule méthode publique `__invoke(DTO $data): mixed`, et ne connaît pas Inertia/HTTP (testable sans requête).
 
 ### AD-3 — DTO en frontière de chaque Action `[ADOPTED]`
 
@@ -112,11 +112,11 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 - **Prevents:** un export PDF qui recalcule la position des images séparément du rendu écran, réintroduisant le risque de décalage que NFR5 interdit explicitement.
 - **Rule:** `ExportDocumentToPdfAction` rend une vue Blade du contenu TipTap (le même HTML que l'éditeur affiche) et la convertit via `spatie/browsershot` (Chromium headless réel). Aucune génération PDF alternative (pas de `dompdf`/`wkhtmltopdf`) pour ce chemin.
 
-### AD-12 — Export Word : best-effort documenté, pas garanti au niveau du PDF `[ADOPTED]`
+### AD-12 — `[REMOVED 2026-09-28]`
 
-- **Binds:** FR12, NFR5
-- **Prevents:** une attente implicite de parité totale PDF/Word sur la fidélité image, alors que le mapping HTML→OOXML ne le permet pas nativement — évite qu'un builder traite un échec de positionnement Word comme un bug au lieu d'une limite connue.
-- **Rule:** `ExportDocumentToWordAction` utilise `phpoffice/phpword` (import HTML). Un échec de positionnement d'image en sortie Word est un **risque assumé**, pas un défaut à corriger en priorité — traitement conforme au cas d'échec déjà écrit dans `EXPERIENCE.md` § Flow 3 (message d'erreur explicite, jamais un fichier dégradé livré sans avertissement). Décision produit explicite (voir `.memlog.md`) : cette AD restreint la garantie "critique, pas secondaire" du NFR5 au format PDF (AD-11) ; le Word reste soumis à NFR5 en intention — jamais un échec silencieux — mais pas en garantie de résultat identique au PDF.
+- **Binds:** — (retiré)
+- **Prevents:** — (retiré)
+- **Rule:** — (retiré). L'export Word (FR12, `ExportDocumentToWordAction`, écriture `.docx` via `phpoffice/phpword`) est supprimé : un document créé ne s'exporte plus qu'en PDF (AD-11), via une action unique « Exporter ». `phpoffice/phpword` reste utilisé en lecture pour l'extraction de texte (AD-9). ID conservé pour traçabilité, jamais réattribué à une nouvelle décision.
 
 ### AD-13 — Pas de couche API JSON `[ADOPTED]`
 
@@ -127,8 +127,8 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 ### AD-14 — Images insérées dans l'éditeur : fichier + route, jamais inline `[ADOPTED]`
 
 - **Binds:** FR9, NFR5
-- **Prevents:** une image encodée en base64 directement dans `content_html`, qui grossit la base de données, empêche AD-11/AD-12 de résoudre proprement une référence `<img>` à l'export, et n'offre aucun emplacement structuré pour capturer un texte alternatif.
-- **Rule:** `UploadEditorImageAction` stocke chaque image insérée sur `storage/app/private/documents/{document_id}/images/{uuid}.{ext}`, servie via une route applicative dédiée (jamais le disque `public`, cohérent avec AD-7). `content_html` référence l'image par cette route, jamais par une donnée encodée inline. Le texte alternatif obligatoire (`EXPERIENCE.md` § Accessibility Floor) est un attribut `alt` capturé à l'insertion. `ExportDocumentToPdfAction` (AD-11) et `ExportDocumentToWordAction` (AD-12) résolvent ces images par leur chemin de fichier disque, jamais par l'URL HTTP, pour rester fonctionnels hors requête web.
+- **Prevents:** une image encodée en base64 directement dans `content_html`, qui grossit la base de données, empêche AD-11 de résoudre proprement une référence `<img>` à l'export, et n'offre aucun emplacement structuré pour capturer un texte alternatif.
+- **Rule:** `UploadEditorImageAction` stocke chaque image insérée sur `storage/app/private/documents/{document_id}/images/{uuid}.{ext}`, servie via une route applicative dédiée (jamais le disque `public`, cohérent avec AD-7). `content_html` référence l'image par cette route, jamais par une donnée encodée inline. Le texte alternatif obligatoire (`EXPERIENCE.md` § Accessibility Floor) est un attribut `alt` capturé à l'insertion. `ExportDocumentToPdfAction` (AD-11) résout ces images par leur chemin de fichier disque, jamais par l'URL HTTP, pour rester fonctionnels hors requête web.
 
 ### AD-15 — Suppression définitive et nettoyage complet `[ADOPTED]`
 
@@ -168,7 +168,6 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 | FR8 — Éditeur WYSIWYG | `resources/js/Pages/Editor.vue` (TipTap) | Stack |
 | FR9 — Images inline | `Actions/Document/UploadEditorImageAction` | AD-14 |
 | FR11 — Export PDF | `Actions/Document/ExportDocumentToPdfAction` | AD-11 |
-| FR12 — Export Word | `Actions/Document/ExportDocumentToWordAction` | AD-12 |
 | FR6/FR13 — Pièces jointes (document créé) & leur recherche | `Actions/Document/AttachDocumentFileAction`, `Actions/Document/DetachDocumentFileAction`, `Models/DocumentAttachment`, `Http/Controllers/DocumentAttachmentController` (`preview`/`download`), `Http/Requests/AttachDocumentFileRequest`, `DataTransferObjects/AttachDocumentFileData` | AD-17 |
 | FR14 — Configuration des tags | `Http/Controllers/TagController`, `Actions/Tag/CreateTagAction`, `RenameTagAction`, `DeleteTagAction` | AD-18 |
 | Suppression document | `Actions/Document/DeleteDocumentAction` | AD-15, AD-17 |

@@ -2,14 +2,14 @@
 title: PRD bmad-demo
 status: final
 created: 2026-08-31
-updated: 2026-09-09
+updated: 2026-09-28
 ---
 
 # PRD : bmad-demo
 
 ## Contexte
 
-Les documents internes sont aujourd'hui éparpillés, sans point d'accès unique. bmad-demo centralise l'existant (PDF, Word, Excel...) et permet d'en créer de nouveaux directement dans l'outil, exportables ensuite en PDF/Word. Périmètre de départ volontairement restreint : usage **solo**, en local (Laravel Herd), sur un corpus d'environ **350 documents** existants à terme. Voir le brief associé (`../../briefs/brief-bmad-demo-2026-08-31/brief.md`) pour le contexte produit complet.
+Les documents internes sont aujourd'hui éparpillés, sans point d'accès unique. bmad-demo centralise l'existant (PDF, Word, Excel...) et permet d'en créer de nouveaux directement dans l'outil, exportables ensuite en PDF. Périmètre de départ volontairement restreint : usage **solo**, en local (Laravel Herd), sur un corpus d'environ **350 documents** existants à terme. Voir le brief associé (`../../briefs/brief-bmad-demo-2026-08-31/brief.md`) pour le contexte produit complet.
 
 ## Parcours type
 
@@ -46,7 +46,7 @@ Deux usages concrets couvrent la v1 :
 - **FR9** — Insérer des images à la volée entre des blocs de texte pendant la rédaction (pas seulement en pièce jointe en fin de document) — usage clé pour de la documentation illustrée.
 - **FR10** — Enregistrer un document créé dans la base, avec les mêmes propriétés de classement/recherche qu'un document importé (FR2, FR3, FR6, FR7 s'appliquent aussi aux documents créés).
 - **FR11** — Exporter un document créé vers PDF, en conservant fidèlement la position et le rendu des images insérées (FR9).
-- **FR12** — Exporter un document créé vers Word (`.docx`), en conservant fidèlement la position et le rendu des images insérées (FR9).
+- **FR12** — *Retirée (2026-09-28).* L'export Word (`.docx`) a été supprimé : un document créé ne s'exporte plus qu'en PDF (FR11), via une action unique « Exporter ».
 
 ### Pièces jointes & configuration
 
@@ -59,7 +59,7 @@ Deux usages concrets couvrent la v1 :
 - **NFR2** — Recherche fulltexte en moins d'1 seconde sur un corpus de l'ordre de 350 documents (cible indicative, pas un SLA) ; pas d'exigence de performance à plus grande échelle pour la v1.
 - **NFR3** — Aucune authentification ni gestion de rôles requise pour la v1 (cohérent avec l'usage mono-utilisateur).
 - **NFR4** — Formats supportés en priorité : PDF, `.docx`, `.xlsx`. `[ASSUMPTION]` Les formats hérités (`.doc`, `.xls`) ne sont pas prioritaires sauf besoin identifié en cours de route.
-- **NFR5** — La fidélité d'export (WYSIWYG → PDF/Word) doit rester raisonnable pour un usage interne, sans viser une fidélité pixel-perfect — **à l'exception des images inline (FR9)**, dont la position et le rendu dans le texte sont un point de fidélité critique, pas secondaire (voir pièges connus en `addendum.md`).
+- **NFR5** — La fidélité d'export (WYSIWYG → PDF) doit rester raisonnable pour un usage interne, sans viser une fidélité pixel-perfect — **à l'exception des images inline (FR9)**, dont la position et le rendu dans le texte sont un point de fidélité critique, pas secondaire (voir pièges connus en `addendum.md`).
 
 ## Métriques de succès
 

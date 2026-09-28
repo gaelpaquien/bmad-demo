@@ -29,7 +29,7 @@ FR8: Créer un document via un éditeur WYSIWYG (titres, listes, tableaux, image
 FR9: Insérer des images à la volée entre des blocs de texte pendant la rédaction (pas seulement en pièce jointe finale).
 FR10: Enregistrer un document créé dans la base, avec les mêmes propriétés de classement/recherche qu'un document importé (FR2, FR3, FR6, FR7 s'appliquent aussi aux documents créés).
 FR11: Exporter un document créé vers PDF, en conservant fidèlement la position et le rendu des images insérées (FR9).
-FR12: Exporter un document créé vers Word (`.docx`), en conservant fidèlement la position et le rendu des images insérées (FR9).
+FR12: *Retirée (2026-09-28).* L'export Word (`.docx`) a été supprimé ; un document créé ne s'exporte plus qu'en PDF (FR11).
 FR13: Associer un ou plusieurs fichiers (PDF, Word, Excel) à un document créé, indépendamment du contenu rédigé dans l'éditeur WYSIWYG (FR8) : ajout, prévisualisation/téléchargement individuel et retrait, sans affecter le contenu de l'éditeur. Le contenu de chaque pièce jointe est indexé pour la recherche fulltexte (FR6) au même titre qu'un document importé (FR1).
 FR14: Gérer les tags (créer, renommer, supprimer) depuis une page de configuration dédiée. La suppression d'un tag le détache de tous les documents associés, sans jamais supprimer les documents eux-mêmes.
 
@@ -39,7 +39,7 @@ NFR1: Fonctionne en local via Laravel Herd, sans dépendance à une infrastructu
 NFR2: Recherche fulltexte en moins d'1 seconde sur un corpus de l'ordre de 350 documents (cible indicative, pas un SLA) ; pas d'exigence de performance à plus grande échelle pour la v1.
 NFR3: Aucune authentification ni gestion de rôles requise pour la v1 (usage mono-utilisateur).
 NFR4: Formats supportés en priorité : PDF, `.docx`, `.xlsx` (formats hérités `.doc`/`.xls` non prioritaires en v1 sauf besoin identifié en cours de route).
-NFR5: La fidélité d'export (WYSIWYG → PDF/Word) doit rester raisonnable sans viser le pixel-perfect — à l'exception des images inline (FR9), dont la position/rendu est un point de fidélité critique (particulièrement garanti pour le PDF, cf. AD-11/AD-12).
+NFR5: La fidélité d'export (WYSIWYG → PDF) doit rester raisonnable sans viser le pixel-perfect — à l'exception des images inline (FR9), dont la position/rendu est un point de fidélité critique (cf. AD-11).
 
 ### Additional Requirements
 
@@ -54,7 +54,7 @@ NFR5: La fidélité d'export (WYSIWYG → PDF/Word) doit rester raisonnable sans
 - Extraction de texte best-effort (`smalot/pdfparser` pour PDF, `phpoffice/phpword`/`phpoffice/phpspreadsheet` pour Word/Excel) via `ExtractDocumentTextJob` : un échec n'interrompt jamais l'import/l'attachement, seulement `extraction_status = failed` et `extracted_text = NULL` (pas d'OCR en v1). Pour les documents créés, `extracted_text` est dérivé automatiquement et de façon synchrone de `content_html` à chaque sauvegarde (`extraction_status = completed` immédiatement) — jamais mis en file d'attente pour un document créé (AD-9).
 - Prévisualisation Office (Word/Excel importés) via conversion à la demande `soffice --headless --convert-to pdf` (LibreOffice CLI), résultat mis en cache sur `storage/app/private/previews/{document_id}.pdf`, invalidé uniquement par suppression/ré-import. PDF natif et documents créés : rendu direct, jamais de conversion, pas de PDF.js (AD-10).
 - Export PDF via rendu HTML réel : `spatie/browsershot` (Chromium headless) sur la même vue Blade que l'éditeur affiche — jamais de génération PDF alternative type dompdf/wkhtmltopdf (AD-11).
-- Export Word via `phpoffice/phpword` (import HTML) — fidélité best-effort documentée, pas garantie au niveau du PDF ; un échec de positionnement est un message d'erreur explicite, jamais un fichier dégradé livré silencieusement (AD-12).
+- Export Word retiré le 2026-09-28 (AD-12 `[REMOVED]`) : seul l'export PDF (AD-11) subsiste.
 - Aucune couche API JSON : toutes les routes rendent des pages Inertia ou redirigent après mutation ; pas de `Route::apiResource` ni `response()->json()` (AD-13).
 - Images insérées dans l'éditeur stockées en fichiers (`storage/app/private/documents/{document_id}/images/{uuid}.{ext}`) servies via route dédiée, jamais en base64 inline dans `content_html` ; texte alternatif obligatoire capturé à l'insertion (AD-14).
 - **Suppression définitive et nettoyage complet `[EXTENDED 2026-09-09]`** (pas de `SoftDeletes`) ; `DeleteDocumentAction` unique point d'entrée, nettoie dans l'ordre : index Scout → fichier original + images → chaque fichier disque de `document_attachments` puis leurs lignes (jamais une simple `cascadeOnDelete()` qui laisserait les fichiers orphelins) → cache de prévisualisation → ligne `Document` (le pivot `document_tag` est nettoyé par `cascadeOnDelete()` standard, aucun fichier disque associé) (AD-15).
@@ -83,7 +83,7 @@ UX-DR10: Composant Barre d'outils éditeur — mise en forme (titres, listes, ta
 UX-DR11: Composant Sélecteur de tags *(remplace le Sélecteur catégorie/dossier v1)* — champ qui filtre en direct la liste gérée de tags existants (FR2), clic/Entrée ajoute une chip ; aucune création de tag depuis ce champ (exclusivement en Configuration, FR14). Présent dans 3 contextes identiques (modale Import, sauvegarde Éditeur, Fiche document) ; vide = aucun tag, jamais bloquant.
 UX-DR12: Composant Chip de tag `[NOUVEAU 2026-09-09]` — affiche un tag sur une ligne de document/Fiche document, ou dans le sélecteur avec icône de retrait ; visuellement distinct des filtres (chips).
 UX-DR13: Action Enregistrer (éditeur) — déclenche le sélecteur de tags si non renseigné, puis intègre le document à la Bibliothèque avec les mêmes propriétés de classement/recherche qu'un document importé.
-UX-DR14: Boutons Export — deux actions distinctes toujours visibles, jamais dans un menu caché : "Exporter en PDF" (style bouton primaire) et "Exporter en Word" (style bouton secondaire).
+UX-DR14: Bouton Export — une seule action toujours visible, jamais dans un menu caché : "Exporter" (style bouton primaire), qui génère un PDF. L'export Word a été retiré le 2026-09-28.
 UX-DR15: Composant Panneau de pièces jointes `[NOUVEAU 2026-09-09]` (Éditeur) — panneau latéral rétractable, visuellement distinct du corps WYSIWYG ; liste les pièces jointes (badge type + nom + action retirer), zone d'ajout en pied de panneau ; ajouter/retirer un fichier n'affecte jamais le contenu rédigé (FR13).
 UX-DR16: Pièces jointes en consultation `[NOUVEAU 2026-09-09]` (Fiche document) — liste en lecture seule avec prévisualisation/téléchargement individuel ; ajout/retrait reste réservé au panneau de l'Éditeur.
 UX-DR17: Surface Configuration `[NOUVEAU 2026-09-09]` — liste des tags existants, actions créer/renommer/supprimer inline (FR14) ; création signale un doublon (insensible à la casse) avant validation.
@@ -125,7 +125,7 @@ FR8: Epic 2 - Éditeur WYSIWYG
 FR9: Epic 2 - Images inline
 FR10: Epic 2 - Enregistrement classé/cherchable + Epic 3 - Tags `[AMENDED 2026-09-09]`
 FR11: Epic 2 - Export PDF
-FR12: Epic 2 - Export Word
+FR12: Epic 2 - Export Word (retirée le 2026-09-28)
 FR13: Epic 3 - Pièces jointes sur document créé `[NOUVEAU 2026-09-09]`
 FR14: Epic 3 - Configuration des tags `[NOUVEAU 2026-09-09]`
 
@@ -136,8 +136,8 @@ Un utilisateur peut importer ses documents existants (PDF/Word/Excel), les class
 **FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR7
 
 ### Epic 2: Création et export de documents
-Un utilisateur peut rédiger un nouveau document dans un éditeur WYSIWYG, y insérer des images à la volée, l'enregistrer dans la bibliothèque avec les mêmes propriétés de classement/recherche qu'un import, puis l'exporter en PDF ou Word.
-**FRs covered:** FR8, FR9, FR10, FR11, FR12
+Un utilisateur peut rédiger un nouveau document dans un éditeur WYSIWYG, y insérer des images à la volée, l'enregistrer dans la bibliothèque avec les mêmes propriétés de classement/recherche qu'un import, puis l'exporter en PDF.
+**FRs covered:** FR8, FR9, FR10, FR11 (FR12 retirée le 2026-09-28)
 
 ### Epic 3: Tags illimités, pièces jointes et configuration `[NOUVEAU 2026-09-09 — sprint-change-proposal]`
 Un utilisateur classe et retrouve ses documents par tags illimités (remplace le classement par catégorie de l'Epic 1, retiré et non migré), associe une ou plusieurs pièces jointes à un document créé indépendamment du contenu rédigé, gère ses tags depuis une page de configuration dédiée, et navigue entre 5 surfaces (Bibliothèque, Fiche document, Éditeur, Recherche, Configuration) via une sidebar fixe — la surface Recherche devient dédiée, distincte de la Bibliothèque. Corrige aussi un défaut connu de l'éditeur (tableaux TipTap imbriqués, aucun moyen de suppression), sans impact FR/Architecture (FR8 le couvre déjà).
@@ -296,7 +296,7 @@ So that ma bibliothèque reste pertinente.
 
 ## Epic 2: Création et export de documents
 
-Un utilisateur peut rédiger un nouveau document dans un éditeur WYSIWYG, y insérer des images à la volée, l'enregistrer dans la bibliothèque avec les mêmes propriétés de classement/recherche qu'un import, puis l'exporter en PDF ou Word — la valeur "Créer un document pour usage futur ou partage" du PRD. S'appuie sur la table `documents`/`categories` et le sélecteur catégorie posés par l'Epic 1, sans duplication de modèle.
+Un utilisateur peut rédiger un nouveau document dans un éditeur WYSIWYG, y insérer des images à la volée, l'enregistrer dans la bibliothèque avec les mêmes propriétés de classement/recherche qu'un import, puis l'exporter en PDF — la valeur "Créer un document pour usage futur ou partage" du PRD. S'appuie sur la table `documents`/`categories` et le sélecteur catégorie posés par l'Epic 1, sans duplication de modèle.
 
 ### Story 2.1: Créer et enregistrer un document dans l'éditeur WYSIWYG
 
@@ -372,7 +372,9 @@ So that je peux le partager en conservant fidèlement la mise en page et les ima
 **When** la génération échoue
 **Then** un message d'erreur explicite s'affiche, jamais un échec silencieux
 
-### Story 2.5: Exporter un document créé en Word
+### Story 2.5: Exporter un document créé en Word — *retirée le 2026-09-28*
+
+> Livrée puis retirée : l'export Word (FR12, AD-12) a été supprimé du code au profit d'un export PDF unique (Story 2.4). Conservée ci-dessous pour traçabilité.
 
 As a utilisateur,
 I want exporter mon document rédigé en `.docx`,
