@@ -145,7 +145,15 @@ describe('Documents/Show — consultation', () => {
         expect(wrapper.text()).not.toContain('Aucun tag.');
         expect(wrapper.text()).not.toContain('Pièces jointes :');
         expect(wrapper.text()).not.toContain('Aucune pièce jointe.');
-        expect(wrapper.text()).toContain('Ajouté le :');
+        expect(wrapper.find('dl').exists()).toBe(false);
+    });
+
+    it('shows the creation date in the header, worded after how the document entered the library', () => {
+        const headerText = (wrapper) => wrapper.find('h1').element.parentElement.textContent;
+
+        expect(headerText(mountShow({ created_at: '2026-01-15T12:00:00Z' }))).toContain('Importé le 15 janvier 2026');
+        expect(headerText(mountCreated({ created_at: '2026-01-15T12:00:00Z' }))).toContain('Créé le 15 janvier 2026');
+        expect(mountShow({ created_at: null }).find('time').exists()).toBe(false);
     });
 
     it('shows the Pièces jointes row when the document has attachments', () => {

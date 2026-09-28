@@ -109,6 +109,16 @@ const formattedDate = computed(() => {
     }).format(new Date(props.document.created_at));
 });
 
+// Shown right-aligned beneath the header actions; the verb follows how the
+// document entered the library.
+const creationLabel = computed(() => {
+    if (!formattedDate.value) {
+        return '';
+    }
+
+    return `${isCreated.value ? 'Créé' : 'Importé'} le ${formattedDate.value}`;
+});
+
 const previewUrl = computed(() => `/documents/${props.document.id}/preview`);
 const downloadUrl = computed(() => `/documents/${props.document.id}/download`);
 const exportPdfUrl = computed(() => `/documents/${props.document.id}/export/pdf`);
@@ -400,130 +410,137 @@ onBeforeUnmount(() => {
     <AppLayout>
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
             <!-- Title and actions share one line: the title truncates
-                 (full text in `title`), the actions never shrink. Full
-                 width below xl so the actions still fit, 3/4 above: wide
-                 enough for a readable PDF preview without stretching the
-                 page edge to edge (same container on every page). -->
-            <div class="flex items-center gap-4">
-                <h1 class="min-w-0 flex-1 truncate text-2xl font-semibold text-foreground" :title="document.title">
+                 (full text in `title`), the actions never shrink and carry
+                 the creation date right-aligned beneath them. Full width
+                 below xl so the actions still fit, 3/4 above: wide enough
+                 for a readable PDF preview without stretching the page edge
+                 to edge (same container on every page). -->
+            <div class="flex items-start gap-4">
+                <h1 class="mt-0.5 min-w-0 flex-1 truncate text-2xl font-semibold text-foreground" :title="document.title">
                     {{ document.title }}
                 </h1>
 
-                <div v-if="isEditing" class="flex shrink-0 items-center gap-3">
-                    <button
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="isSavingTags"
-                        @click="saveTags"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                            <path d="M20 6 9 17l-5-5" />
-                        </svg>
-                        {{ isSavingTags ? 'Enregistrement…' : 'Enregistrer' }}
-                    </button>
-                    <button
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="isSavingTags"
-                        @click="cancelEditing"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                            <path d="M18 6 6 18" />
-                            <path d="m6 6 12 12" />
-                        </svg>
-                        Annuler
-                    </button>
-                </div>
+                <div class="flex shrink-0 flex-col items-end gap-2">
+                    <div v-if="isEditing" class="flex items-center gap-3">
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="isSavingTags"
+                            @click="saveTags"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                                <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                            {{ isSavingTags ? 'Enregistrement…' : 'Enregistrer' }}
+                        </button>
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="isSavingTags"
+                            @click="cancelEditing"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                                <path d="M18 6 6 18" />
+                                <path d="m6 6 12 12" />
+                            </svg>
+                            Annuler
+                        </button>
+                    </div>
 
-                <!-- Same actions, same order for both document types:
-                     Télécharger · Modifier · Supprimer. -->
-                <div v-else class="flex shrink-0 items-center gap-3">
-                    <!-- A created document has no original file (AD-9):
-                         "Télécharger" exports its content_html to PDF
-                         (FR11/spec-2-4). Only :disabled changes while
-                         exporting or after a failure (UX-DR11), so a retry
-                         never requires a page reload. -->
-                    <button
-                        v-if="isCreated"
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="isExportingPdf"
-                        @click="exportToPdf"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                            <path d="M12 3v12" />
-                            <path d="m7 10 5 5 5-5" />
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        </svg>
-                        {{ isExportingPdf ? 'Téléchargement…' : 'Télécharger' }}
-                    </button>
-                    <a
-                        v-else-if="!sourceMissing"
-                        :href="downloadUrl"
-                        class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                            <path d="M12 3v12" />
-                            <path d="m7 10 5 5 5-5" />
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        </svg>
-                        Télécharger
-                    </a>
-                    <button
-                        v-else
-                        type="button"
-                        disabled
-                        class="inline-flex cursor-not-allowed items-center gap-2 rounded-md bg-surface-alt px-4 py-2 text-sm font-medium text-muted"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                            <path d="M12 3v12" />
-                            <path d="m7 10 5 5 5-5" />
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        </svg>
-                        Télécharger
-                    </button>
+                    <!-- Same actions, same order for both document types:
+                         Télécharger · Modifier · Supprimer. -->
+                    <div v-else class="flex items-center gap-3">
+                        <!-- A created document has no original file (AD-9):
+                             "Télécharger" exports its content_html to PDF
+                             (FR11/spec-2-4). Only :disabled changes while
+                             exporting or after a failure (UX-DR11), so a retry
+                             never requires a page reload. -->
+                        <button
+                            v-if="isCreated"
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="isExportingPdf"
+                            @click="exportToPdf"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                                <path d="M12 3v12" />
+                                <path d="m7 10 5 5 5-5" />
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            </svg>
+                            {{ isExportingPdf ? 'Téléchargement…' : 'Télécharger' }}
+                        </button>
+                        <a
+                            v-else-if="!sourceMissing"
+                            :href="downloadUrl"
+                            class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                                <path d="M12 3v12" />
+                                <path d="m7 10 5 5 5-5" />
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            </svg>
+                            Télécharger
+                        </a>
+                        <button
+                            v-else
+                            type="button"
+                            disabled
+                            class="inline-flex cursor-not-allowed items-center gap-2 rounded-md bg-surface-alt px-4 py-2 text-sm font-medium text-muted"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                                <path d="M12 3v12" />
+                                <path d="m7 10 5 5 5-5" />
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            </svg>
+                            Télécharger
+                        </button>
 
-                    <!-- One "Modifier" per document: a created document
-                         reopens the editor (which already handles tags,
-                         spec-2-3); an imported one switches this page into
-                         tag edit mode. -->
-                    <Link
-                        v-if="isCreated"
-                        :href="`/documents/${document.id}/edit`"
-                        class="inline-flex items-center gap-2 rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                        </svg>
-                        Modifier
-                    </Link>
-                    <button
-                        v-else
-                        ref="editButtonRef"
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        @click="startEditing"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                        </svg>
-                        Modifier
-                    </button>
+                        <!-- One "Modifier" per document: a created document
+                             reopens the editor (which already handles tags,
+                             spec-2-3); an imported one switches this page into
+                             tag edit mode. -->
+                        <Link
+                            v-if="isCreated"
+                            :href="`/documents/${document.id}/edit`"
+                            class="inline-flex items-center gap-2 rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                            </svg>
+                            Modifier
+                        </Link>
+                        <button
+                            v-else
+                            ref="editButtonRef"
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                            @click="startEditing"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                            </svg>
+                            Modifier
+                        </button>
 
-                    <button
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-md border border-red-600 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-red-500 dark:text-red-500 dark:hover:bg-red-950/30"
-                        @click="openDeleteDialog"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                        </svg>
-                        Supprimer
-                    </button>
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-md border border-red-600 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-red-500 dark:text-red-500 dark:hover:bg-red-950/30"
+                            @click="openDeleteDialog"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                                <path d="M3 6h18" />
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                            </svg>
+                            Supprimer
+                        </button>
+                    </div>
+
+                    <p v-if="creationLabel" class="text-xs text-muted">
+                        <time :datetime="document.created_at">{{ creationLabel }}</time>
+                    </p>
                 </div>
             </div>
 
@@ -531,15 +548,14 @@ onBeforeUnmount(() => {
                 {{ exportPdfError }}
             </p>
 
-            <dl class="mt-6 space-y-2 text-sm text-foreground">
-                <div class="flex gap-2">
-                    <dt class="font-medium">Ajouté le :</dt>
-                    <dd>{{ formattedDate }}</dd>
-                </div>
+            <!-- Read-only rows align on the first line's baseline so the label sits
+                 level with the first chip even once the chips wrap; the Tags
+                 editor top-aligns instead, next to its input. -->
+            <dl v-if="documentTags.length > 0 || isEditing || attachments.length > 0" class="mt-6 space-y-3 text-sm text-foreground">
                 <!-- Empty rows are hidden entirely, except Tags while its
                      edit mode is open (the TagSelector lives there). -->
-                <div v-if="documentTags.length > 0 || isEditing" class="flex items-start gap-2">
-                    <dt class="font-medium" :class="{ 'mt-2': isEditing }">Tags :</dt>
+                <div v-if="documentTags.length > 0 || isEditing" class="flex gap-2" :class="isEditing ? 'items-start' : 'items-baseline'">
+                    <dt class="shrink-0 font-medium" :class="{ 'mt-2': isEditing }">Tags :</dt>
                     <dd v-if="isEditing" ref="tagsEditorRef" class="w-full max-w-md">
                         <TagSelector
                             v-model="draftTagIds"
@@ -551,23 +567,26 @@ onBeforeUnmount(() => {
                             {{ tagsError }}
                         </p>
                     </dd>
-                    <dd v-else class="flex flex-wrap gap-2">
+                    <dd v-else class="flex min-w-0 flex-1 flex-wrap items-baseline gap-2">
                         <TagChip v-for="tag in documentTags" :key="tag.id" :name="tag.name" />
                     </dd>
                 </div>
-                <div v-if="attachments.length > 0" class="flex items-start gap-2">
-                    <dt class="mt-2 font-medium">Pièces jointes :</dt>
-                    <dd class="w-full max-w-xs">
-                        <ul class="mt-2 flex flex-col gap-2">
+                <div v-if="attachments.length > 0" class="flex items-baseline gap-2">
+                    <dt class="shrink-0 font-medium">Pièces jointes :</dt>
+                    <!-- Attachments flow inline and only wrap when the line is
+                         full; a name longer than the whole line breaks inside
+                         its own pill rather than being truncated. -->
+                    <dd class="min-w-0 flex-1">
+                        <ul class="flex flex-wrap items-baseline gap-2">
                             <li
                                 v-for="attachment in attachments"
                                 :key="attachment.id"
-                                class="flex items-center justify-between gap-2 rounded-md bg-surface-alt px-3 py-2 text-sm text-foreground"
+                                class="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md bg-surface-alt px-2.5 py-1 text-sm text-foreground"
                             >
-                                <span class="truncate" :title="attachment.original_filename">
+                                <span class="min-w-0 [overflow-wrap:anywhere]">
                                     {{ attachment.original_filename }}
                                 </span>
-                                <span class="flex shrink-0 items-center gap-2">
+                                <span class="flex shrink-0 items-baseline gap-2">
                                     <a
                                         :href="attachmentPreviewUrl(attachment)"
                                         target="_blank"

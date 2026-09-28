@@ -329,3 +329,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-refonte-import-formulaire-unique.md`
   summary: `RelocatesDraftAttachments` supprime (au lieu de remettre dans `tmp/{token}`) les pièces jointes déjà déplacées quand la relocalisation échoue, et ignore silencieusement une pièce jointe listée mais absente de `tmp/{token}` — un nouvel « Enregistrer » après échec crée alors le document sans ces pièces jointes, sans aucun message.
   evidence: Blind Hunter + Edge Case Hunter (step-04 review) — comportement préexistant du code extrait tel quel de `CreateDocumentAction` (même effet dans l'éditeur) ; désormais aussi exposé par l'import. De même, un échec de `SyncDocumentTagsAction` après l'import laisse le fichier d'origine et les pièces jointes relocalisées sur disque (rollback DB uniquement).
+
+- source_spec: none
+  summary: Limiter à 10 le nombre de pièces jointes par document (brouillons + pièces jointes déjà rattachées, sur les trois points d'entrée : import, éditeur, document existant) et ajouter le pré-contrôle client des 20 Mo sur les pièces jointes — pas de plafond de poids total ; vérifier qu'un fichier trop lourd affiche bien une erreur côté client et ne provoque jamais de 500 (y compris au-delà de `post_max_size`).
+  evidence: Séparé du lot « ajustements de mise en page de la consultation » (2026-09-28) — règle métier backend indépendante avec ses tests ; décisions validées : max 10 pièces jointes, pré-contrôle client 20 Mo, pas de plafond total. La politique de poids serveur est déjà cohérente (pdf/docx/xlsx ≤ 20 Mo partout).
