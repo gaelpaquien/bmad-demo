@@ -313,3 +313,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-sidebar-menu-adjustments.md`
   summary: Le bouton toggle thème de `Sidebar.vue` a un libellé visible qui décrit l'état courant ("Thème clair"/"Thème sombre") mais un `aria-label` qui décrit l'action cible ("Passer en mode sombre"/"Passer en mode clair") — l'un dit le contraire de l'autre, ce qui viole WCAG 2.5.3 (Label in Name) et est trompeur pour un utilisateur de commande vocale.
   evidence: Blind Hunter (revue de ce diff) — préexistant : logique identique (même paire libellé/`aria-label` inversée) dans l'ancien `AppHeader.vue` avant sa migration vers la sidebar (spec-3-2) ; ce diff déplace le bouton mais ne touche pas sa logique de libellé. Corriger suppose de choisir une convention unique (état ou action) pour les deux textes, hors périmètre de cette retouche visuelle.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-refonte-page-consultation-document.md`
+  summary: Sur un écran très étroit, l'en-tête de `Show.vue` (titre + actions `shrink-0`, sans `flex-wrap`) peut déborder horizontalement pour un document créé (4 boutons) — le titre se réduit à zéro et les actions sortent de la vue.
+  evidence: Blind Hunter + Edge Case Hunter (step-04 review) — préexistant : l'ancienne barre d'actions (`flex gap-3`, sans wrap) débordait déjà de la même façon ; l'intention validée impose un en-tête « sur une ligne » sans menu « ⋯ », donc corriger (retour à la ligne responsive ou regroupement) demande une décision de design.

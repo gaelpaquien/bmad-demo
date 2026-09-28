@@ -35,6 +35,12 @@ describe('TagSelector', () => {
         ];
     });
 
+    it('keeps "Rechercher un tag…" as the default placeholder when none is passed', () => {
+        const wrapper = mount(TagSelector, { props: { modelValue: [] } });
+
+        expect(wrapper.find('input').attributes('placeholder')).toBe('Rechercher un tag…');
+    });
+
     it('renders no chip when modelValue is empty', () => {
         const wrapper = mount(TagSelector, { props: { modelValue: [] } });
 

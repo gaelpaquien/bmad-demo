@@ -10,9 +10,10 @@ import TextInput from '@/Components/TextInput.vue';
 // no free-text entry, no create-on-the-fly (tag management is story 3.5).
 // It never writes anything itself: it only emits `update:modelValue` with
 // the full new array of selected tag ids — each host page decides whether
-// that means "hold for the next form submit" (Import modal, editor) or
-// "persist immediately" (Document Detail, via PATCH
-// /documents/{id}/tags), or "refine the library query" (Index.vue).
+// that means "hold for the next form submit" (Import modal, editor,
+// Document Detail's explicit edit mode, saved in one PATCH
+// /documents/{id}/tags on "Enregistrer"), or "refine the library query"
+// (Index.vue).
 const props = defineProps({
     modelValue: {
         type: Array,
@@ -30,6 +31,12 @@ const props = defineProps({
     showLabel: {
         type: Boolean,
         default: true,
+    },
+    // Show.vue's edit mode passes "Ajouter un tag…" so the field is never
+    // mistaken for a search; every other host keeps this default.
+    placeholder: {
+        type: String,
+        default: 'Rechercher un tag…',
     },
 });
 
@@ -198,7 +205,7 @@ function onKeydown(event) {
                     ? `${instanceId}-option-${filteredTags[highlightedIndex].id}`
                     : undefined"
                 :aria-label="showLabel ? undefined : 'Tags'"
-                placeholder="Rechercher un tag…"
+                :placeholder="placeholder"
                 :class="disabled ? 'cursor-not-allowed opacity-50' : ''"
                 :readonly="disabled"
                 :aria-disabled="disabled"

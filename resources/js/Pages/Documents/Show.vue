@@ -2,8 +2,8 @@
 import { Link, router } from '@inertiajs/vue3';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import TagChip from '@/Components/TagChip.vue';
 import TagSelector from '@/Components/TagSelector.vue';
-import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
 
 const props = defineProps({
     document: {
@@ -16,40 +16,71 @@ const props = defineProps({
     },
 });
 
-// Unlike the Import modal (where the document doesn't exist yet),
-// TagSelector's change here writes immediately: the Document Detail page
-// is the "reassign tags" surface from the I/O matrix (spec-3-1), so every
-// emitted update:modelValue is persisted through PATCH
-// /documents/{id}/tags — the only place that route is called from.
-const tagIds = ref((props.document.tags ?? []).map((tag) => tag.id));
+// The page is read-only by default (spec-refonte-page-consultation-document):
+// an imported document's tags only become editable after an explicit
+// "Modifier", and are then held as a local draft until "Enregistrer" sends
+// them in one PATCH /documents/{id}/tags (sync semantics) or "Annuler"
+// drops them. A created document never enters this mode — its "Modifier"
+// opens the editor, which already handles tags.
+const isEditing = ref(false);
+const draftTagIds = ref([]);
 const isSavingTags = ref(false);
 const tagsError = ref('');
 
-// Inertia can reuse this component instance across a <Link> navigation
-// from one document to another — resync the local selection whenever the
-// underlying document prop changes rather than keeping the previous
-// document's tags selected.
-watch(() => props.document.id, () => {
-    tagIds.value = (props.document.tags ?? []).map((tag) => tag.id);
-    tagsError.value = '';
-});
+const documentTags = computed(() => props.document.tags ?? []);
 
-function onTagsChange(value) {
-    tagIds.value = value;
+// Each mode switch removes the button that triggered it from the DOM, so
+// focus is moved explicitly rather than falling back to <body>: into the
+// tag input on entry, back onto "Modifier" on exit.
+const tagsEditorRef = ref(null);
+const editButtonRef = ref(null);
+
+async function startEditing() {
+    draftTagIds.value = documentTags.value.map((tag) => tag.id);
+    tagsError.value = '';
+    isEditing.value = true;
+    await nextTick();
+    tagsEditorRef.value?.querySelector('input')?.focus();
+}
+
+async function leaveEditing() {
+    isEditing.value = false;
+    draftTagIds.value = [];
+    tagsError.value = '';
+    await nextTick();
+    editButtonRef.value?.focus();
+}
+
+function cancelEditing() {
+    if (isSavingTags.value) {
+        return;
+    }
+
+    leaveEditing();
+}
+
+function saveTags() {
+    // A rapid double-click can fire before Vue re-renders `:disabled` onto
+    // the button — guard here too so a second click never sends a second
+    // PATCH.
+    if (isSavingTags.value) {
+        return;
+    }
+
     isSavingTags.value = true;
     tagsError.value = '';
 
-    router.patch(`/documents/${props.document.id}/tags`, { tag_ids: value }, {
+    router.patch(`/documents/${props.document.id}/tags`, { tag_ids: [...draftTagIds.value] }, {
         preserveScroll: true,
         preserveState: true,
+        // updateTags() answers with back(), so props.document.tags is
+        // already refreshed by the time the page returns to consultation.
+        onSuccess: () => {
+            leaveEditing();
+        },
+        // Stay in edit mode with the local selection intact so the user
+        // can retry or cancel.
         onError: (errors) => {
-            // The optimistic selection above was never actually persisted
-            // — revert to props.document.tags (the last state actually
-            // confirmed by the server) rather than a locally-captured
-            // "previous" value, so two edits fired in quick succession
-            // can never have an earlier request's error revert stomp a
-            // later request's already-applied selection.
-            tagIds.value = (props.document.tags ?? []).map((tag) => tag.id);
             tagsError.value = errors.tag_ids ?? 'Impossible de mettre à jour les tags.';
         },
         onFinish: () => {
@@ -57,6 +88,15 @@ function onTagsChange(value) {
         },
     });
 }
+
+// Inertia can reuse this component instance across a <Link> navigation
+// from one document to another — always land back in consultation mode on
+// the new document rather than keeping the previous one's draft.
+watch(() => props.document.id, () => {
+    isEditing.value = false;
+    draftTagIds.value = [];
+    tagsError.value = '';
+});
 
 const formattedDate = computed(() => {
     if (!props.document.created_at) {
@@ -426,29 +466,138 @@ onBeforeUnmount(() => {
 
 <template>
     <AppLayout>
-        <div class="mx-auto max-w-3xl px-4 py-10">
-            <h1 class="text-2xl font-semibold text-foreground">
-                {{ document.title }}
-            </h1>
+        <div class="px-6 py-8">
+            <!-- Title and actions share one line: the title truncates
+                 (full text in `title`), the actions never shrink. -->
+            <div class="flex items-center gap-4">
+                <h1 class="min-w-0 flex-1 truncate text-2xl font-semibold text-foreground" :title="document.title">
+                    {{ document.title }}
+                </h1>
+
+                <div v-if="isEditing" class="flex shrink-0 items-center gap-3">
+                    <button
+                        type="button"
+                        class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                        :disabled="isSavingTags"
+                        @click="saveTags"
+                    >
+                        {{ isSavingTags ? 'Enregistrement…' : 'Enregistrer' }}
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex rounded-md border border-border bg-surface-alt px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                        :disabled="isSavingTags"
+                        @click="cancelEditing"
+                    >
+                        Annuler
+                    </button>
+                </div>
+
+                <div v-else class="flex shrink-0 items-center gap-3">
+                    <a
+                        v-if="!isCreated && !sourceMissing"
+                        :href="downloadUrl"
+                        class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                    >
+                        Télécharger
+                    </a>
+                    <button
+                        v-else-if="!isCreated"
+                        type="button"
+                        disabled
+                        class="inline-flex cursor-not-allowed rounded-md bg-surface-alt px-4 py-2 text-sm font-medium text-muted"
+                    >
+                        Télécharger
+                    </button>
+
+                    <!-- One "Modifier" per document: a created document
+                         reopens the editor (which already handles tags,
+                         spec-2-3); an imported one switches this page into
+                         tag edit mode. -->
+                    <Link
+                        v-if="isCreated"
+                        :href="`/documents/${document.id}/edit`"
+                        class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                    >
+                        Modifier
+                    </Link>
+                    <button
+                        v-else
+                        type="button"
+                        class="inline-flex rounded-md border border-border bg-surface-alt px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        ref="editButtonRef"
+                        @click="startEditing"
+                    >
+                        Modifier
+                    </button>
+
+                    <!-- FR11/spec-2-4: only a created document has content_html
+                         to export. Stays visible/style primaire even while
+                         exporting or after a failed attempt (UX-DR11): only
+                         :disabled changes, so retrying never requires a page
+                         reload. -->
+                    <button
+                        v-if="isCreated"
+                        type="button"
+                        class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                        :disabled="isExportingPdf"
+                        @click="exportToPdf"
+                    >
+                        {{ isExportingPdf ? 'Export en cours…' : 'Exporter en PDF' }}
+                    </button>
+
+                    <!-- FR12/spec-2-5: same v-if as the PDF export button,
+                         style secondaire (UX-DR11). -->
+                    <button
+                        v-if="isCreated"
+                        type="button"
+                        class="inline-flex rounded-md border border-border bg-surface-alt px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                        :disabled="isExportingWord"
+                        @click="exportToWord"
+                    >
+                        {{ isExportingWord ? 'Export en cours…' : 'Exporter en Word' }}
+                    </button>
+
+                    <button
+                        type="button"
+                        class="inline-flex rounded-md border border-red-600 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-red-500 dark:text-red-500 dark:hover:bg-red-950/30"
+                        @click="openDeleteDialog"
+                    >
+                        Supprimer
+                    </button>
+                </div>
+            </div>
+
+            <p v-if="exportPdfError" class="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
+                {{ exportPdfError }}
+            </p>
+            <p v-if="exportWordError" class="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
+                {{ exportWordError }}
+            </p>
 
             <dl class="mt-6 space-y-2 text-sm text-foreground">
-                <div class="flex items-center gap-2">
-                    <dt class="font-medium">Type :</dt>
-                    <dd>
-                        <DocumentTypeBadge :mime-type="document.mime_type" :source="document.source" />
-                    </dd>
-                </div>
                 <div class="flex gap-2">
                     <dt class="font-medium">Ajouté le :</dt>
                     <dd>{{ formattedDate }}</dd>
                 </div>
                 <div class="flex items-start gap-2">
-                    <dt class="mt-2 font-medium">Tags :</dt>
-                    <dd class="w-full">
-                        <TagSelector :model-value="tagIds" :disabled="isSavingTags" :show-label="false" @update:model-value="onTagsChange" />
+                    <dt class="font-medium" :class="{ 'mt-2': isEditing }">Tags :</dt>
+                    <dd v-if="isEditing" ref="tagsEditorRef" class="w-full max-w-md">
+                        <TagSelector
+                            v-model="draftTagIds"
+                            :disabled="isSavingTags"
+                            :show-label="false"
+                            placeholder="Ajouter un tag…"
+                        />
                         <p v-if="tagsError" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                             {{ tagsError }}
                         </p>
+                    </dd>
+                    <dd v-else-if="documentTags.length > 0" class="flex flex-wrap gap-2">
+                        <TagChip v-for="tag in documentTags" :key="tag.id" :name="tag.name" />
+                    </dd>
+                    <dd v-else class="text-muted">
+                        Aucun tag.
                     </dd>
                 </div>
                 <div class="flex items-start gap-2">
@@ -487,82 +636,6 @@ onBeforeUnmount(() => {
                     </dd>
                 </div>
             </dl>
-
-            <div class="mt-6 flex gap-3">
-                <a
-                    v-if="!isCreated && !sourceMissing"
-                    :href="downloadUrl"
-                    class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                >
-                    Télécharger
-                </a>
-                <button
-                    v-else-if="!isCreated"
-                    type="button"
-                    disabled
-                    class="inline-flex cursor-not-allowed rounded-md bg-surface-alt px-4 py-2 text-sm font-medium text-muted"
-                >
-                    Télécharger
-                </button>
-
-                <!-- Only a document authored in the editor has content_html
-                     to reopen and correct (Boundaries & Constraints,
-                     spec-2-3) — an imported document is never routed
-                     through this link. -->
-                <Link
-                    v-if="isCreated"
-                    :href="`/documents/${document.id}/edit`"
-                    class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                >
-                    Modifier
-                </Link>
-
-                <!-- FR11/spec-2-4: only a created document has content_html
-                     to export — an imported document already has a native
-                     PDF or goes through the Office preview above instead.
-                     Stays visible/style primaire even while exporting or
-                     after a failed attempt (UX-DR11): only :disabled
-                     changes, so retrying never requires a page reload. -->
-                <button
-                    v-if="isCreated"
-                    type="button"
-                    class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                    :disabled="isExportingPdf"
-                    @click="exportToPdf"
-                >
-                    {{ isExportingPdf ? 'Export en cours…' : 'Exporter en PDF' }}
-                </button>
-
-                <!-- FR12/spec-2-5: same v-if as the PDF export button above
-                     (only a created document has content_html to export) —
-                     style secondaire (bordered, not filled) to sit next to
-                     it (UX-DR11), same disabled-only-while-exporting shape
-                     so retrying never requires a page reload. -->
-                <button
-                    v-if="isCreated"
-                    type="button"
-                    class="inline-flex rounded-md border border-border bg-surface-alt px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                    :disabled="isExportingWord"
-                    @click="exportToWord"
-                >
-                    {{ isExportingWord ? 'Export en cours…' : 'Exporter en Word' }}
-                </button>
-
-                <button
-                    type="button"
-                    class="inline-flex rounded-md border border-red-600 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-red-500 dark:text-red-500 dark:hover:bg-red-950/30"
-                    @click="openDeleteDialog"
-                >
-                    Supprimer
-                </button>
-            </div>
-
-            <p v-if="exportPdfError" class="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
-                {{ exportPdfError }}
-            </p>
-            <p v-if="exportWordError" class="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
-                {{ exportWordError }}
-            </p>
 
             <div class="mt-8">
                 <!-- eslint-disable-next-line vue/no-v-html -- content authored by the same local user in the app's own WYSIWYG editor (spec-2-1); no auth boundary exists in v1 (NFR3). -->
