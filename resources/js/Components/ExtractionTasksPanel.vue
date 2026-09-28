@@ -47,7 +47,7 @@ onUnmounted(() => {
                 @click="isExpanded = !isExpanded"
             >
                 <span class="flex items-center gap-2">
-                    <svg class="h-4 w-4 animate-spin text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <svg class="h-4 w-4 animate-spin text-foreground dark:text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
@@ -70,8 +70,17 @@ onUnmounted(() => {
             </button>
 
             <ul v-if="isExpanded" class="max-h-56 overflow-y-auto border-t border-border px-4 py-2">
-                <li v-for="task in tasks" :key="task.id" class="flex items-center justify-between gap-3 py-1.5 text-sm text-foreground">
-                    <span class="truncate">{{ task.title }}</span>
+                <li v-for="task in tasks" :key="`${task.type}-${task.id}`" class="flex items-center justify-between gap-3 py-1.5 text-sm text-foreground">
+                    <span class="min-w-0">
+                        <span class="block truncate" :title="task.title">{{ task.title }}</span>
+                        <span
+                            v-if="task.type === 'attachment'"
+                            class="block truncate text-xs text-muted"
+                            :title="task.document_title"
+                        >
+                            Pièce jointe de « {{ task.document_title }} »
+                        </span>
+                    </span>
                     <span class="shrink-0 text-xs text-muted">
                         {{ statusLabels[task.extraction_status] ?? task.extraction_status }}
                     </span>

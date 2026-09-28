@@ -4,9 +4,11 @@ namespace App\Http\Middleware;
 
 use App\Enums\ExtractionStatus;
 use App\Models\Document;
+use App\Models\DocumentAttachment;
 use App\Models\Tag;
 use App\Support\DocumentMimeTypes;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Inertia\Middleware;
 
@@ -43,11 +45,9 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             // Powers the extraction-tasks panel (App/Components/ExtractionTasksPanel.vue):
-            // documents whose text extraction is still queued or running (AD-6).
-            'pendingExtractions' => fn () => Document::query()
-                ->whereIn('extraction_status', [ExtractionStatus::Pending, ExtractionStatus::Processing])
-                ->orderBy('created_at')
-                ->get(['id', 'title', 'extraction_status']),
+            // documents and attachments whose text extraction is still
+            // queued or running (AD-6).
+            'pendingExtractions' => fn () => $this->pendingExtractions(),
             // Powers TagSelector.vue everywhere it's mounted (Import modal,
             // editor, Document Detail, Library filter) — the full list of
             // already-existing tags it's allowed to offer (Boundaries &
@@ -100,5 +100,50 @@ class HandleInertiaRequests extends Middleware
                 'tagDeleted' => session('tagDeleted'),
             ],
         ];
+    }
+
+    /**
+     * Documents and attachments whose extraction is still queued or
+     * running, oldest first. An attachment carries its parent's title so the
+     * panel can say which document its text will be searchable under
+     * (`documents.attachments_extracted_text`).
+     *
+     * @return list<array{type: 'document'|'attachment', id: int, title: string, document_title: ?string, extraction_status: string}>
+     */
+    private function pendingExtractions(): array
+    {
+        $inProgressStatuses = [ExtractionStatus::Pending, ExtractionStatus::Processing];
+
+        $documents = Document::query()
+            ->whereIn('extraction_status', $inProgressStatuses)
+            ->get(['id', 'title', 'extraction_status', 'created_at'])
+            ->map(fn (Document $document) => [
+                'type' => 'document',
+                'id' => $document->id,
+                'title' => $document->title,
+                'document_title' => null,
+                'extraction_status' => $document->extraction_status->value,
+                'queued_at' => $document->created_at?->getTimestamp() ?? 0,
+            ]);
+
+        $attachments = DocumentAttachment::query()
+            ->with('document:id,title')
+            ->whereIn('extraction_status', $inProgressStatuses)
+            ->get(['id', 'document_id', 'original_filename', 'extraction_status', 'created_at'])
+            ->map(fn (DocumentAttachment $attachment) => [
+                'type' => 'attachment',
+                'id' => $attachment->id,
+                'title' => $attachment->original_filename,
+                'document_title' => $attachment->document?->title,
+                'extraction_status' => $attachment->extraction_status->value,
+                'queued_at' => $attachment->created_at?->getTimestamp() ?? 0,
+            ]);
+
+        return $documents
+            ->concat($attachments)
+            ->sortBy('queued_at')
+            ->map(fn (array $task) => Arr::except($task, 'queued_at'))
+            ->values()
+            ->all();
     }
 }

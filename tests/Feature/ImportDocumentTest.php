@@ -193,6 +193,23 @@ it('lists documents still pending or processing extraction in the shared pending
     );
 });
 
+it('lists attachments still pending or processing extraction in the shared pendingExtractions prop, with their document title', function () {
+    $document = Document::factory()->create(['extraction_status' => ExtractionStatus::Completed]);
+    $pending = DocumentAttachment::factory()->for($document)->create(['extraction_status' => ExtractionStatus::Processing]);
+    DocumentAttachment::factory()->for($document)->create(['extraction_status' => ExtractionStatus::Completed]);
+
+    $response = $this->get('/');
+
+    $response->assertInertia(fn ($page) => $page
+        ->has('pendingExtractions', 1)
+        ->where('pendingExtractions.0.type', 'attachment')
+        ->where('pendingExtractions.0.id', $pending->id)
+        ->where('pendingExtractions.0.title', $pending->original_filename)
+        ->where('pendingExtractions.0.document_title', $document->title)
+        ->where('pendingExtractions.0.extraction_status', 'processing')
+    );
+});
+
 it('excludes completed or failed documents from the shared pendingExtractions prop', function () {
     $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
     $this->post('/documents', ['file' => $file]);
