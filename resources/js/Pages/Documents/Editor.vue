@@ -528,7 +528,7 @@ function submit() {
 
 <template>
     <AppLayout>
-        <div class="mx-auto max-w-3xl px-4 py-10">
+        <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
             <div>
                 <label for="document-title" class="mb-1 block text-sm font-medium text-foreground">
                     Titre

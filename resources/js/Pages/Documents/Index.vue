@@ -24,7 +24,7 @@ function formatDate(dateString) {
 
 <template>
     <AppLayout>
-        <div class="mx-auto max-w-3xl px-4 py-10">
+        <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
             <div class="mb-6">
                 <h1 class="text-2xl font-semibold text-foreground">
                     Documents

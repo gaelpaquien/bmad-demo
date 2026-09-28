@@ -243,7 +243,7 @@ onUnmounted(() => {
 
 <template>
     <AppLayout>
-        <div class="mx-auto max-w-lg px-4 py-10">
+        <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
             <h1 class="mb-4 text-lg font-semibold text-foreground">
                 Importer un document
             </h1>
