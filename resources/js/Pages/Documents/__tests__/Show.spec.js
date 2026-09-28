@@ -125,8 +125,7 @@ describe('Documents/Show — consultation', () => {
         ]);
         expect(headerActions).toEqual([
             ['A', 'Modifier'],
-            ['BUTTON', 'Exporter en PDF'],
-            ['BUTTON', 'Exporter en Word'],
+            ['BUTTON', 'Exporter'],
             ['BUTTON', 'Supprimer'],
         ]);
     });

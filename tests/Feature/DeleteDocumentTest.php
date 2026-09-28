@@ -11,8 +11,8 @@ beforeEach(function () {
     // Defensive cleanup against the intermittent full-suite flake documented
     // in epic-2-retro-2026-09-08.md: a leftover empty `documents/{id}/images/`
     // directory from another Epic 2 test file (CreateDocumentTest,
-    // UpdateDocumentTest, UploadEditorImageTest, ExportDocumentToPdfTest,
-    // ExportDocumentToWordTest — all write there too) has been observed
+    // UpdateDocumentTest, UploadEditorImageTest, ExportDocumentToPdfTest —
+    // all write there too) has been observed
     // surviving `Storage::fake('local')`'s own reset on this environment,
     // making `assertDirectoryEmpty()` below fail nondeterministically. Only
     // ever acts on the disk instance `Storage::fake('local')` just created
