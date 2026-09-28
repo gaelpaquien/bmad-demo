@@ -44,7 +44,6 @@ vi.mock('@inertiajs/vue3', async () => {
 
 const globalStubs = {
     AppLayout: { template: '<div><slot /></div>' },
-    DocumentTypeBadge: true,
     TagSelector: true,
     AttachmentsPanel: true,
 };

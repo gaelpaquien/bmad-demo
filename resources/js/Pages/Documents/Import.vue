@@ -4,7 +4,6 @@ import { computed, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
-import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
 import { useFileDropZone } from '@/Composables/useFileDropZone';
 
 // Single-form import page (spec-refonte-import-formulaire-unique): choosing
@@ -143,55 +142,67 @@ function submit() {
                 Importer un document
             </h1>
 
-            <div
-                v-if="!form.file"
-                class="flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed border-border bg-surface p-8 text-center"
-                :class="{ 'border-primary bg-primary/10': isDragging }"
-                @dragover.prevent="onDragover"
-                @dragleave.prevent="onDragleave"
-                @drop.prevent="onDrop"
-            >
-                <p class="text-sm text-muted">
-                    Glissez-déposez un fichier ici, ou
-                </p>
-                <button
-                    type="button"
-                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                    @click="openFilePicker"
-                >
-                    Parcourir
-                </button>
-                <input
-                    ref="fileInputRef"
-                    type="file"
-                    class="sr-only"
-                    accept=".pdf,.docx,.xlsx"
-                    aria-label="Sélectionner un fichier à importer"
-                    @change="onInputChange"
-                />
-                <p class="text-xs text-muted">
-                    Formats acceptés : {{ ACCEPTED_LABEL }}
-                </p>
-            </div>
+            <!-- Same card shape as AttachmentsPanel (header + bordered body,
+                 compact dropzone, file row) so the main document and its
+                 attachments read as two sections of one form rather than a
+                 duplicated widget. Not collapsible: the main file is required. -->
+            <section class="rounded-md border border-border bg-surface-alt" aria-labelledby="main-document-heading">
+                <h2 id="main-document-heading" class="px-4 py-3 text-sm font-medium text-foreground">
+                    Document principal
+                </h2>
 
-            <div v-else class="flex items-center gap-3 rounded-md border border-border bg-surface p-4">
-                <DocumentTypeBadge class="shrink-0" :mime-type="form.file.type" />
-                <span class="min-w-0 flex-1 truncate font-medium text-foreground">
-                    {{ form.file.name }}
-                </span>
-                <button
-                    type="button"
-                    class="shrink-0 rounded-md border border-foreground/40 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="form.processing"
-                    @click="removeFile"
-                >
-                    Retirer
-                </button>
-            </div>
+                <div class="border-t border-border px-4 py-4">
+                    <div
+                        v-if="!form.file"
+                        class="flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-border bg-surface p-4 text-center"
+                        :class="{ 'border-primary bg-primary/10': isDragging }"
+                        @dragover.prevent="onDragover"
+                        @dragleave.prevent="onDragleave"
+                        @drop.prevent="onDrop"
+                    >
+                        <p class="text-xs text-muted">
+                            Glissez-déposez un fichier ici, ou
+                        </p>
+                        <button
+                            type="button"
+                            class="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                            @click="openFilePicker"
+                        >
+                            Parcourir
+                        </button>
+                        <input
+                            ref="fileInputRef"
+                            type="file"
+                            class="sr-only"
+                            accept=".pdf,.docx,.xlsx"
+                            aria-label="Sélectionner le document principal"
+                            @change="onInputChange"
+                        />
+                        <p class="text-xs text-muted">
+                            Formats acceptés : {{ ACCEPTED_LABEL }}
+                        </p>
+                    </div>
 
-            <p v-if="fileErrorMessage" class="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
-                {{ fileErrorMessage }}
-            </p>
+                    <div v-else class="flex items-center justify-between gap-2 rounded-md bg-surface px-3 py-2 text-sm text-foreground">
+                        <span class="truncate" :title="form.file.name">
+                            {{ form.file.name }}
+                        </span>
+                        <button
+                            type="button"
+                            class="shrink-0 rounded-sm px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-500 dark:hover:bg-red-950/30"
+                            :disabled="form.processing"
+                            :aria-label="`Retirer le document principal ${form.file.name}`"
+                            @click="removeFile"
+                        >
+                            Retirer
+                        </button>
+                    </div>
+
+                    <p v-if="fileErrorMessage" class="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">
+                        {{ fileErrorMessage }}
+                    </p>
+                </div>
+            </section>
 
             <div class="mt-6">
                 <TagSelector v-model="form.tag_ids" :disabled="form.processing" />
