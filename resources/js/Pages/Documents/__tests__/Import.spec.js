@@ -1,24 +1,18 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { router, usePage } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import Import from '@/Pages/Documents/Import.vue';
+import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
+import TagSelector from '@/Components/TagSelector.vue';
 
 // `@inertiajs/vue3` is mocked rather than imported for real — same
-// reusable-mock approach as Configuration.spec.js/Editor.spec.js.
-// `useForm()` is called twice by Import.vue (the upload `form` and the
-// step-2 `tagsForm`) — each call gets its own reactive instance so
-// `form.processing` and `tagsForm.errors` can be manipulated independently,
-// but both share the same `formPostMock`/`formPatchMock` spies so a test can
-// assert on whichever one the component actually called. Each instance is
-// also stashed on `formInstances` (keyed by which one it is, detected from
-// its initial shape) so a test can reach into `form.processing` directly —
-// there's no other way to flip it, since real Inertia sets it internally
-// during a request and this mock never simulates the request lifecycle.
-const { formPostMock, formPatchMock, routerDeleteMock, formInstances } = vi.hoisted(() => ({
+// reusable-mock approach as Editor.spec.js. The single `useForm()` instance
+// is stashed on `formInstance` so a test can flip `processing`/`errors`
+// directly — real Inertia sets them internally during a request and this
+// mock never simulates the request lifecycle.
+const { formPostMock, formState } = vi.hoisted(() => ({
     formPostMock: vi.fn(),
-    formPatchMock: vi.fn(),
-    routerDeleteMock: vi.fn(),
-    formInstances: { upload: null, tags: null },
+    formState: { instance: null },
 }));
 
 vi.mock('@inertiajs/vue3', async () => {
@@ -29,7 +23,8 @@ vi.mock('@inertiajs/vue3', async () => {
         usePage: () => pageState,
         router: {
             on: vi.fn(() => vi.fn()),
-            delete: routerDeleteMock,
+            post: vi.fn(),
+            delete: vi.fn(),
         },
         useForm: (initial) => {
             const instance = reactive({
@@ -37,43 +32,23 @@ vi.mock('@inertiajs/vue3', async () => {
                 processing: false,
                 errors: {},
                 post: formPostMock,
-                patch: formPatchMock,
-                reset(field) {
-                    if (field) {
-                        this[field] = initial[field];
-                    } else {
-                        Object.assign(this, initial);
-                    }
-                },
                 clearErrors: vi.fn(),
             });
-
-            if ('file' in initial) {
-                formInstances.upload = instance;
-            } else {
-                formInstances.tags = instance;
-            }
+            formState.instance = instance;
 
             return instance;
         },
+        Link: { name: 'Link', props: ['href'], template: '<a :href="href"><slot /></a>' },
     };
 });
-
-const pageState = usePage();
 
 const globalStubs = {
     AppLayout: { template: '<div><slot /></div>' },
     DocumentTypeBadge: true,
     TagSelector: true,
+    AttachmentsPanel: true,
 };
 
-const uploadedDocument = { id: 5, title: 'Rapport.pdf', mime_type: 'application/pdf' };
-
-// Import.vue's beforeunload patch attaches a real `window.addEventListener`
-// — a genuine global side effect, unlike the mocked `router.on()` above.
-// Every mounted instance in this file must be unmounted afterwards so its
-// listener is removed (onUnmounted), otherwise a stale instance from an
-// earlier test keeps reacting to `window.dispatchEvent()` in a later one.
 let mountedWrappers = [];
 
 function mountImport() {
@@ -83,31 +58,30 @@ function mountImport() {
     return wrapper;
 }
 
-/** Mounts, then simulates the upload's redirect landing with
- * `flash.uploadedDocument` set — same technique Configuration.spec.js uses
- * for `flash.tagDeleted`. The watcher in Import.vue is not `immediate`, so
- * the flash prop must change *after* mount for it to flip the page to step 2.
- */
-async function mountAtStep2() {
-    const wrapper = mountImport();
-    pageState.props.flash = { uploadedDocument };
-    await wrapper.vm.$nextTick();
-
-    return wrapper;
+function pdfFile(name = 'Rapport.pdf') {
+    return new File(['%PDF-1.4'], name, { type: 'application/pdf' });
 }
 
-function latestBeforeGuard() {
-    const call = router.on.mock.calls.filter(([event]) => event === 'before').at(-1);
+async function chooseFile(wrapper, file) {
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true });
+    await input.trigger('change');
+}
 
-    return call[1];
+function findButton(wrapper, label) {
+    return wrapper.findAll('button').find((button) => button.text() === label);
+}
+
+function findCancelLink(wrapper) {
+    return wrapper.findAll('a').find((link) => link.text() === 'Annuler');
 }
 
 beforeEach(() => {
-    pageState.props.flash = {};
-    formPostMock.mockClear();
-    formPatchMock.mockClear();
-    routerDeleteMock.mockReset();
+    formPostMock.mockReset();
+    router.post.mockClear();
+    router.delete.mockClear();
     router.on.mockClear();
+    window.confirm = vi.fn(() => true);
 });
 
 afterEach(() => {
@@ -115,237 +89,169 @@ afterEach(() => {
     mountedWrappers = [];
 });
 
-describe('Documents/Import — étape 2 (spec-corrections-documents-ui)', () => {
-    it('flips to the step-2 review UI once flash.uploadedDocument lands after a successful upload', async () => {
+describe('Documents/Import — formulaire unique (spec-refonte-import-formulaire-unique)', () => {
+    it('keeps a chosen file locally, shows its name and "Retirer", and sends no request', async () => {
         const wrapper = mountImport();
 
-        expect(wrapper.text()).not.toContain('Enregistrer');
-
-        pageState.props.flash = { uploadedDocument };
-        await wrapper.vm.$nextTick();
+        await chooseFile(wrapper, pdfFile());
 
         expect(wrapper.text()).toContain('Rapport.pdf');
-        expect(wrapper.text()).toContain('Supprimer');
-        expect(wrapper.text()).toContain('Enregistrer');
+        expect(findButton(wrapper, 'Retirer')).toBeDefined();
+        expect(wrapper.find('input[type="file"]').exists()).toBe(false);
+        expect(formPostMock).not.toHaveBeenCalled();
+        expect(router.post).not.toHaveBeenCalled();
     });
 
-    it('calls router.delete with ?redirect=import when "Supprimer" is clicked and confirmed', async () => {
-        window.confirm = vi.fn(() => true);
-        const wrapper = await mountAtStep2();
+    it('stays on the dropzone with the client error for an unsupported file', async () => {
+        const wrapper = mountImport();
 
-        const deleteButton = wrapper.findAll('button').find((button) => button.text() === 'Supprimer');
-        await deleteButton.trigger('click');
+        await chooseFile(wrapper, new File(['x'], 'notes.txt', { type: 'text/plain' }));
 
-        expect(routerDeleteMock).toHaveBeenCalledTimes(1);
-        expect(routerDeleteMock.mock.calls[0][0]).toBe('/documents/5?redirect=import');
+        expect(wrapper.find('input[type="file"]').exists()).toBe(true);
+        expect(wrapper.find('[role="alert"]').text()).toContain('Formats acceptés');
+        expect(formPostMock).not.toHaveBeenCalled();
     });
 
-    it('sends no request when the "Supprimer" confirmation is cancelled', async () => {
-        window.confirm = vi.fn(() => false);
-        const wrapper = await mountAtStep2();
+    it('returns to the dropzone on "Retirer" while keeping tags and attachments', async () => {
+        const wrapper = mountImport();
+        const attachment = { filename: 'a.pdf', original_filename: 'Annexe.pdf' };
 
-        const deleteButton = wrapper.findAll('button').find((button) => button.text() === 'Supprimer');
-        await deleteButton.trigger('click');
+        await wrapper.findComponent(TagSelector).vm.$emit('update:modelValue', [1, 2]);
+        await wrapper.findComponent(AttachmentsPanel).vm.$emit('update:attachments', [attachment]);
+        await chooseFile(wrapper, pdfFile());
+        await findButton(wrapper, 'Retirer').trigger('click');
 
-        expect(routerDeleteMock).not.toHaveBeenCalled();
+        expect(wrapper.find('input[type="file"]').exists()).toBe(true);
+        expect(formState.instance.file).toBeNull();
+        expect(formState.instance.tag_ids).toEqual([1, 2]);
+        expect(wrapper.findComponent(AttachmentsPanel).props('attachments')).toEqual([attachment]);
     });
 
-    it('calls the tags-patch endpoint with ?redirect=show when "Enregistrer" is clicked', async () => {
-        const wrapper = await mountAtStep2();
+    it('disables "Enregistrer" and sends nothing without a file', async () => {
+        const wrapper = mountImport();
+        const saveButton = findButton(wrapper, 'Enregistrer');
 
-        const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Enregistrer'));
+        expect(saveButton.attributes('disabled')).toBeDefined();
+
         await saveButton.trigger('click');
 
-        expect(formPatchMock).toHaveBeenCalledTimes(1);
-        expect(formPatchMock.mock.calls[0][0]).toBe('/documents/5/tags?redirect=show');
-    });
-});
-
-// Matrix Test Audit gap (I/O & Edge-Case Matrix, spec-corrections-documents-ui,
-// row "Navigation quittée sans Enregistrer/Supprimer"): leaving the page
-// while `uploadedDocument` is set and unsaved must trigger `window.confirm`
-// via the `router.on('before')` guard — same approach as Editor.spec.js's
-// "garde de navigation" tests (`router.on.mock.calls` / `latestBeforeGuard`).
-describe('Documents/Import — garde de navigation (spec-corrections-documents-ui, I/O matrix ligne 4)', () => {
-    it('confirms navigation once the document is uploaded but not yet saved/deleted (step 2)', async () => {
-        window.confirm = vi.fn(() => true);
-        await mountAtStep2();
-
-        latestBeforeGuard()({ preventDefault: vi.fn() });
-
-        expect(window.confirm).toHaveBeenCalledTimes(1);
+        expect(formPostMock).not.toHaveBeenCalled();
     });
 
-    // Pre-existing behavior (ImportModal.vue's old `close()` guard), kept
-    // alongside the new step-2 check above rather than replaced by it.
-    it('still confirms while the upload itself is in flight (form.processing)', () => {
-        window.confirm = vi.fn(() => true);
-        mountImport();
+    it('sends file, tags, draft token and draft attachments in one POST /documents on "Enregistrer"', async () => {
+        const wrapper = mountImport();
+        const file = pdfFile();
+        const panel = wrapper.findComponent(AttachmentsPanel);
 
-        formInstances.upload.processing = true;
+        await chooseFile(wrapper, file);
+        await wrapper.findComponent(TagSelector).vm.$emit('update:modelValue', [1, 2]);
+        await panel.vm.$emit('update:attachments', [
+            { filename: 'uuid.pdf', original_filename: 'Annexe.pdf', mime_type: 'application/pdf' },
+        ]);
+        await findButton(wrapper, 'Enregistrer').trigger('click');
 
-        latestBeforeGuard()({ preventDefault: vi.fn() });
-
-        expect(window.confirm).toHaveBeenCalledTimes(1);
+        expect(formPostMock).toHaveBeenCalledTimes(1);
+        expect(formPostMock).toHaveBeenCalledWith('/documents', expect.objectContaining({
+            forceFormData: true,
+            preserveState: true,
+        }));
+        expect(formState.instance.file).toBe(file);
+        expect(formState.instance.tag_ids).toEqual([1, 2]);
+        expect(formState.instance.draft_token).toBe(panel.props('draftToken'));
+        expect(panel.props('mode')).toBe('draft');
+        expect(formState.instance.draft_attachments).toEqual([
+            { filename: 'uuid.pdf', original_filename: 'Annexe.pdf' },
+        ]);
     });
 
-    it('does not add a second confirmation for its own delete-to-restart request (programmatic bypass)', async () => {
-        window.confirm = vi.fn(() => true);
-        const wrapper = await mountAtStep2();
+    it('disables "Enregistrer" while an attachment upload is in flight', async () => {
+        const wrapper = mountImport();
 
-        // Mirrors Inertia's real dispatch order: `router.delete()` runs the
-        // registered 'before' guard synchronously as part of starting the
-        // visit, before anything async happens — so invoking it from inside
-        // this mock's implementation reproduces the window in which
-        // `programmaticNavigation` must still read true.
-        routerDeleteMock.mockImplementationOnce(() => {
-            latestBeforeGuard()({ preventDefault: vi.fn() });
-        });
+        await chooseFile(wrapper, pdfFile());
+        await wrapper.findComponent(AttachmentsPanel).vm.$emit('update:uploading', true);
 
-        const deleteButton = wrapper.findAll('button').find((button) => button.text() === 'Supprimer');
-        await deleteButton.trigger('click');
+        const saveButton = wrapper.findAll('button').find((button) => button.text() === 'Envoi de la pièce jointe…');
+        expect(saveButton.attributes('disabled')).toBeDefined();
 
-        // Exactly one confirm: "Supprimer"'s own deletion dialog. The
-        // navigation guard must see the bypass and add no second one.
-        expect(window.confirm).toHaveBeenCalledTimes(1);
-        expect(routerDeleteMock).toHaveBeenCalledWith('/documents/5?redirect=import', expect.any(Object));
-    });
-
-    it('does not trigger the confirmation for its own save-tags request (programmatic bypass)', async () => {
-        window.confirm = vi.fn(() => true);
-        const wrapper = await mountAtStep2();
-
-        formPatchMock.mockImplementationOnce(() => {
-            latestBeforeGuard()({ preventDefault: vi.fn() });
-        });
-
-        const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Enregistrer'));
         await saveButton.trigger('click');
 
-        // "Enregistrer" has no confirmation dialog of its own, so this stays
-        // at zero unless the bypass fails.
-        expect(window.confirm).not.toHaveBeenCalled();
-        expect(formPatchMock).toHaveBeenCalledWith('/documents/5/tags?redirect=show', expect.any(Object));
+        expect(formPostMock).not.toHaveBeenCalled();
     });
 
-    // Code review fix: `programmaticNavigation` used to reset synchronously
-    // right after calling `router.delete()`/`tagsForm.patch()`, i.e. before
-    // the (async) request actually resolves — so it read `false` for the
-    // entire in-flight window and a real navigation attempt during a delete
-    // or save fell through to the generic guard. It must now stay bypassed
-    // until each request's own `onFinish` fires.
-    it('keeps the delete bypass active until the request finishes, then restores the guard', async () => {
-        window.confirm = vi.fn(() => true);
-        const wrapper = await mountAtStep2();
+    it('keeps the form and shows the server error when the file is rejected', async () => {
+        const wrapper = mountImport();
 
-        const deleteButton = wrapper.findAll('button').find((button) => button.text() === 'Supprimer');
-        await deleteButton.trigger('click');
-
-        // Request is in flight (onFinish not yet called): still bypassed.
-        latestBeforeGuard()({ preventDefault: vi.fn() });
-        expect(window.confirm).toHaveBeenCalledTimes(1); // only "Supprimer"'s own dialog
-
-        // The request settles.
-        routerDeleteMock.mock.calls[0][1].onFinish();
-
-        // uploadedDocument is still set (onSuccess was never invoked in this
-        // test), so the guard must be live again and confirm this time.
-        latestBeforeGuard()({ preventDefault: vi.fn() });
-        expect(window.confirm).toHaveBeenCalledTimes(2);
-    });
-
-    it('keeps the save-tags bypass active until the request finishes, then restores the guard', async () => {
-        window.confirm = vi.fn(() => true);
-        const wrapper = await mountAtStep2();
-
-        const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Enregistrer'));
-        await saveButton.trigger('click');
-
-        // Request is in flight (onFinish not yet called): still bypassed.
-        latestBeforeGuard()({ preventDefault: vi.fn() });
-        expect(window.confirm).not.toHaveBeenCalled();
-
-        // The request settles.
-        formPatchMock.mock.calls[0][1].onFinish();
-
-        // uploadedDocument is still set, so the guard must be live again.
-        latestBeforeGuard()({ preventDefault: vi.fn() });
-        expect(window.confirm).toHaveBeenCalledTimes(1);
-    });
-});
-
-describe('Documents/Import — erreur générique sur "Enregistrer" (code review fix)', () => {
-    it('shows a generic saveError when the tags patch fails without a tag_ids validation error', async () => {
-        const wrapper = await mountAtStep2();
-
-        const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Enregistrer'));
-        await saveButton.trigger('click');
-
-        // Simulate a non-validation failure (network error, 500, the document
-        // having been concurrently deleted, …): no tag_ids error is set.
-        formPatchMock.mock.calls[0][1].onError();
+        await chooseFile(wrapper, pdfFile());
+        await wrapper.findComponent(TagSelector).vm.$emit('update:modelValue', [3]);
+        formState.instance.errors = { file: 'Fichier trop volumineux (20 Mo maximum).' };
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.text()).toContain("Impossible d'enregistrer les tags.");
+        expect(wrapper.text()).toContain('Fichier trop volumineux');
+        expect(wrapper.text()).toContain('Rapport.pdf');
+        expect(formState.instance.tag_ids).toEqual([3]);
     });
 
-    it('does not show the generic saveError when the failure is a tag_ids validation error', async () => {
-        const wrapper = await mountAtStep2();
+    it('renders a per-attachment validation error returned as draft_attachments.0.filename', async () => {
+        const wrapper = mountImport();
 
-        const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Enregistrer'));
-        await saveButton.trigger('click');
-
-        formInstances.tags.errors = { tag_ids: 'Sélection invalide.' };
-        formPatchMock.mock.calls[0][1].onError();
+        formState.instance.errors = { 'draft_attachments.0.filename': 'Pièce jointe invalide.' };
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.text()).not.toContain("Impossible d'enregistrer les tags.");
-        expect(wrapper.text()).toContain('Sélection invalide.');
-    });
-});
-
-describe('Documents/Import — avertissement beforeunload (code review fix)', () => {
-    it('prevents an actual browser refresh/close while step 2 has an unsaved document', async () => {
-        await mountAtStep2();
-
-        const event = new Event('beforeunload', { cancelable: true });
-        window.dispatchEvent(event);
-
-        expect(event.defaultPrevented).toBe(true);
+        expect(wrapper.text()).toContain('Pièce jointe invalide.');
     });
 
-    it('does not warn on beforeunload before any document has been uploaded (step 1)', () => {
-        mountImport();
+    it('renders a per-tag validation error returned as tag_ids.0', async () => {
+        const wrapper = mountImport();
 
-        const event = new Event('beforeunload', { cancelable: true });
-        window.dispatchEvent(event);
+        formState.instance.errors = { 'tag_ids.0': 'Tag invalide.' };
+        await wrapper.vm.$nextTick();
 
-        expect(event.defaultPrevented).toBe(false);
+        expect(wrapper.text()).toContain('Tag invalide.');
     });
 
-    it('does not warn on beforeunload while the document is mid-deletion', async () => {
-        window.confirm = vi.fn(() => true);
-        const wrapper = await mountAtStep2();
+    it('points "Annuler" to the library and sends no request or confirmation', async () => {
+        const wrapper = mountImport();
 
-        const deleteButton = wrapper.findAll('button').find((button) => button.text() === 'Supprimer');
-        await deleteButton.trigger('click'); // sets isDeleting = true, request left in flight
+        await chooseFile(wrapper, pdfFile());
+        await findCancelLink(wrapper).trigger('click');
 
-        const event = new Event('beforeunload', { cancelable: true });
-        window.dispatchEvent(event);
-
-        expect(event.defaultPrevented).toBe(false);
+        expect(findCancelLink(wrapper).attributes('href')).toBe('/documents');
+        expect(formPostMock).not.toHaveBeenCalled();
+        expect(window.confirm).not.toHaveBeenCalled();
     });
 
-    it('does not warn on beforeunload while tags are being saved', async () => {
-        const wrapper = await mountAtStep2();
+    it('makes "Annuler" inert while the save is in flight', async () => {
+        formPostMock.mockImplementation(function markProcessing() {
+            this.processing = true;
+        });
+        const wrapper = mountImport();
 
-        const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Enregistrer'));
-        await saveButton.trigger('click');
-        formInstances.tags.processing = true;
+        await chooseFile(wrapper, pdfFile());
+        await findButton(wrapper, 'Enregistrer').trigger('click');
 
-        const event = new Event('beforeunload', { cancelable: true });
-        window.dispatchEvent(event);
+        expect(findCancelLink(wrapper)).toBeUndefined();
+        expect(findButton(wrapper, 'Annuler').attributes('disabled')).toBeDefined();
+    });
 
-        expect(event.defaultPrevented).toBe(false);
+    it('makes "Annuler" inert while an attachment upload is in flight', async () => {
+        const wrapper = mountImport();
+
+        await wrapper.findComponent(AttachmentsPanel).vm.$emit('update:uploading', true);
+
+        expect(findCancelLink(wrapper)).toBeUndefined();
+        expect(findButton(wrapper, 'Annuler').attributes('disabled')).toBeDefined();
+    });
+
+    it('registers no navigation guard and no beforeunload prompt', async () => {
+        const wrapper = mountImport();
+
+        await chooseFile(wrapper, pdfFile());
+
+        expect(router.on).not.toHaveBeenCalledWith('before', expect.anything());
+
+        const unloadEvent = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(unloadEvent);
+
+        expect(unloadEvent.defaultPrevented).toBe(false);
     });
 });

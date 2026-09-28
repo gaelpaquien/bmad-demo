@@ -325,3 +325,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-ajustements-consultation-editeur.md`
   summary: `AttachmentsPanel.vue` émet toujours `before-request`/`after-request` et ses commentaires (L.16, L.57-67) décrivent encore la garde de navigation de l'éditeur, alors qu'`Editor.vue` n'écoute plus ces événements depuis la suppression de la confirmation de sortie — API morte et commentaires obsolètes à retirer.
   evidence: Blind Hunter + Verification Gap (step-04 review) — la spec plaçait `AttachmentsPanel.vue` en « Ask First », donc le composant n'a pas été modifié ; les émissions sont inoffensives mais n'ont plus aucun consommateur.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-refonte-import-formulaire-unique.md`
+  summary: `RelocatesDraftAttachments` supprime (au lieu de remettre dans `tmp/{token}`) les pièces jointes déjà déplacées quand la relocalisation échoue, et ignore silencieusement une pièce jointe listée mais absente de `tmp/{token}` — un nouvel « Enregistrer » après échec crée alors le document sans ces pièces jointes, sans aucun message.
+  evidence: Blind Hunter + Edge Case Hunter (step-04 review) — comportement préexistant du code extrait tel quel de `CreateDocumentAction` (même effet dans l'éditeur) ; désormais aussi exposé par l'import. De même, un échec de `SyncDocumentTagsAction` après l'import laisse le fichier d'origine et les pièces jointes relocalisées sur disque (rollback DB uniquement).

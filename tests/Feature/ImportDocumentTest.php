@@ -4,10 +4,12 @@ use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
 use App\Jobs\ExtractDocumentTextJob;
 use App\Models\Document;
+use App\Models\DocumentAttachment;
 use App\Models\Tag;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     Storage::fake('local');
@@ -18,19 +20,14 @@ function fixtureContents(string $name): string
     return file_get_contents(__DIR__.'/../Fixtures/'.$name);
 }
 
-it('imports a valid PDF, extracts its text and redirects back to the import review step', function () {
+it('imports a valid PDF, extracts its text and redirects to the document page', function () {
     $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
 
-    // `store()` now redirects via back() (Code Map,
-    // spec-corrections-documents-ui) rather than a fixed route — mirrors
-    // how a real browser navigation from /documents/import carries its own
-    // Referer header; the test client needs the same simulated here via
-    // from(), otherwise back() falls through to the app root.
-    $response = $this->from('/documents/import')->post('/documents', ['file' => $file]);
+    $response = $this->post('/documents', ['file' => $file]);
 
     $document = Document::sole();
 
-    $response->assertRedirect('/documents/import');
+    $response->assertRedirect("/documents/{$document->id}");
     expect($document->source)->toBe(DocumentSource::Imported);
     expect($document->title)->toBe('contract.pdf');
     expect($document->file_path)->toBe("documents/{$document->id}/contract.pdf");
@@ -39,16 +36,12 @@ it('imports a valid PDF, extracts its text and redirects back to the import revi
     Storage::disk('local')->assertExists($document->file_path);
 });
 
-it('redirects to the import page even with no previous URL in session (code review fix: back() fallback)', function () {
-    // No ->from() here, unlike the test above — simulates a session with no
-    // prior GET to /documents/import (e.g. a fresh session/direct POST),
-    // where back() would otherwise fall through to the app root and lose
-    // the flashed uploadedDocument, so step 2 would never appear.
+it('redirects to the document page even with no previous URL in session', function () {
     $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
 
     $response = $this->post('/documents', ['file' => $file]);
 
-    $response->assertRedirect('/documents/import');
+    $response->assertRedirect('/documents/'.Document::sole()->id);
 });
 
 it('imports a valid docx and extracts its text via phpword', function () {
@@ -112,11 +105,11 @@ it('extracts text based on the real file content even when the filename extensio
         ->createWithContent('mystery-file.bin', fixtureContents('sample.docx'))
         ->mimeType('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 
-    $response = $this->from('/documents/import')->post('/documents', ['file' => $file]);
+    $response = $this->post('/documents', ['file' => $file]);
 
     $document = Document::sole();
 
-    $response->assertRedirect('/documents/import');
+    $response->assertRedirect("/documents/{$document->id}");
     expect($document->extracted_text)->toContain('BMAD Démo sample docx content');
     Storage::disk('local')->assertExists($document->file_path);
 });
@@ -124,11 +117,11 @@ it('extracts text based on the real file content even when the filename extensio
 it('keeps the import when text extraction fails on an otherwise valid, unreadable file', function () {
     $file = UploadedFile::fake()->createWithContent('scanned.pdf', fixtureContents('sample-corrupt.pdf'));
 
-    $response = $this->from('/documents/import')->post('/documents', ['file' => $file]);
+    $response = $this->post('/documents', ['file' => $file]);
 
     $document = Document::sole();
 
-    $response->assertRedirect('/documents/import');
+    $response->assertRedirect("/documents/{$document->id}");
     expect($document->source)->toBe(DocumentSource::Imported);
     expect($document->extracted_text)->toBeNull();
     expect($document->extraction_status)->toBe(ExtractionStatus::Failed);
@@ -171,11 +164,11 @@ it('returns immediately with the document pending extraction, dispatching the jo
 
     $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
 
-    $response = $this->from('/documents/import')->post('/documents', ['file' => $file]);
+    $response = $this->post('/documents', ['file' => $file]);
 
     $document = Document::sole();
 
-    $response->assertRedirect('/documents/import');
+    $response->assertRedirect("/documents/{$document->id}");
     expect($document->extraction_status)->toBe(ExtractionStatus::Pending);
     expect($document->extracted_text)->toBeNull();
     Storage::disk('local')->assertExists($document->file_path);
@@ -225,31 +218,105 @@ it('lists previously imported documents on the index page', function () {
     );
 });
 
-// --- Étape 2 : revue (Supprimer / Enregistrer, spec-corrections-documents-ui) ----
+// --- Formulaire unique (spec-refonte-import-formulaire-unique) ---------------
 
-it('deletes the imported document and redirects back to the import page when ?redirect=import is passed', function () {
-    $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
-    $this->post('/documents', ['file' => $file]);
+it('imports a file with its tags and a draft attachment in one request, dispatching one extraction job each', function () {
+    Queue::fake();
 
-    $document = Document::sole();
+    $tags = Tag::factory()->count(2)->create();
+    $draftToken = Str::uuid()->toString();
 
-    $response = $this->delete("/documents/{$document->id}?redirect=import");
+    $this->post('/documents/create/attachments', [
+        'draft_token' => $draftToken,
+        'file' => UploadedFile::fake()->createWithContent('annexe.pdf', fixtureContents('sample.pdf')),
+    ]);
+    $uploadedAttachment = session('uploadedAttachment');
 
-    $response->assertRedirect('/documents/import');
-    expect(Document::find($document->id))->toBeNull();
-});
-
-it('syncs tags and redirects to the document page when ?redirect=show is passed', function () {
-    $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
-    $this->post('/documents', ['file' => $file]);
-
-    $document = Document::sole();
-    $tag = Tag::factory()->create();
-
-    $response = $this->patch("/documents/{$document->id}/tags?redirect=show", [
-        'tag_ids' => [$tag->id],
+    $response = $this->post('/documents', [
+        'file' => UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf')),
+        'tag_ids' => $tags->pluck('id')->all(),
+        'draft_token' => $draftToken,
+        'draft_attachments' => [[
+            'filename' => $uploadedAttachment['filename'],
+            'original_filename' => $uploadedAttachment['original_filename'],
+        ]],
     ]);
 
+    $document = Document::sole();
+    $attachment = DocumentAttachment::sole();
+
     $response->assertRedirect("/documents/{$document->id}");
-    expect($document->fresh()->tags->pluck('id')->all())->toBe([$tag->id]);
+    expect($document->tags->pluck('id')->sort()->values()->all())->toBe($tags->pluck('id')->sort()->values()->all());
+    expect($attachment->document_id)->toBe($document->id);
+    expect($attachment->original_filename)->toBe('annexe.pdf');
+    expect($attachment->file_path)->toBe("documents/{$document->id}/attachments/{$uploadedAttachment['filename']}");
+    Storage::disk('local')->assertExists($attachment->file_path);
+    Storage::disk('local')->assertMissing("documents/tmp/{$draftToken}/attachments/{$uploadedAttachment['filename']}");
+
+    Queue::assertPushed(ExtractDocumentTextJob::class, 2);
+    Queue::assertPushed(ExtractDocumentTextJob::class, fn ($job) => $job->target->is($document));
+    Queue::assertPushed(ExtractDocumentTextJob::class, fn ($job) => $job->target->is($attachment));
+});
+
+it('rejects a draft attachment filename that is not a server-generated uuid, creating no document', function () {
+    $response = $this->post('/documents', [
+        'file' => UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf')),
+        'draft_token' => Str::uuid()->toString(),
+        'draft_attachments' => [[
+            'filename' => '../../contract.pdf',
+            'original_filename' => 'contract.pdf',
+        ]],
+    ]);
+
+    $response->assertSessionHasErrors('draft_attachments.0.filename');
+    expect(Document::count())->toBe(0);
+    expect(DocumentAttachment::count())->toBe(0);
+});
+
+it('rejects draft attachments sent without a draft token, creating no document', function () {
+    $response = $this->post('/documents', [
+        'file' => UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf')),
+        'draft_attachments' => [[
+            'filename' => Str::uuid()->toString().'.pdf',
+            'original_filename' => 'annexe.pdf',
+        ]],
+    ]);
+
+    $response->assertSessionHasErrors('draft_token');
+    expect(Document::count())->toBe(0);
+});
+
+it('rolls back the whole import and leaves no document directory when relocating a draft attachment fails', function () {
+    Queue::fake();
+
+    $draftToken = Str::uuid()->toString();
+
+    $this->post('/documents/create/attachments', [
+        'draft_token' => $draftToken,
+        'file' => UploadedFile::fake()->createWithContent('annexe.pdf', fixtureContents('sample.pdf')),
+    ]);
+    $uploadedAttachment = session('uploadedAttachment');
+
+    $failingDisk = Mockery::mock(Storage::disk('local'))->makePartial();
+    $failingDisk->shouldReceive('move')->andReturn(false);
+    Storage::set('local', $failingDisk);
+
+    $this->withoutExceptionHandling();
+
+    expect(fn () => $this->post('/documents', [
+        'file' => UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf')),
+        'draft_token' => $draftToken,
+        'draft_attachments' => [[
+            'filename' => $uploadedAttachment['filename'],
+            'original_filename' => $uploadedAttachment['original_filename'],
+        ]],
+    ]))->toThrow(RuntimeException::class);
+
+    expect(Document::count())->toBe(0);
+    expect(DocumentAttachment::count())->toBe(0);
+    expect(collect(Storage::disk('local')->allDirectories('documents'))
+        ->reject(fn (string $directory) => str_starts_with($directory, 'documents/tmp'))
+        ->all())->toBe([]);
+    Storage::disk('local')->assertExists("documents/tmp/{$draftToken}/attachments/{$uploadedAttachment['filename']}");
+    Queue::assertNothingPushed();
 });

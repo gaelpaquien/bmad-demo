@@ -1,64 +1,48 @@
 <script setup>
-import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { Link, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TagSelector from '@/Components/TagSelector.vue';
+import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
 import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
 import { useFileDropZone } from '@/Composables/useFileDropZone';
 
-// Dedicated page (spec-import-document-page) replacing the former
-// `ImportModal.vue` popup — same dropzone/TagSelector/useForm logic, minus
-// every modal-only concern (role="dialog", focus trap, Escape, focus
-// restoration to the trigger): an Inertia page already handles all of that
-// natively, same reasoning as Editor.vue's own migration off a modal.
+// Single-form import page (spec-refonte-import-formulaire-unique): choosing
+// a file only keeps it locally — nothing is sent, no document exists yet.
+// Tags and draft attachments are gathered alongside, and "Enregistrer" sends
+// everything in one `POST /documents` (DocumentController::store()), which
+// creates the document, assigns its tags and relocates its attachments in a
+// single transaction before redirecting to the document's own page.
 //
-// Since spec-corrections-documents-ui, importing a document is a 2-step
-// flow (Intent): step 1 below is the dropzone alone — the upload creates
-// the Document row exactly as before (ImportDocumentAction, unchanged),
-// but DocumentController::store() now redirects back to this same page
-// instead of straight to the document's detail page, flashing the freshly
-// created document via `flash.uploadedDocument` (mirrors Editor.vue's own
-// `uploadedImage` channel, AD-13/`back()->with()`). The watcher below picks
-// that up and flips the page into step 2 (the review screen): "Supprimer"
-// hard-deletes the document and returns to step 1 to start over, or a
-// TagSelector + "Enregistrer" assigns tags (PATCH .../tags?redirect=show)
-// and redirects to the document's own page.
-//
-// One modal-era guarantee still needed an explicit replacement: the old
-// overlay physically blocked clicks on the sidebar while open, so an
-// in-flight upload could never be interrupted by navigating away. A plain
-// page has no such shield — the sidebar stays fully clickable — so a
-// `router.on('before', ...)` guard below blocks any Inertia navigation
-// while `form.processing` is true (the upload itself), and again while
-// `uploadedDocument` is set and not yet saved/deleted (the review step) —
-// the same protection `ImportModal.vue`'s `close()` gave against losing an
-// upload underway, extended to cover losing an un-tagged import too.
+// No navigation guard, no `beforeunload`: nothing is persisted before
+// "Enregistrer", so leaving loses nothing server-side (Boundaries &
+// Constraints). "Annuler" is only made inert while a request is in flight,
+// same as Editor.vue.
 
 const ACCEPTED_LABEL = 'PDF, Word (.docx), Excel (.xlsx)';
 
-const page = usePage();
-
-// Step 2 state (I/O matrix, spec-corrections-documents-ui) — populated once
-// the upload's Inertia redirect lands back on this same page with
-// `flash.uploadedDocument` set. Reset to null after a successful
-// "Supprimer" so the page falls back to the step-1 dropzone; Laravel's
-// flash bag ages the prop itself back out after the one request that
-// follows the redirect, same as Editor.vue's `uploadedImage`, so there's
-// nothing else to clean up here.
-const uploadedDocument = ref(null);
-
-watch(
-    () => page.props.flash?.uploadedDocument,
-    (value) => {
-        if (value) {
-            uploadedDocument.value = value;
-        }
-    },
-);
+// Generated once, client-side (same mechanism as Editor.vue, spec-2-2/3-3) —
+// keys every draft attachment uploaded before the document exists, and
+// travels along with "Enregistrer" so ImportDocumentAction knows which
+// tmp/{token} directory to relocate.
+const draftToken = crypto.randomUUID();
 
 const form = useForm({
     file: null,
+    tag_ids: [],
+    draft_token: draftToken,
+    // Populated from `attachments` right before submit().
+    draft_attachments: [],
 });
+
+// Deliberately its own ref, managed through AttachmentsPanel's
+// `update:attachments` emit — mirrors Editor.vue's draft mode.
+const attachments = ref([]);
+
+// Mirrors AttachmentsPanel's own `isUploading` (`v-model:uploading`): an
+// attachment still uploading when "Enregistrer" is clicked would otherwise
+// be silently left out of `draft_attachments`.
+const isAttachmentUploading = ref(false);
 
 const clientError = ref('');
 const fileInputRef = ref(null);
@@ -70,7 +54,27 @@ const { isDragging, validationError, onDragover, onDragleave, fileFromDropEvent,
     maxFileSizeLabel: '20 Mo',
 });
 
-const uploadErrorMessage = computed(() => clientError.value || form.errors.file || '');
+const fileErrorMessage = computed(() => clientError.value || form.errors.file || '');
+
+// Any `draft_token`/`draft_attachments[.*]` rejection has no field of its
+// own to sit under — surfaced once, below the attachments panel.
+const attachmentsErrorMessage = computed(() => {
+    const key = Object.keys(form.errors).find((field) => field === 'draft_token' || field.startsWith('draft_attachments'));
+
+    return key ? form.errors[key] : '';
+});
+
+// Per-tag rejections come back as `tag_ids.0`, `tag_ids.1`… — surfaced
+// once, below the TagSelector, alongside a whole-list `tag_ids` error.
+const tagsErrorMessage = computed(() => {
+    const key = Object.keys(form.errors).find((field) => field === 'tag_ids' || field.startsWith('tag_ids.'));
+
+    return key ? form.errors[key] : '';
+});
+
+const isBusy = computed(() => form.processing || isAttachmentUploading.value);
+
+const canSave = computed(() => !!form.file && !isBusy.value);
 
 function handleFile(file) {
     clientError.value = '';
@@ -80,28 +84,17 @@ function handleFile(file) {
 
     if (error) {
         clientError.value = error;
-        form.reset('file');
+        form.file = null;
         return;
     }
 
     form.file = file;
-    // preserveState keeps this component instance mounted across the
-    // upload's redirect back to this same page (Code Map,
-    // spec-corrections-documents-ui) — without it, the follow-up visit
-    // would tear this instance down and rebuild it, and the flash watcher
-    // above would never see the change land.
-    form.post('/documents', {
-        forceFormData: true,
-        preserveState: true,
-        onError: () => {
-            // Server-side validation failed (e.g. size). Page stays as-is,
-            // the error message renders from form.errors.file.
-        },
-    });
 }
 
 function onInputChange(event) {
     handleFile(fileFromInputEvent(event));
+    // Lets the same file be picked again after "Retirer".
+    event.target.value = '';
 }
 
 function onDrop(event) {
@@ -112,133 +105,35 @@ function openFilePicker() {
     fileInputRef.value?.click();
 }
 
-// --- Étape 2 : revue (Supprimer / tags + Enregistrer) -----------------------
-
-const tagsForm = useForm({ tag_ids: [] });
-const isDeleting = ref(false);
-const deleteError = ref('');
-const saveError = ref('');
-
-// Own requests below (delete-to-restart, save-tags) are this component's
-// own doing, not the user trying to leave — bypasses the navigation guard
-// below entirely rather than asking the user to confirm leaving a page
-// they never asked to leave (mirrors Editor.vue's `programmaticNavigation`).
-let programmaticNavigation = false;
-
-function deleteUploadedDocument() {
-    if (!uploadedDocument.value || isDeleting.value) {
-        return;
-    }
-
-    if (!window.confirm(
-        "Ce document sera supprimé définitivement et vous repartirez de zéro. Voulez-vous continuer ?",
-    )) {
-        return;
-    }
-
-    isDeleting.value = true;
-    deleteError.value = '';
-    programmaticNavigation = true;
-
-    router.delete(`/documents/${uploadedDocument.value.id}?redirect=import`, {
-        preserveState: true,
-        onSuccess: () => {
-            // The server has nothing left to flash (the document is gone) —
-            // reset every piece of local state back to the step-1 dropzone.
-            uploadedDocument.value = null;
-            tagsForm.reset('tag_ids');
-            tagsForm.clearErrors();
-            form.reset('file');
-            clientError.value = '';
-        },
-        onError: () => {
-            deleteError.value = 'Impossible de supprimer le document.';
-        },
-        onFinish: () => {
-            isDeleting.value = false;
-            // Reset only once the request actually settles — while it's
-            // in flight, a genuine navigation attempt (e.g. a sidebar
-            // click mid-delete) must still fall through to the guard
-            // below rather than silently bypass it.
-            programmaticNavigation = false;
-        },
-    });
-}
-
-function saveTags() {
-    if (!uploadedDocument.value) {
-        return;
-    }
-
-    programmaticNavigation = true;
-    saveError.value = '';
-
-    // redirect=show (Design Notes, spec-corrections-documents-ui) tells
-    // DocumentController::updateTags() this call is finalizing the import
-    // review, not the Document Detail page's own reassignment — it
-    // redirects to the document's page instead of back() here.
-    tagsForm.patch(`/documents/${uploadedDocument.value.id}/tags?redirect=show`, {
-        onError: () => {
-            // Tag validation errors surface inline via tagsForm.errors.tag_ids
-            // below — stays on step 2 (I/O matrix, spec-corrections-documents-ui).
-            // Anything else (network failure, 500, a 404 if the document was
-            // concurrently deleted, …) has no per-field error to render, so
-            // it needs its own generic message.
-            if (!tagsForm.errors.tag_ids) {
-                saveError.value = "Impossible d'enregistrer les tags.";
-            }
-        },
-        onFinish: () => {
-            // Reset only once the request actually settles — see the same
-            // reasoning in deleteUploadedDocument() above.
-            programmaticNavigation = false;
-        },
-    });
-}
-
-const removeNavigationGuard = router.on('before', () => {
-    if (programmaticNavigation) {
-        return;
-    }
-
+function removeFile() {
     if (form.processing) {
-        return window.confirm(
-            "Un import est en cours. Si vous quittez cette page maintenant, l'import sera annulé. Voulez-vous vraiment quitter ?",
-        );
+        return;
     }
 
-    if (uploadedDocument.value) {
-        return window.confirm(
-            "Le document importé restera sans tags si vous quittez maintenant. Voulez-vous continuer ?",
-        );
-    }
-});
-
-// router.on('before') only ever fires for Inertia-mediated navigation
-// (sidebar links, etc.) — it has no reach over an actual browser refresh or
-// tab close. The document itself is already a real persisted row (no draft
-// state, Design Notes, spec-corrections-documents-ui), so leaving here
-// isn't data loss, just an untagged document until someone edits it later
-// from its own page — but that path deserves the same warning the in-app
-// one gives, so it isn't silently different. Same condition as the guard
-// above, minus the form.processing branch (Inertia's own `beforeunload`
-// coverage, if any, doesn't apply — this listener uses its own explicit
-// condition to stay in sync with the in-app guard's second branch).
-function handleBeforeUnload(event) {
-    if (uploadedDocument.value && !isDeleting.value && !tagsForm.processing) {
-        event.preventDefault();
-        // Modern browsers show their own generic prompt text regardless of
-        // this value — set only for older-browser compatibility.
-        event.returnValue = '';
-    }
+    form.file = null;
+    form.clearErrors('file');
+    clientError.value = '';
 }
 
-window.addEventListener('beforeunload', handleBeforeUnload);
+function submit() {
+    if (!canSave.value) {
+        return;
+    }
 
-onUnmounted(() => {
-    removeNavigationGuard();
-    window.removeEventListener('beforeunload', handleBeforeUnload);
-});
+    form.draft_attachments = attachments.value.map((attachment) => ({
+        filename: attachment.filename,
+        original_filename: attachment.original_filename,
+    }));
+
+    // preserveState keeps the chosen file, tags and attachments on a
+    // server-side validation error (I/O matrix: "saisie conservée") — the
+    // message then renders from form.errors.
+    form.post('/documents', {
+        forceFormData: true,
+        preserveState: true,
+        preserveScroll: true,
+    });
+}
 </script>
 
 <template>
@@ -248,88 +143,104 @@ onUnmounted(() => {
                 Importer un document
             </h1>
 
-            <template v-if="!uploadedDocument">
-                <div
-                    class="flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed border-border bg-surface p-8 text-center"
-                    :class="{ 'border-primary bg-primary/10': isDragging }"
-                    @dragover.prevent="onDragover"
-                    @dragleave.prevent="onDragleave"
-                    @drop.prevent="onDrop"
+            <div
+                v-if="!form.file"
+                class="flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed border-border bg-surface p-8 text-center"
+                :class="{ 'border-primary bg-primary/10': isDragging }"
+                @dragover.prevent="onDragover"
+                @dragleave.prevent="onDragleave"
+                @drop.prevent="onDrop"
+            >
+                <p class="text-sm text-muted">
+                    Glissez-déposez un fichier ici, ou
+                </p>
+                <button
+                    type="button"
+                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                    @click="openFilePicker"
                 >
-                    <p class="text-sm text-muted">
-                        Glissez-déposez un fichier ici, ou
-                    </p>
-                    <button
-                        type="button"
-                        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        :disabled="form.processing"
-                        @click="openFilePicker"
-                    >
-                        Parcourir
-                    </button>
-                    <input
-                        ref="fileInputRef"
-                        type="file"
-                        class="sr-only"
-                        accept=".pdf,.docx,.xlsx"
-                        aria-label="Sélectionner un fichier à importer"
-                        @change="onInputChange"
-                    />
-                    <p class="text-xs text-muted">
-                        Formats acceptés : {{ ACCEPTED_LABEL }}
-                    </p>
-                </div>
-
-                <p v-if="form.processing" class="mt-3 text-sm text-muted" role="status">
-                    Import en cours…
+                    Parcourir
+                </button>
+                <input
+                    ref="fileInputRef"
+                    type="file"
+                    class="sr-only"
+                    accept=".pdf,.docx,.xlsx"
+                    aria-label="Sélectionner un fichier à importer"
+                    @change="onInputChange"
+                />
+                <p class="text-xs text-muted">
+                    Formats acceptés : {{ ACCEPTED_LABEL }}
                 </p>
+            </div>
 
-                <p v-if="uploadErrorMessage" class="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
-                    {{ uploadErrorMessage }}
+            <div v-else class="flex items-center gap-3 rounded-md border border-border bg-surface p-4">
+                <DocumentTypeBadge class="shrink-0" :mime-type="form.file.type" />
+                <span class="min-w-0 flex-1 truncate font-medium text-foreground">
+                    {{ form.file.name }}
+                </span>
+                <button
+                    type="button"
+                    class="shrink-0 rounded-md border border-foreground/40 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="form.processing"
+                    @click="removeFile"
+                >
+                    Retirer
+                </button>
+            </div>
+
+            <p v-if="fileErrorMessage" class="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
+                {{ fileErrorMessage }}
+            </p>
+
+            <div class="mt-6">
+                <TagSelector v-model="form.tag_ids" :disabled="form.processing" />
+                <p v-if="tagsErrorMessage" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                    {{ tagsErrorMessage }}
                 </p>
-            </template>
+            </div>
 
-            <template v-else>
-                <div class="flex items-center gap-3 rounded-md border border-border bg-surface p-4">
-                    <DocumentTypeBadge class="shrink-0" :mime-type="uploadedDocument.mime_type" />
-                    <span class="min-w-0 flex-1 truncate font-medium text-foreground">
-                        {{ uploadedDocument.title }}
-                    </span>
-                    <button
-                        type="button"
-                        class="shrink-0 rounded-md border border-red-600 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500 dark:text-red-500 dark:hover:bg-red-950/30"
-                        :disabled="isDeleting"
-                        @click="deleteUploadedDocument"
-                    >
-                        {{ isDeleting ? 'Suppression…' : 'Supprimer' }}
-                    </button>
-                </div>
-
-                <p v-if="deleteError" class="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
-                    {{ deleteError }}
+            <div class="mt-6">
+                <AttachmentsPanel
+                    v-model:attachments="attachments"
+                    v-model:uploading="isAttachmentUploading"
+                    mode="draft"
+                    :draft-token="draftToken"
+                />
+                <p v-if="attachmentsErrorMessage" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                    {{ attachmentsErrorMessage }}
                 </p>
+            </div>
 
-                <div class="mt-4">
-                    <TagSelector v-model="tagsForm.tag_ids" :disabled="tagsForm.processing || isDeleting" />
-                    <p v-if="tagsForm.errors.tag_ids" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
-                        {{ tagsForm.errors.tag_ids }}
-                    </p>
-                </div>
-
-                <div class="mt-4">
-                    <button
-                        type="button"
-                        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                        :disabled="tagsForm.processing"
-                        @click="saveTags"
-                    >
-                        {{ tagsForm.processing ? 'Enregistrement…' : 'Enregistrer' }}
-                    </button>
-                    <p v-if="saveError" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
-                        {{ saveError }}
-                    </p>
-                </div>
-            </template>
+            <div class="mt-6 flex items-center gap-3">
+                <button
+                    type="button"
+                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                    :disabled="!canSave"
+                    @click="submit"
+                >
+                    {{ form.processing ? 'Enregistrement…' : (isAttachmentUploading ? 'Envoi de la pièce jointe…' : 'Enregistrer') }}
+                </button>
+                <!-- Swapped for an inert button while a save or an upload is
+                     in flight (leaving would abort that Inertia visit):
+                     Inertia's <Link> overrides any click listener passed to
+                     it, so it can't be disabled in place (same as Editor.vue). -->
+                <button
+                    v-if="isBusy"
+                    type="button"
+                    disabled
+                    class="cursor-not-allowed rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground opacity-50"
+                >
+                    Annuler
+                </button>
+                <Link
+                    v-else
+                    href="/documents"
+                    class="rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                >
+                    Annuler
+                </Link>
+            </div>
         </div>
     </AppLayout>
 </template>

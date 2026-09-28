@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Actions\Concerns\RelocatesDraftAttachments;
 use App\DataTransferObjects\ImportDocumentData;
 use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
@@ -27,9 +28,18 @@ use Throwable;
  * A storage failure, in contrast, is not tolerated silently: Document
  * creation + file write are wrapped in a transaction so no orphaned or
  * corrupt row is ever left behind.
+ *
+ * Draft attachments added on the import page before the document existed
+ * (spec-refonte-import-formulaire-unique) are relocated inside that same
+ * transaction via RelocatesDraftAttachments — shared verbatim with
+ * CreateDocumentAction — and exposed as the returned Document's
+ * `attachments` relation so the controller can dispatch one
+ * ExtractDocumentTextJob per row once the transaction commits.
  */
 class ImportDocumentAction
 {
+    use RelocatesDraftAttachments;
+
     public function __invoke(ImportDocumentData $data): Document
     {
         $document = DB::transaction(function () use ($data) {
@@ -43,6 +53,18 @@ class ImportDocumentAction
             $document->forceFill([
                 'file_path' => $this->storeFile($data, $document),
             ])->save();
+
+            try {
+                $createdAttachments = $this->relocateDraftAttachments($data->draftToken, $document, $data->draftAttachments);
+            } catch (Throwable $exception) {
+                // The row rolls back with the transaction; the original file
+                // already stored above must not outlive it on disk.
+                Storage::disk('local')->deleteDirectory("documents/{$document->id}");
+
+                throw $exception;
+            }
+
+            $document->setRelation('attachments', $createdAttachments);
 
             return $document;
         });
