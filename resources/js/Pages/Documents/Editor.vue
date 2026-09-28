@@ -407,7 +407,7 @@ function submit() {
 // "Annuler" abandons the session with no request and no confirmation
 // (spec-ajustements-consultation-editeur): back to the document when
 // editing one, back to the list when drafting a new one.
-const cancelUrl = props.document ? `/documents/${props.document.id}` : '/documents';
+const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
 </script>
 
 <template>

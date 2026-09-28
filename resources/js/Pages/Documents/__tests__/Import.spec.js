@@ -215,7 +215,7 @@ describe('Documents/Import — formulaire unique (spec-refonte-import-formulaire
         await chooseFile(wrapper, pdfFile());
         await findCancelLink(wrapper).trigger('click');
 
-        expect(findCancelLink(wrapper).attributes('href')).toBe('/documents');
+        expect(findCancelLink(wrapper).attributes('href')).toBe('/');
         expect(formPostMock).not.toHaveBeenCalled();
         expect(window.confirm).not.toHaveBeenCalled();
     });

@@ -235,7 +235,7 @@ function submit() {
                 </button>
                 <Link
                     v-else
-                    href="/documents"
+                    href="/"
                     class="rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 >
                     Annuler

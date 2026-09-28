@@ -255,7 +255,7 @@ describe('Documents/Editor — Annuler et absence de garde de sortie', () => {
     it('points "Annuler" back to the list when drafting a new document', () => {
         const wrapper = mountEditor();
 
-        expect(findCancelLink(wrapper).attributes('href')).toBe('/documents');
+        expect(findCancelLink(wrapper).attributes('href')).toBe('/');
     });
 
     it('sends no request when clicking "Annuler"', async () => {
