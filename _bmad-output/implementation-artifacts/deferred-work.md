@@ -392,3 +392,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-nettoyage-pint-code-mort-titre-doc.md`
   summary: DESIGN.md (composant Sidebar, L.183) ne liste que les 3 racines et « 5 surfaces », sans les actions « Importer un document » / « Créer un document » ajoutées à la sidebar.
   evidence: Dérive antérieure (spec-sidebar-document-actions) relevée par la revue du nettoyage du 2026-09-29 ; EXPERIENCE.md a été réaligné, pas DESIGN.md.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-aide-et-filtre-tag-seul.md`
+  summary: Une recherche faite uniquement d'exclusions (`-speed`) avec un tag sélectionné ne renvoie rien, alors que le tag seul liste ses documents ; envisager « documents du tag sauf ceux contenant speed ».
+  evidence: incohérence relevée au plan et par la revue (Blind Hunter) ; laissée hors périmètre car elle touche la règle « aucun mot-clé positif ⇒ aucun résultat » du moteur.
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-aide-et-filtre-tag-seul.md`
+  summary: La page Recherche n'est ni paginée ni bornée ; un tag porté par la plupart des documents renvoie désormais presque toute la bibliothèque en un seul payload Inertia.
+  evidence: le parcours par tag seul (sans mot-clé) rend ce cas courant ; un mot-clé très fréquent le permettait déjà (revues Blind Hunter et Edge Case Hunter).

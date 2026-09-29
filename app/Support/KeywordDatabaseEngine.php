@@ -21,9 +21,10 @@ use Normalizer;
  * - `+keyword`: required (ET);
  * - `-keyword`: excluded.
  *
- * A term made only of excluded keywords (or of nothing usable, e.g. a lone
- * `+` typed before the word) matches nothing, so Recherche never
- * falls back to listing (almost) the whole library (AC2, spec-3-4). Results
+ * A blank term adds no text constraint (tag-only browsing, the caller
+ * narrowing by tag). A term made only of excluded keywords (or of nothing
+ * usable, e.g. a lone `+` typed before the word) matches nothing, so
+ * Recherche never falls back to listing (almost) the whole library (AC2, spec-3-4). Results
  * are ranked by how many required/optional keywords their priority columns
  * contain, then by how many they contain across every indexed column — the
  * caller's own `orderBy` (e.g. `latest()`) only breaks ties.
@@ -70,6 +71,14 @@ class KeywordDatabaseEngine extends DatabaseEngine
      */
     protected function addTextSearchConstraints($query, Builder $builder, array $columns, array $prefixColumns = [], array $fullTextColumns = []): EloquentBuilder
     {
+        // Same guard as the stock engine: a blank term adds no text
+        // constraint, so a tag-only Recherche lists that tag's documents
+        // through the single `Document::search()` path (AD-8, 2026-09-29).
+        // The caller never searches with a blank term and no tag.
+        if (blank($builder->query)) {
+            return $query;
+        }
+
         $keywords = self::keywordsFrom((string) $builder->query);
 
         $likeOperator = $builder->modelConnectionType() === 'pgsql' ? 'ilike' : 'like';

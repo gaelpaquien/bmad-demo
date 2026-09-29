@@ -50,12 +50,15 @@ it('returns an empty result set, never the whole library, when the search term i
     );
 });
 
-// I/O matrix "Filtre tag seul, terme vide" — AC2: a tag filter alone never
-// bypasses the empty-term short-circuit.
-it('returns an empty result set when a tag filter is active but the search term is empty', function () {
+// I/O matrix "Tag seul" (spec-recherche-aide-et-filtre-tag-seul): a blank
+// term with a tag lists that tag's documents, newest first.
+it('lists the documents carrying the selected tag, newest first, when the search term is empty', function () {
     $tag = Tag::factory()->create();
-    $document = Document::factory()->create();
-    $document->tags()->sync([$tag->id]);
+    $older = Document::factory()->create(['created_at' => now()->subDays(2)]);
+    $newer = Document::factory()->create(['created_at' => now()]);
+    $older->tags()->sync([$tag->id]);
+    $newer->tags()->sync([$tag->id]);
+    Document::factory()->create();
 
     $response = $this->get("/recherche?tag_id[]={$tag->id}");
 
@@ -64,6 +67,79 @@ it('returns an empty result set when a tag filter is active but the search term 
         ->component('Documents/Search')
         ->where('search', '')
         ->where('tagFilters', [$tag->id])
+        ->has('documents', 2)
+        ->where('documents.0.id', $newer->id)
+        ->where('documents.1.id', $older->id)
+    );
+});
+
+// Documents imported in the same second keep a stable order: the most
+// recently inserted one first.
+it('breaks a created_at tie by id so tag-only listing order is stable', function () {
+    $tag = Tag::factory()->create();
+    $createdAt = now()->startOfSecond();
+    $first = Document::factory()->create(['created_at' => $createdAt]);
+    $second = Document::factory()->create(['created_at' => $createdAt]);
+    $first->tags()->sync([$tag->id]);
+    $second->tags()->sync([$tag->id]);
+
+    $response = $this->get("/recherche?tag_id[]={$tag->id}");
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('documents.0.id', $second->id)
+        ->where('documents.1.id', $first->id)
+    );
+});
+
+// I/O matrix "Plusieurs tags seuls": OU within the tag group, each document once.
+it('lists documents carrying any of several selected tags only once when the search term is empty', function () {
+    $tagA = Tag::factory()->create();
+    $tagB = Tag::factory()->create();
+    $inBoth = Document::factory()->create(['created_at' => now()]);
+    $inBoth->tags()->sync([$tagA->id, $tagB->id]);
+    $inB = Document::factory()->create(['created_at' => now()->subDay()]);
+    $inB->tags()->sync([$tagB->id]);
+    Document::factory()->create();
+
+    $response = $this->get("/recherche?tag_id[]={$tagA->id}&tag_id[]={$tagB->id}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 2)
+        ->where('documents.0.id', $inBoth->id)
+        ->where('documents.1.id', $inB->id)
+    );
+});
+
+// I/O matrix "Espaces seuls + tag": whitespace counts as a blank term.
+it('treats a whitespace-only term with a tag like a tag-only search', function () {
+    $tag = Tag::factory()->create();
+    $document = Document::factory()->create();
+    $document->tags()->sync([$tag->id]);
+    Document::factory()->create();
+
+    $response = $this->get("/recherche?search=%20%20&tag_id[]={$tag->id}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('search', '')
+        ->has('documents', 1)
+        ->where('documents.0.id', $document->id)
+    );
+});
+
+// I/O matrix "Exclusion seule + tag": a term without any positive keyword
+// still matches nothing, even with a tag.
+it('returns nothing for an exclusion-only term even with a tag selected', function () {
+    $tag = Tag::factory()->create();
+    $document = Document::factory()->create(['extracted_text' => 'Contenu sans le mot exclu.']);
+    $document->tags()->sync([$tag->id]);
+
+    $response = $this->get("/recherche?search=-speed&tag_id[]={$tag->id}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('search', '-speed')
         ->has('documents', 0)
     );
 });

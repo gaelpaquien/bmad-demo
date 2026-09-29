@@ -102,17 +102,17 @@ describe('Documents/Search', () => {
         wrapper.unmount();
     });
 
-    // Boundaries & Constraints: a tag filter alone, with no term typed,
-    // stays in the neutral state — Recherche never falls back to showing
-    // the whole library (AC2, same rule as an empty term).
-    it('stays neutral (no rows, no message) when only a tag filter is active and search is empty', () => {
+    // I/O matrix "Tag sans document" (spec-recherche-aide-et-filtre-tag-seul):
+    // a tag filter alone now lists that tag's documents, so an empty result
+    // shows the no-results message rather than the neutral state.
+    it('shows the no-results message when only a tag filter is active and it matches nothing', () => {
         const wrapper = mount(Search, {
             props: { documents: [], search: '', tagFilters: [1] },
             global: { stubs: globalStubs },
         });
 
         expect(wrapper.findAll('[data-testid="search-results"] li').length).toBe(0);
-        expect(wrapper.text()).not.toContain('Aucun document ne correspond');
+        expect(wrapper.text()).toContain('Aucun document ne correspond à votre recherche.');
     });
 
     // Retro Epic 3, item 9: a filter-triggered partial reload must also
@@ -312,11 +312,14 @@ describe('Documents/Search help box', () => {
         const wrapper = mountSearch();
 
         expect(helpToggle(wrapper).attributes('aria-expanded')).toBe('false');
-        expect(wrapper.find('#search-help').exists()).toBe(false);
+        expect(wrapper.find('#search-help').attributes('inert')).toBeDefined();
+        expect(wrapper.find('#search-help').attributes('aria-hidden')).toBe('true');
 
         await helpToggle(wrapper).trigger('click');
 
         expect(helpToggle(wrapper).attributes('aria-expanded')).toBe('true');
+        expect(wrapper.find('#search-help').attributes('inert')).toBeUndefined();
+        expect(wrapper.find('#search-help').attributes('aria-hidden')).toBeUndefined();
         expect(wrapper.find('#search-help').text()).toContain('Opérateurs');
     });
 
@@ -325,6 +328,7 @@ describe('Documents/Search help box', () => {
 
         const nextVisit = mountSearch();
 
-        expect(nextVisit.find('#search-help').exists()).toBe(true);
+        expect(helpToggle(nextVisit).attributes('aria-expanded')).toBe('true');
+        expect(nextVisit.find('#search-help').attributes('inert')).toBeUndefined();
     });
 });

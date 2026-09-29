@@ -85,9 +85,11 @@ class DocumentController extends Controller
      * specific to the Bibliothèque) and never paginated (single live-
      * filtered result set).
      *
-     * A blank (post-trim) term always short-circuits to `documents => []`,
-     * even with a tag selected — Recherche never falls back to showing the
-     * whole library (Boundaries & Constraints, AC2). Reuses applyFilters()/
+     * A blank (post-trim) term with no tag selected short-circuits to
+     * `documents => []` — Recherche never falls back to showing the whole
+     * library (Boundaries & Constraints, AC2). A blank term with at least one
+     * tag lists that tag's documents, newest first, through the same
+     * `Document::search()` path (AD-8, 2026-09-29). Reuses applyFilters()/
      * tagIdsFromQuery() unmodified (AD-8) — this is now their sole caller,
      * index() having dropped all filtering (spec-nettoyage-sidebar-et-page-
      * documents).
@@ -101,13 +103,13 @@ class DocumentController extends Controller
 
         $columns = ['id', 'title', 'source', 'mime_type', 'created_at'];
 
-        $documents = $search === ''
+        $documents = $search === '' && $tagIds === []
             ? []
             // Keyword splitting, LIKE escaping and relevance ranking all live in
             // KeywordDatabaseEngine (Document::searchableUsing()).
             : Document::search($search)
                 ->query(fn ($query) => $this->applyFilters($query, $tagIds, [])
-                    ->select($columns)->with('tags:id,name')->latest())
+                    ->select($columns)->with('tags:id,name')->latest()->orderByDesc('id'))
                 ->get();
 
         return Inertia::render('Documents/Search', [
