@@ -78,7 +78,7 @@ Comportemental — les specs visuelles sont dans `DESIGN.md.Components`.
 | Chargement initial | Bibliothèque | `[ASSUMPTION]` Corpus local (~350 documents, SQLite) : chargement quasi instantané — aucun état de chargement visuel (skeleton/spinner), à revoir si le volume réel dépasse largement cette cible. |
 | Bibliothèque vide (premier lancement) | Bibliothèque | Message : "Aucun document pour l'instant." et bouton primaire "Importer un document" ou "Créer un document". |
 | Aucun résultat de filtre | Bibliothèque | "Aucun document ne correspond à ces filtres." et suggestion de retirer les filtres actifs. |
-| Aucune recherche saisie | Recherche | État initial neutre : pas de résultats affichés, focus direct sur le champ de recherche (voir § Interaction Primitives). |
+| Aucune recherche saisie | Recherche | État initial neutre : pas de résultats affichés, focus direct sur le champ de recherche (voir § Interaction Primitives). `[MAJ 2026-09-29]` Une invitation courte (« Aucune recherche en cours », saisir des mots-clés ou choisir un tag) remplace le vide. |
 | Aucun résultat de recherche | Recherche | "Aucun document ne correspond à votre recherche." et suggestion de retirer le filtre tag actif s'il y en a un. |
 | Recherche en cours | Recherche | `[AMENDED 2026-09-29]` Message « Recherche en cours… » avec une icône animée à la place des résultats, affiché seulement si la réponse dépasse 300 ms (une réponse rapide ne le fait jamais clignoter). Remplace l'hypothèse initiale « pas d'indicateur dédié, le debounce suffit ». |
 | Dernière page atteinte | Bibliothèque | Pagination désactive "Suivant" sans le masquer — état visuel clairement inactif, pas de saut silencieux. |

@@ -37,8 +37,8 @@ describe('Documents/Search', () => {
 
     // AC2: no term typed yet ⇒ neutral state, no result rows, no
     // "no results" message either (Recherche never shows the whole
-    // library).
-    it('shows no rows and no message in the neutral state when search is empty', () => {
+    // library) — only an invitation to type a keyword or pick a tag.
+    it('shows the idle invitation, no rows and no no-results message when search is empty', () => {
         const wrapper = mount(Search, {
             props: { documents: [], search: '', tagFilters: [] },
             global: { stubs: globalStubs },
@@ -46,6 +46,7 @@ describe('Documents/Search', () => {
 
         expect(wrapper.findAll('[data-testid="search-results"] li').length).toBe(0);
         expect(wrapper.text()).not.toContain('Aucun document ne correspond');
+        expect(wrapper.find('[data-testid="search-idle"]').exists()).toBe(true);
     });
 
     // I/O matrix "Terme sans résultat".

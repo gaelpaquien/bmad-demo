@@ -421,29 +421,29 @@ function formatDate(dateString) {
                 </div>
             </section>
 
-            <div class="relative mb-6">
-                <label for="search-input" class="sr-only">
-                    Rechercher un document
-                </label>
-                <TextInput
-                    id="search-input"
-                    ref="searchInputRef"
-                    v-model="searchTerm"
-                    type="search"
-                    placeholder="Rechercher dans les titres, contenus et pièces jointes… (ex. : cubiscan +speed)"
-                    @keydown.enter="searchNowUnlessComposing"
-                />
-            </div>
+            <div class="mb-6 flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
+                <div>
+                    <label for="search-input" class="mb-1 block text-sm font-medium text-foreground">
+                        Rechercher par mots-clés
+                    </label>
+                    <TextInput
+                        id="search-input"
+                        ref="searchInputRef"
+                        v-model="searchTerm"
+                        type="search"
+                        placeholder="Rechercher dans les titres, contenus et pièces jointes… (ex. : cubiscan +speed)"
+                        @keydown.enter="searchNowUnlessComposing"
+                    />
+                </div>
 
-            <div class="mb-6 flex flex-col gap-3 rounded-lg border border-border p-4">
                 <fieldset>
-                    <legend class="mb-2 text-sm font-medium text-foreground">
+                    <legend class="mb-1 text-sm font-medium text-foreground">
                         Filtrer par tag
                     </legend>
                     <TagSelector v-model="selectedTagIds" :show-label="false" />
                 </fieldset>
 
-                <div v-if="selectedTagIds.length > 0" class="flex flex-wrap items-center gap-2 pt-1">
+                <div v-if="selectedTagIds.length > 0" class="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     <span class="text-sm text-muted">Filtres actifs :</span>
                     <button
                         v-for="tagId in selectedTagIds"
@@ -498,6 +498,33 @@ function formatDate(dateString) {
                         </Link>
                     </li>
                 </ul>
+
+                <div
+                    v-else-if="!hasServerCriteria"
+                    data-testid="search-idle"
+                    class="flex flex-col items-center gap-2 py-16 text-center text-muted"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="mb-2 h-10 w-10"
+                        aria-hidden="true"
+                    >
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <p class="font-medium text-foreground">
+                        Aucune recherche en cours
+                    </p>
+                    <p class="text-sm">
+                        Saisissez des mots-clés ou choisissez un tag pour afficher les documents correspondants.
+                    </p>
+                </div>
             </div>
         </div>
     </AppLayout>
