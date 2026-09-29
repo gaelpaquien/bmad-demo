@@ -7,7 +7,7 @@ sources:
   - ../../prds/prd-bmad-demo-2026-08-31/prd.md
   - ../../sprint-change-proposal-2026-09-09.md
 created: 2026-08-31
-updated: 2026-09-28
+updated: 2026-09-29
 ---
 
 # bmad-demo — Experience Spine
@@ -27,7 +27,7 @@ updated: 2026-09-28
 | Surface | Atteinte depuis | Objectif |
 |---|---|---|
 | Bibliothèque (accueil) | Ouverture de l'app, ou clic "Bibliothèque" dans la sidebar | Listing paginé (20/page) de tous les documents (importés et créés), filtres tag + type (FR2, FR3, FR7). Plus de barre de recherche intégrée — la recherche fulltexte vit sur la surface Recherche. Maquette : [`mockups/key-bibliotheque.html`](mockups/key-bibliotheque.html). |
-| Recherche | Clic "Recherche" dans la sidebar | Recherche fulltexte sur le contenu des documents, pièces jointes incluses (FR6, FR13), affinée par un filtre tag (pas de filtre type ici — le type reste un filtre de navigation propre à la Bibliothèque). Maquette : [`mockups/key-recherche.html`](mockups/key-recherche.html). |
+| Recherche | Clic "Recherche" dans la sidebar | Recherche fulltexte par mots-clés sur le titre et le contenu des documents, pièces jointes incluses (FR6, FR13) `[AMENDED 2026-09-29]`, affinée par un filtre tag (pas de filtre type ici — le type reste un filtre de navigation propre à la Bibliothèque). Maquette : [`mockups/key-recherche.html`](mockups/key-recherche.html). |
 | Fiche document | Clic sur une ligne de document (Bibliothèque ou résultat de Recherche) | Prévisualisation, métadonnées, tags (modifiables), pièces jointes (consultation/téléchargement si document créé, FR13), téléchargement de l'original, accès à l'édition si le document a été créé dans l'outil (FR3, FR4, FR5). Construite depuis les tables seules — pas de maquette (décision explicite, voir `.memlog.md`). |
 | Éditeur | Bouton "Créer un document" (Bibliothèque) ou "Modifier" (Fiche document) | Rédaction WYSIWYG, insertion d'images inline, panneau latéral de pièces jointes (FR13), sauvegarde, export PDF (FR8–FR11). Maquette : [`mockups/key-editeur.html`](mockups/key-editeur.html). |
 | Configuration | Clic "Configuration" dans la sidebar | Gestion des tags : créer, renommer, supprimer (FR14). Maquette : [`mockups/key-configuration.html`](mockups/key-configuration.html). |
@@ -56,9 +56,10 @@ Comportemental — les specs visuelles sont dans `DESIGN.md.Components`.
 
 | Composant | Usage | Règles comportementales |
 |---|---|---|
-| Sidebar | Toutes surfaces | Fixe, toujours visible, jamais repliable ni masquée. Item actif surligné (fond lime). Toggle thème + footer en pied de sidebar. |
+| Sidebar | Toutes surfaces | Fixe, toujours visible, jamais masquée. Item actif surligné (fond lime). Toggle thème + footer en pied de sidebar. `[AMENDED 2026-09-29]` Réductible en mode icônes seules par le bouton « Réduire le menu » : les libellés restent lisibles par les lecteurs d'écran, une info-bulle les affiche en mode réduit, et le choix est mémorisé dans le navigateur comme le thème. Le titre « BMAD Démo » ramène à l'accueil. |
 | Ligne de document | Bibliothèque, résultats Recherche | Toute la ligne cliquable → Fiche document (pas de menu contextuel en v1). Affiche badge type, titre, chips de tags, date (FR3). Paginé par 20 sur la Bibliothèque. |
-| Barre de recherche | Recherche | Recherche fulltexte en direct (debounce, pas de bouton "Rechercher" séparé) sur le contenu des documents et de leurs pièces jointes (FR6, FR13). |
+| Barre de recherche | Recherche | Recherche fulltexte en direct (debounce de 500 ms, Entrée lance la recherche sans attendre, pas de bouton "Rechercher" séparé) sur le titre et le contenu des documents et de leurs pièces jointes (FR6, FR13). `[AMENDED 2026-09-29]` Saisie par mots-clés : au moins un mot par défaut, `+mot` obligatoire, `-mot` exclu, `"expression exacte"`. Un encart au-dessus du champ explique ces opérateurs et l'ordre des résultats (titre d'abord, puis nombre de mots-clés trouvés, puis date). |
+| Indication obligatoire/optionnel | Import, Éditeur | `[NOUVEAU 2026-09-29]` Chaque champ de formulaire porte un « * » s'il est obligatoire (le champ lui-même porte `aria-required`) ou la mention « optionnel ». « Enregistrer » reste désactivé tant qu'un champ obligatoire est vide. |
 | Filtres (chips) | Bibliothèque (tag + type), Recherche (tag uniquement) | Multi-sélection possible. Filtres actifs visibles et retirables en un clic. |
 | Sélecteur de tags | Modale Import, Éditeur (à l'enregistrement), Fiche document | Champ optionnel qui filtre en direct la liste gérée de tags (FR2) ; clic/Entrée ajoute une chip. Aucune création de tag depuis ce champ — la création se fait exclusivement en Configuration (FR14). Présent dans les trois contextes, comme l'ancien sélecteur catégorie ; laissé vide = aucun tag, jamais bloquant. |
 | Zone d'import | Modale "Importer", Panneau pièces jointes (Éditeur) | Glisser-déposer ou sélection fichier. Formats acceptés affichés explicitement (PDF, `.docx`, `.xlsx` — NFR4). Erreur de format claire et immédiate, pas de rejet silencieux. |
@@ -79,13 +80,13 @@ Comportemental — les specs visuelles sont dans `DESIGN.md.Components`.
 | Aucun résultat de filtre | Bibliothèque | "Aucun document ne correspond à ces filtres." et suggestion de retirer les filtres actifs. |
 | Aucune recherche saisie | Recherche | État initial neutre : pas de résultats affichés, focus direct sur le champ de recherche (voir § Interaction Primitives). |
 | Aucun résultat de recherche | Recherche | "Aucun document ne correspond à votre recherche." et suggestion de retirer le filtre tag actif s'il y en a un. |
-| Recherche en cours | Recherche | `[ASSUMPTION]` Pas d'indicateur dédié : la cible NFR2 (<1s sur ~350 documents) rend un état de chargement visuellement inutile ; le debounce suffit. |
+| Recherche en cours | Recherche | `[AMENDED 2026-09-29]` Message « Recherche en cours… » avec une icône animée à la place des résultats, affiché seulement si la réponse dépasse 300 ms (une réponse rapide ne le fait jamais clignoter). Remplace l'hypothèse initiale « pas d'indicateur dédié, le debounce suffit ». |
 | Dernière page atteinte | Bibliothèque | Pagination désactive "Suivant" sans le masquer — état visuel clairement inactif, pas de saut silencieux. |
 | Conversion de prévisualisation en cours (Word/Excel) | Fiche document | Indicateur de chargement explicite dans le panneau de prévisualisation ; le reste de la fiche reste utilisable pendant ce temps. |
 | Fichier source introuvable | Fiche document | Fichier déplacé/supprimé du disque local ou illisible → message explicite dans le panneau de prévisualisation, bouton "Télécharger" désactivé plutôt qu'un échec silencieux. |
 | Conversion de prévisualisation échouée | Fiche document | Message clair ("Aperçu indisponible pour ce fichier") dans le panneau ; le bouton "Télécharger" reste actif. |
 | Import/pièce jointe : format non supporté | Modale Import, Panneau pièces jointes | Message d'erreur immédiat nommant les formats acceptés ; le fichier n'est pas envoyé. |
-| Aucune pièce jointe | Éditeur, Fiche document | Panneau de pièces jointes affiche "Aucune pièce jointe." et l'action d'ajout, jamais masqué même vide. |
+| Aucune pièce jointe | Éditeur, Fiche document | `[AMENDED 2026-09-29]` Pas de message dédié : le panneau de l'Éditeur, jamais masqué, affiche seulement sa zone d'ajout (formats, 10 fichiers maximum, 20 Mo par fichier) ; la Fiche document masque la ligne Pièces jointes. |
 | Chargement d'un document existant | Éditeur | Contenu chargé dans le WYSIWYG avant que l'édition soit possible ; indicateur bref si le chargement prend un temps perceptible. |
 | Éditeur : modifications non enregistrées | Éditeur | Indicateur discret (point sur le bouton "Enregistrer") ; confirmation avant de quitter si non enregistré. |
 | Export réussi / échoué | Éditeur | Toast bref "Export PDF généré." ou message d'erreur explicite si l'export échoue — jamais un échec silencieux (NFR5). |
@@ -98,7 +99,7 @@ Comportemental — les specs visuelles sont dans `DESIGN.md.Components`.
 - Suppression de document : toujours confirmée par une boîte de dialogue (pas d'annulation "undo" prévue en v1).
 - Suppression de tag (Configuration) : toujours confirmée par une boîte de dialogue nommant le nombre de documents concernés — même discipline que la suppression de document, cohérente avec le fait qu'un tag peut être partagé par de nombreux documents.
 
-**Bannis en v1** : navigation par raccourcis clavier complexes (pas de posture "keyboard-first"), drag-to-reorder des documents ou des tags, actions destructives sans confirmation, sidebar repliable/masquable.
+**Bannis en v1** : navigation par raccourcis clavier complexes (pas de posture "keyboard-first"), drag-to-reorder des documents ou des tags, actions destructives sans confirmation, sidebar masquable. (La réduction de la sidebar en mode icônes est autorisée depuis le 2026-09-29 : la sidebar reste visible et chaque entrée reste accessible.)
 
 ## Accessibility Floor
 

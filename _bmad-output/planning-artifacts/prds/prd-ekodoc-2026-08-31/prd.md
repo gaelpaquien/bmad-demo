@@ -2,7 +2,7 @@
 title: PRD bmad-demo
 status: final
 created: 2026-08-31
-updated: 2026-09-28
+updated: 2026-09-29
 ---
 
 # PRD : bmad-demo
@@ -37,7 +37,7 @@ Deux usages concrets couvrent la v1 :
 
 ### Recherche & filtrage
 
-- **FR6** — Rechercher en fulltexte sur le contenu des documents (importés et créés, pièces jointes incluses — FR13) — priorité v1 confirmée pour rester exploitable au-delà de quelques dizaines de documents.
+- **FR6** — Rechercher en fulltexte sur le titre et le contenu des documents (importés et créés, pièces jointes incluses — FR13) — priorité v1 confirmée pour rester exploitable au-delà de quelques dizaines de documents. *Amendée (2026-09-29) :* la saisie se fait par mots-clés (au moins un mot par défaut, `+mot` obligatoire, `-mot` exclu, `"expression exacte"`) et les documents dont le titre contient les mots-clés sont classés en premier.
 - **FR7** — Filtrer les résultats par tag et par type de document (PDF, Word, Excel, document créé dans l'outil).
 
 ### Création & export

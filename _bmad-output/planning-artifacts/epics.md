@@ -23,7 +23,7 @@ FR2: Classer les documents (importés et créés) par tags illimités, choisis d
 FR3: Associer à chaque document des métadonnées de base : titre, type, tags, date d'ajout.
 FR4: Prévisualiser un document dans le navigateur (PDF nativement ; Word/Excel via une conversion).
 FR5: Télécharger le fichier original en un clic.
-FR6: Rechercher en fulltexte sur le contenu des documents (importés et créés, pièces jointes incluses — FR13).
+FR6: Rechercher en fulltexte sur le titre et le contenu des documents (importés et créés, pièces jointes incluses — FR13). *Amendée (2026-09-29) :* saisie par mots-clés (au moins un mot par défaut, `+mot` obligatoire, `-mot` exclu, `"expression exacte"`), titre prioritaire dans le classement.
 FR7: Filtrer les résultats par tag et par type de document (PDF, Word, Excel, document créé dans l'outil).
 FR8: Créer un document via un éditeur WYSIWYG (titres, listes, tableaux, images).
 FR9: Insérer des images à la volée entre des blocs de texte pendant la rédaction (pas seulement en pièce jointe finale).
@@ -50,7 +50,7 @@ NFR5: La fidélité d'export (WYSIWYG → PDF) doit rester raisonnable sans vise
 - **Classement à plat par tags illimités `[AMENDED 2026-09-09]`** : table `tags` (id, name) sans hiérarchie ; relation many-to-many via pivot `document_tag` (document_id, tag_id), pas de limite de tags par document (AD-5). `SyncDocumentTagsAction` est l'unique Action qui écrit le pivot, en remplacement complet (`sync()`, jamais `attach()`/`detach()` incrémental), invoquée depuis Éditeur (à l'enregistrement) et Fiche document. `TagSelector.vue` est un composant unique et partagé (jamais réimplémenté par écran), sans librairie tierce, et n'expose aucun mode "créable" — tags gérés exclusivement depuis la page Configuration (FR14, AD-18). **Remplace** l'ancien mécanisme catégorie unique (table `categories`, `documents.category_id`, `CategorizeDocumentAction`, modèle/controller `Category`) — supprimés, pas dépréciés. Aucune migration des données existantes vers des tags équivalents (décision produit explicite, 2026-09-09).
 - **Traitement d'import : stockage synchrone, extraction de texte en file d'attente `[AMENDED 2026-09-01]`** : `ImportDocumentAction` stocke le fichier et crée le `Document` (`extraction_status = pending`) dans la même requête HTTP/transaction ; l'extraction de texte est ensuite dispatchée comme job en file d'attente (`ExtractDocumentTextJob`, driver `database`) et s'exécute hors requête HTTP — un worker (`queue:work`/`queue:listen`) doit tourner. `extraction_status` transite `pending` → `processing` → `completed`/`failed` ; le document reste consultable/téléchargeable/visible quel que soit son statut d'extraction (AD-6). L'indexation Scout est toujours automatique via l'événement `saved` du Model, jamais un appel manuel.
 - Fichiers originaux stockés sur disque privé Laravel (`storage/app/private/documents/{document_id}/{filename}`), jamais `public` ; téléchargement toujours via route applicative streamée (AD-7).
-- Recherche et filtrage unifiés via Laravel Scout (driver `database`) sur le champ `extracted_text`, un seul point d'entrée de requête (recherche + filtres, y compris le filtre tag — jamais une requête `whereHas('tags')` séparée), jamais deux chemins divergents (AD-8).
+- Recherche et filtrage unifiés via Laravel Scout (driver `database`) sur les champs `title`, `extracted_text` et `attachments_extracted_text` `[AMENDED 2026-09-29]` — moteur `KeywordDatabaseEngine` (mots-clés, opérateurs `+`/`-`/guillemets, titre prioritaire dans le classement), un seul point d'entrée de requête (recherche + filtres, y compris le filtre tag — jamais une requête `whereHas('tags')` séparée), jamais deux chemins divergents (AD-8).
 - Extraction de texte best-effort (`smalot/pdfparser` pour PDF, `phpoffice/phpword`/`phpoffice/phpspreadsheet` pour Word/Excel) via `ExtractDocumentTextJob` : un échec n'interrompt jamais l'import/l'attachement, seulement `extraction_status = failed` et `extracted_text = NULL` (pas d'OCR en v1). Pour les documents créés, `extracted_text` est dérivé automatiquement et de façon synchrone de `content_html` à chaque sauvegarde (`extraction_status = completed` immédiatement) — jamais mis en file d'attente pour un document créé (AD-9).
 - Prévisualisation Office (Word/Excel importés) via conversion à la demande `soffice --headless --convert-to pdf` (LibreOffice CLI), résultat mis en cache sur `storage/app/private/previews/{document_id}.pdf`, invalidé uniquement par suppression/ré-import. PDF natif et documents créés : rendu direct, jamais de conversion, pas de PDF.js (AD-10).
 - Export PDF via rendu HTML réel : `spatie/browsershot` (Chromium headless) sur la même vue Blade que l'éditeur affiche — jamais de génération PDF alternative type dompdf/wkhtmltopdf (AD-11).
@@ -72,11 +72,11 @@ NFR5: La fidélité d'export (WYSIWYG → PDF) doit rester raisonnable sans vise
 
 UX-DR1: Système de tokens de design (couleurs, typographie, arrondis, espacements) implémenté selon `DESIGN.md` — palette v2 `[AMENDED 2026-09-09]` (neutres chauds beige/brun, jamais blanc/noir pur ; accent unique lime néon `#C6FF00`) ; chaque couleur a une paire clair/sombre ; discipline "un seul accent". Aucune validation de contraste WCAG requise sur cette palette (décision produit explicite, projet interne).
 UX-DR2: Mode clair/sombre disponible dès la v1, bascule manuelle via toggle en pied de sidebar, respect de la préférence système par défaut.
-UX-DR3: Composant Sidebar de navigation `[NOUVEAU 2026-09-09]` — fixe, toujours visible sur les 5 surfaces (jamais repliable/masquée) ; 3 racines (Bibliothèque, Recherche, Configuration), item actif en fond lime/texte quasi-noir.
+UX-DR3: Composant Sidebar de navigation `[NOUVEAU 2026-09-09]` `[AMENDED 2026-09-29]` — fixe, toujours visible sur les 5 surfaces, jamais masquée ; réductible en mode icônes seules par un bouton « Réduire le menu » (libellés conservés pour les lecteurs d'écran, info-bulle en mode réduit, choix mémorisé dans le navigateur) ; titre « BMAD Démo » cliquable vers l'accueil ; 3 racines (Bibliothèque, Recherche, Configuration), item actif en fond lime/texte quasi-noir.
 UX-DR4: Composant Footer `[NOUVEAU 2026-09-09]` — texte littéral "Made with 💔 Claude", en pied de sidebar sur toutes les surfaces (exception assumée au ton direct sans emoji).
 UX-DR5: Composant Ligne de document *(remplace la Carte document v1)* — toute la ligne cliquable vers la Fiche document (pas de menu contextuel en v1), affiche badge de type, titre, chips de tags, date d'ajout ; listing paginé 20/page sur la Bibliothèque.
 UX-DR6: Surface Bibliothèque révisée `[AMENDED 2026-09-09]` — plus de barre de recherche intégrée (déplacée vers la surface Recherche dédiée) ; filtres (chips) tag + type en multi-sélection combinée, filtres actifs visibles et retirables en un clic.
-UX-DR7: Surface Recherche dédiée `[NOUVEAU 2026-09-09]` — barre de recherche fulltexte en direct avec debounce (pas de bouton "Rechercher" séparé), porte sur le contenu des documents ET de leurs pièces jointes (FR6, FR13) ; filtre tag uniquement (pas de filtre type, propre à la Bibliothèque).
+UX-DR7: Surface Recherche dédiée `[NOUVEAU 2026-09-09]` `[AMENDED 2026-09-29]` — barre de recherche fulltexte en direct avec debounce de 500 ms (Entrée lance la recherche sans attendre ; pas de bouton "Rechercher" séparé), porte sur le titre et le contenu des documents ET de leurs pièces jointes (FR6, FR13) ; encart d'aide décrivant les opérateurs de mots-clés ; message « Recherche en cours… » quand la réponse dépasse 300 ms ; filtre tag uniquement (pas de filtre type, propre à la Bibliothèque).
 UX-DR8: Composant Zone d'import — glisser-déposer ou sélection de fichier, bordure pointillée, formats acceptés affichés explicitement, erreur de format claire et immédiate (pas de rejet silencieux) ; réutilisée à l'identique pour l'ajout de pièces jointes.
 UX-DR9: Composant Panneau de prévisualisation — PDF natif perçu comme quasi instantané (aucun traitement) ; Word/Excel via conversion avec état de chargement explicite.
 UX-DR10: Composant Barre d'outils éditeur — mise en forme (titres, listes, tableaux) + bouton "Insérer une image" qui insère à la position du curseur entre deux blocs de texte ; glisser-déposer d'image dans le corps du texte également accepté.
@@ -95,7 +95,7 @@ UX-DR22: État Conversion de prévisualisation en cours (Word/Excel) — indicat
 UX-DR23: État Fichier source introuvable — message explicite dans le panneau de prévisualisation, bouton "Télécharger" désactivé (jamais un échec silencieux).
 UX-DR24: État Conversion de prévisualisation échouée — message clair "Aperçu indisponible pour ce fichier", bouton "Télécharger" reste actif.
 UX-DR25: État Import/pièce jointe format non supporté — message d'erreur immédiat nommant les formats acceptés, fichier non envoyé (modale reste ouverte pour l'import).
-UX-DR26: État Aucune pièce jointe `[NOUVEAU 2026-09-09]` (Éditeur, Fiche document) — "Aucune pièce jointe." + action d'ajout, jamais masqué même vide.
+UX-DR26: État Aucune pièce jointe `[NOUVEAU 2026-09-09]` `[AMENDED 2026-09-29]` (Éditeur, Fiche document) — plus de message "Aucune pièce jointe." : le panneau de l'Éditeur n'affiche que sa zone d'ajout, et la Fiche document masque la ligne Pièces jointes quand il n'y en a aucune.
 UX-DR27: État Chargement d'un document existant dans l'Éditeur — contenu chargé dans le WYSIWYG avant que l'édition soit possible, indicateur bref si perceptible.
 UX-DR28: État Modifications non enregistrées (Éditeur) — indicateur discret + confirmation avant de quitter si non enregistré.
 UX-DR29: État Export réussi/échoué — toast bref en succès, message d'erreur explicite en échec, jamais un échec silencieux.
@@ -148,6 +148,8 @@ Un utilisateur classe et retrouve ses documents par tags illimités (remplace le
 Un utilisateur peut importer ses documents existants (PDF/Word/Excel), les classer par catégorie, les prévisualiser/télécharger, et les retrouver par recherche fulltexte ou filtres — la valeur "Retrouver et exploiter un document existant" du PRD, complète en elle-même.
 
 ### Story 1.1: Importer un document existant
+
+> Amendée le 2026-09-29 (`spec-ajustements-formulaires-sidebar.md`) : le titre n'est plus seulement déduit du nom de fichier. Sur la page d'import, il est prérempli avec le nom du fichier sans extension et reste modifiable. Les critères ci-dessous sont conservés pour traçabilité.
 
 As a utilisateur solo,
 I want importer un fichier PDF/Word/Excel existant,
@@ -247,6 +249,8 @@ So that je peux structurer ma bibliothèque au fur et à mesure.
 **And** les libellés de catégorie restent lisibles pour quelqu'un sans connaissance institutionnelle du contenu — pas de jargon interne opaque (UX-DR26, principe de conception)
 
 ### Story 1.6: Rechercher un document par son contenu
+
+> Amendée le 2026-09-29 (`spec-recherche-mots-cles.md`, AD-8) : la recherche porte aussi sur le titre, fonctionne par mots-clés avec opérateurs et affiche « Recherche en cours… » au-delà de 300 ms. Les critères ci-dessous (indexation sur `extracted_text` seul, pas d'indicateur de chargement) sont conservés pour traçabilité.
 
 As a utilisateur,
 I want taper un mot-clé et retrouver les documents qui le contiennent,
@@ -438,6 +442,8 @@ So that je peux structurer et retrouver ma bibliothèque sans les limites d'une 
 
 ### Story 3.2: Nouvelle identité visuelle et navigation par sidebar
 
+> Amendée le 2026-09-29 (`spec-ajustements-formulaires-sidebar.md`) : la sidebar peut être réduite en mode icônes seules (UX-DR3). Le critère « jamais repliable » ci-dessous est conservé pour traçabilité.
+
 As a utilisateur,
 I want naviguer entre les surfaces d'bmad-demo depuis une sidebar fixe, avec la nouvelle identité visuelle,
 So that je retrouve mes repères dans une interface qui reflète le passage à un modèle de classement plus riche (tags, pièces jointes, configuration).
@@ -501,6 +507,8 @@ So that je peux fournir la source originale sans la fusionner dans le texte réd
 **Then** chaque fichier disque de `document_attachments` est supprimé puis sa ligne, dans l'ordre déjà défini par AD-15 étendue — jamais une simple `cascadeOnDelete()` qui laisserait les fichiers orphelins
 
 ### Story 3.4: Rechercher un document sur une surface dédiée
+
+> Amendée le 2026-09-29 (`spec-recherche-mots-cles.md`) : recherche par mots-clés sur le titre et le contenu, debounce de 500 ms, Entrée pour lancer immédiatement, encart d'aide et message de chargement (UX-DR7).
 
 As a utilisateur,
 I want rechercher en fulltexte depuis une surface Recherche dédiée,
