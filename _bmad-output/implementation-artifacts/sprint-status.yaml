@@ -69,7 +69,8 @@ action_items:
       CategoryPicker.vue, la logique de recherche/filtrage de Index.vue et le piège
       de focus de Show.vue"
     owner: "prochaine session frontend"
-    status: in-progress
+    status: done
+    # 2026-09-29 : Vitest + @vue/test-utils installés, 13 fichiers .spec.js ; CategoryPicker.vue et les filtres d'Index.vue n'existent plus. Trous restants suivis dans deferred-work.md (« Couverture de tests »).
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
   - id: "epic-1-retro-item-2-corriger-trapfocus-dans-importmodal-vue"
     epic: 1
