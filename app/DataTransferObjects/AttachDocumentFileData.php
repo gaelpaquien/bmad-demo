@@ -10,6 +10,5 @@ final readonly class AttachDocumentFileData
     public function __construct(
         public Document $document,
         public UploadedFile $file,
-    ) {
-    }
+    ) {}
 }

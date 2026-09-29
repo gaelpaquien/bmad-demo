@@ -24,6 +24,5 @@ final readonly class CreateDocumentData
         //
         // @var list<array{filename: string, original_filename: string}>
         public array $draftAttachments = [],
-    ) {
-    }
+    ) {}
 }

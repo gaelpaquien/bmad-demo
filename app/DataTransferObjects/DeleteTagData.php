@@ -8,6 +8,5 @@ final readonly class DeleteTagData
 {
     public function __construct(
         public Tag $tag,
-    ) {
-    }
+    ) {}
 }

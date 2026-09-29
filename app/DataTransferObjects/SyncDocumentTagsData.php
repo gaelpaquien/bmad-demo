@@ -12,6 +12,5 @@ final readonly class SyncDocumentTagsData
     public function __construct(
         public Document $document,
         public array $tagIds,
-    ) {
-    }
+    ) {}
 }

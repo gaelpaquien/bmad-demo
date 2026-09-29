@@ -10,6 +10,5 @@ final readonly class UploadEditorImageData
         public string $draftToken,
         public UploadedFile $image,
         public string $alt,
-    ) {
-    }
+    ) {}
 }

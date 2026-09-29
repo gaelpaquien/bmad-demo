@@ -42,9 +42,7 @@ class ExtractDocumentTextJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public function __construct(public Document|DocumentAttachment $target)
-    {
-    }
+    public function __construct(public Document|DocumentAttachment $target) {}
 
     public function handle(): void
     {
@@ -142,7 +140,7 @@ class ExtractDocumentTextJob implements ShouldQueue
         $absolutePath = Storage::disk('local')->path($path);
 
         $text = match ($this->formatFromMimeType($mimeType)) {
-            'pdf' => (new PdfParser())->parseFile($absolutePath)->getText(),
+            'pdf' => (new PdfParser)->parseFile($absolutePath)->getText(),
             'docx' => $this->extractFromWord($absolutePath),
             'xlsx' => $this->extractFromSpreadsheet($absolutePath),
             default => null,

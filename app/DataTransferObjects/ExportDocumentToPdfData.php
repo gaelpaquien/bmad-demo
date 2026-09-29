@@ -8,6 +8,5 @@ final readonly class ExportDocumentToPdfData
 {
     public function __construct(
         public Document $document,
-    ) {
-    }
+    ) {}
 }

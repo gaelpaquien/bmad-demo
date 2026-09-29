@@ -67,7 +67,5 @@ final class DocumentMimeTypes
      * Static-only utility (constants + one static method) — never meant to
      * be instantiated or extended.
      */
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 }

@@ -9,6 +9,5 @@ final readonly class RenameTagData
     public function __construct(
         public Tag $tag,
         public string $name,
-    ) {
-    }
+    ) {}
 }

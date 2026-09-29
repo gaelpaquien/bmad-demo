@@ -26,6 +26,5 @@ final readonly class UpdateDocumentData
         // relocateDraftImages() is a no-op when the token's tmp directory
         // was never created (no image ever uploaded this session).
         public ?string $draftToken = null,
-    ) {
-    }
+    ) {}
 }

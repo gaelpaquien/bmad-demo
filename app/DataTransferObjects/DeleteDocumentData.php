@@ -8,6 +8,5 @@ final readonly class DeleteDocumentData
 {
     public function __construct(
         public Document $document,
-    ) {
-    }
+    ) {}
 }

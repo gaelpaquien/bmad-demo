@@ -9,6 +9,5 @@ final readonly class UploadDraftAttachmentData
     public function __construct(
         public string $draftToken,
         public UploadedFile $file,
-    ) {
-    }
+    ) {}
 }

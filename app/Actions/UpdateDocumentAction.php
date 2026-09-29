@@ -39,9 +39,7 @@ class UpdateDocumentAction
 {
     use SanitizesDocumentContent;
 
-    public function __construct(private SyncDocumentTagsAction $syncTags)
-    {
-    }
+    public function __construct(private SyncDocumentTagsAction $syncTags) {}
 
     public function __invoke(UpdateDocumentData $data): Document
     {
