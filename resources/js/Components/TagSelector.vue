@@ -33,6 +33,14 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
+    // false where the host already renders the selected tags as its own
+    // chips (Search.vue's lime "Filtres par tag actifs" row) — showing the
+    // grey chips above the field as well listed every tag twice (human
+    // feedback). Every other host keeps this default.
+    showSelected: {
+        type: Boolean,
+        default: true,
+    },
     // Show.vue's edit mode passes "Ajouter un tag…" so the field is never
     // mistaken for a search; every other host keeps this default.
     placeholder: {
@@ -174,7 +182,7 @@ function onKeydown(event) {
             Tags<FieldRequirement />
         </label>
 
-        <div v-if="selectedTags.length > 0" class="mb-2 flex flex-wrap gap-2">
+        <div v-if="showSelected && selectedTags.length > 0" class="mb-2 flex flex-wrap gap-2">
             <span
                 v-for="tag in selectedTags"
                 :key="tag.id"

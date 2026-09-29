@@ -399,3 +399,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-recherche-aide-et-filtre-tag-seul.md`
   summary: La page Recherche n'est ni paginée ni bornée ; un tag porté par la plupart des documents renvoie désormais presque toute la bibliothèque en un seul payload Inertia.
   evidence: le parcours par tag seul (sans mot-clé) rend ce cas courant ; un mot-clé très fréquent le permettait déjà (revues Blind Hunter et Edge Case Hunter).
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-chips-tag-sans-doublon.md`
+  summary: Sur la page Recherche, retirer un filtre tag via sa chip lime fait tomber le focus sur `<body>` (le bouton cliqué est démonté) ; le ramener sur le champ de tags ou sur la chip voisine.
+  evidence: comportement antérieur, mais la chip lime est désormais le seul moyen de retrait sur la page (les chips grises de TagSelector, qui refocalisaient le champ, y sont masquées) ; relevé par Edge Case Hunter et Blind Hunter.
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-chips-tag-sans-doublon.md`
+  summary: Sur la page Recherche, la sélection de tags n'est plus exposée dans le `<fieldset>` « Filtrer par tag » ; la rangée « Filtres par tag actifs » est hors du fieldset et n'est reliée au combobox ni par `aria-describedby` ni par une annonce live.
+  evidence: relevé par Blind Hunter ; les chips grises masquées étaient jusqu'ici dans le fieldset.

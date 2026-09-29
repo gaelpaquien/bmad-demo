@@ -116,6 +116,44 @@ describe('Documents/Search', () => {
         expect(wrapper.text()).toContain('Aucun document ne correspond à votre recherche.');
     });
 
+    // I/O matrix "Tags sélectionnés" (spec-recherche-chips-tag-sans-doublon):
+    // each selected tag shows once, as the lime active-filter chip —
+    // TagSelector's own grey chip is hidden on this page.
+    it('shows each selected tag once, as an active-filter chip under the field', () => {
+        const wrapper = mount(Search, {
+            props: { documents: [], search: '', tagFilters: [1, 2] },
+            global: { stubs: globalStubs },
+        });
+
+        expect(wrapper.text()).toContain('Filtres par tag actifs');
+        expect(wrapper.findAll('button[aria-label^="Retirer le filtre tag"]').map((chip) => chip.attributes('aria-label')))
+            .toEqual(['Retirer le filtre tag Finance', 'Retirer le filtre tag RH']);
+        expect(wrapper.findAll('button[aria-label^="Retirer le tag"]')).toHaveLength(0);
+    });
+
+    it('removes the tag and searches again right away when its active-filter chip is clicked', async () => {
+        const wrapper = mount(Search, {
+            props: { documents: [], search: '', tagFilters: [1, 2] },
+            global: { stubs: globalStubs },
+        });
+
+        await wrapper.find('button[aria-label="Retirer le filtre tag Finance"]').trigger('click');
+
+        expect(wrapper.find('button[aria-label="Retirer le filtre tag Finance"]').exists()).toBe(false);
+        expect(router.get).toHaveBeenLastCalledWith('/recherche', { tag_id: [2] }, expect.any(Object));
+    });
+
+    // I/O matrix "Aucun tag": neither the label nor any chip.
+    it('shows no active-filter row when no tag is selected', () => {
+        const wrapper = mount(Search, {
+            props: { documents: [], search: '', tagFilters: [] },
+            global: { stubs: globalStubs },
+        });
+
+        expect(wrapper.text()).not.toContain('Filtres par tag actifs');
+        expect(wrapper.findAll('button[aria-label^="Retirer le filtre tag"]')).toHaveLength(0);
+    });
+
     // Retro Epic 3, item 9: a filter-triggered partial reload must also
     // refresh the shared `tags` prop, or a tag renamed/deleted elsewhere
     // (e.g. via Configuration) stays stale in Recherche's own TagSelector.

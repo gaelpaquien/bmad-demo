@@ -440,11 +440,11 @@ function formatDate(dateString) {
                     <legend class="mb-1 text-sm font-medium text-foreground">
                         Filtrer par tag
                     </legend>
-                    <TagSelector v-model="selectedTagIds" :show-label="false" />
+                    <TagSelector v-model="selectedTagIds" :show-label="false" :show-selected="false" />
                 </fieldset>
 
                 <div v-if="selectedTagIds.length > 0" class="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                    <span class="text-sm text-muted">Filtres actifs :</span>
+                    <span class="text-sm text-muted">Filtres par tag actifs :</span>
                     <button
                         v-for="tagId in selectedTagIds"
                         :key="`tag-${tagId}`"
@@ -454,7 +454,7 @@ function formatDate(dateString) {
                         @click="removeTagFilter(tagId)"
                     >
                         {{ tagName(tagId) }}
-                        <span aria-hidden="true">×</span>
+                        <span aria-hidden="true" class="text-base leading-none">×</span>
                     </button>
                 </div>
             </div>

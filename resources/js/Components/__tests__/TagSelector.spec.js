@@ -368,4 +368,16 @@ describe('TagSelector', () => {
             expect(wrapper.find('input').attributes('aria-label')).toBe('Tags');
         });
     });
+
+    // Search.vue renders the selected tags as its own lime chips — the grey
+    // chips above the field listed every tag twice (human feedback).
+    describe('showSelected', () => {
+        it('renders no selected-tag chip when showSelected is false', () => {
+            const wrapper = mount(TagSelector, { props: { modelValue: [1, 3], showSelected: false } });
+
+            expect(wrapper.findAll('button[aria-label^="Retirer le tag"]')).toHaveLength(0);
+            expect(wrapper.text()).not.toContain('Contrats');
+            expect(wrapper.text()).not.toContain('Comptes rendus');
+        });
+    });
 });
