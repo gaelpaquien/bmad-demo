@@ -19,6 +19,9 @@
     --color-foreground: #221F1A;
     --color-muted: #7A7266;
     --color-primary: #C6FF00;
+    /* Lime assombri pour le survol des boutons d'action : un lime éclairci
+       par transparence reste quasi invisible sur le fond clair. */
+    --color-primary-hover: #B6EC00;
     --color-primary-foreground: #12130A;
 
     --radius-sm: 4px;
@@ -39,4 +42,5 @@
     --color-border: #362F27;
     --color-foreground: #ECE7E0;
     --color-muted: #A69C8D;
+    --color-primary-hover: #A8DA00;
 }

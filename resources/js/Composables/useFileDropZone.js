@@ -13,7 +13,7 @@ import { ref } from 'vue';
  *
  * @param {object} options
  * @param {string[]} options.acceptedExtensions - lowercase, no leading dot.
- * @param {string} options.acceptedLabel - human-readable list for error messages (e.g. "PDF, Word (.docx), Excel (.xlsx)").
+ * @param {string} options.acceptedLabel - human-readable list for error messages (e.g. "PDF, Word, Excel").
  * @param {number} options.maxFileSizeBytes
  * @param {string} options.maxFileSizeLabel - human-readable size for error messages (e.g. "20 Mo").
  */
@@ -83,6 +83,27 @@ export function useFileDropZone({ acceptedExtensions, acceptedLabel, maxFileSize
         return file;
     }
 
+    /**
+     * Multi-file counterpart of fileFromDropEvent() — every dropped file,
+     * in drop order, for a drop zone that accepts several at once.
+     */
+    function filesFromDropEvent(event) {
+        isDragging.value = false;
+
+        return Array.from(event.dataTransfer?.files ?? []);
+    }
+
+    /**
+     * Multi-file counterpart of fileFromInputEvent(), for an
+     * `<input type="file" multiple>`.
+     */
+    function filesFromInputEvent(event) {
+        const files = Array.from(event.target.files ?? []);
+        event.target.value = '';
+
+        return files;
+    }
+
     return {
         isDragging,
         extensionOf,
@@ -93,5 +114,7 @@ export function useFileDropZone({ acceptedExtensions, acceptedLabel, maxFileSize
         onDragleave,
         fileFromDropEvent,
         fileFromInputEvent,
+        filesFromDropEvent,
+        filesFromInputEvent,
     };
 }

@@ -18,7 +18,9 @@ import { useFileDropZone } from '@/Composables/useFileDropZone';
 // Constraints). "Annuler" is only made inert while a request is in flight,
 // same as Editor.vue.
 
-const ACCEPTED_LABEL = 'PDF, Word (.docx), Excel (.xlsx)';
+const ACCEPTED_LABEL = 'PDF, Word, Excel';
+
+const MAX_FILE_SIZE_LABEL = '20 Mo';
 
 // Generated once, client-side (same mechanism as Editor.vue, spec-2-2/3-3) —
 // keys every draft attachment uploaded before the document exists, and
@@ -50,7 +52,7 @@ const { isDragging, validationError, onDragover, onDragleave, fileFromDropEvent,
     acceptedExtensions: ['pdf', 'docx', 'xlsx'],
     acceptedLabel: ACCEPTED_LABEL,
     maxFileSizeBytes: 20 * 1024 * 1024,
-    maxFileSizeLabel: '20 Mo',
+    maxFileSizeLabel: MAX_FILE_SIZE_LABEL,
 });
 
 const fileErrorMessage = computed(() => clientError.value || form.errors.file || '');
@@ -165,7 +167,7 @@ function submit() {
                         </p>
                         <button
                             type="button"
-                            class="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                            class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground not-disabled:hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                             @click="openFilePicker"
                         >
                             Parcourir
@@ -179,7 +181,9 @@ function submit() {
                             @change="onInputChange"
                         />
                         <p class="text-xs text-muted">
-                            Formats acceptés : {{ ACCEPTED_LABEL }}
+                            Formats acceptés : {{ ACCEPTED_LABEL }}<br>
+                            1 fichier maximum<br>
+                            {{ MAX_FILE_SIZE_LABEL }} maximum
                         </p>
                     </div>
 
@@ -226,7 +230,7 @@ function submit() {
             <div class="mt-6 flex items-center gap-3">
                 <button
                     type="button"
-                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground not-disabled:hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                     :disabled="!canSave"
                     @click="submit"
                 >

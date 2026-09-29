@@ -95,6 +95,11 @@ const titleInputRef = ref(null);
 // fallback should the editor instance be unavailable.
 const currentContentHtml = ref(form.content_html);
 
+// TipTap's own emptiness check — an "empty" editor still serialises to
+// `<p></p>`, so `currentContentHtml` alone can't tell "Enregistrer" whether
+// the required content has actually been written.
+const isContentEmpty = ref(!form.content_html);
+
 // Existing content must be loaded into TipTap before typing is allowed
 // (Boundaries & Constraints, spec-2-3) — `editable` starts false only when
 // reopening a document; a brand-new draft has nothing to wait for and stays
@@ -133,6 +138,7 @@ const editor = useEditor({
     },
     onCreate: ({ editor: mountedEditor }) => {
         currentContentHtml.value = mountedEditor.getHTML();
+        isContentEmpty.value = mountedEditor.isEmpty;
 
         if (!mountedEditor.isEditable) {
             mountedEditor.setEditable(true);
@@ -142,6 +148,7 @@ const editor = useEditor({
     },
     onUpdate: ({ editor: updatedEditor }) => {
         currentContentHtml.value = updatedEditor.getHTML();
+        isContentEmpty.value = updatedEditor.isEmpty;
     },
 });
 
@@ -166,6 +173,20 @@ function insertTable() {
 
 function deleteTable() {
     editor.value?.chain().focus().deleteTable().run();
+}
+
+// Structure du tableau : TipTap's own row/column commands, applied relative
+// to the cell holding the cursor — shown only while the cursor is inside a
+// table, so the default 3x3 insertion can be reshaped to any size.
+const tableStructureActions = [
+    { label: '+ Colonne', ariaLabel: 'Ajouter une colonne à droite', command: 'addColumnAfter' },
+    { label: '− Colonne', ariaLabel: 'Supprimer la colonne', command: 'deleteColumn' },
+    { label: '+ Ligne', ariaLabel: 'Ajouter une ligne en dessous', command: 'addRowAfter' },
+    { label: '− Ligne', ariaLabel: 'Supprimer la ligne', command: 'deleteRow' },
+];
+
+function runTableCommand(command) {
+    editor.value?.chain().focus()[command]().run();
 }
 
 // --- Insertion d'image (bouton + glisser-déposer, spec-2-2) -----------------
@@ -375,6 +396,14 @@ watch(
     },
 );
 
+// Mirrors Import.vue's `canSave`: "Enregistrer" stays disabled until both
+// required fields (title, content — Create/UpdateDocumentRequest) are
+// filled, and while a save or a draft attachment upload is in flight.
+const canSave = computed(() => form.title.trim() !== ''
+    && !isContentEmpty.value
+    && !form.processing
+    && !isAttachmentUploading.value);
+
 // Save always submits directly, including the very first click on a
 // brand-new document (spec-fix-multi-tag-selection removed the two-step
 // "Enregistrer" gesture that used to reveal the tag selector on that first
@@ -385,7 +414,7 @@ function onSaveClick() {
     // excluded from `draft_attachments` (code review finding) — the Save
     // button is also disabled while this is true (see template), this is
     // the belt-and-braces guard against a click that still slips through.
-    if (isAttachmentUploading.value) {
+    if (!canSave.value) {
         return;
     }
 
@@ -448,7 +477,7 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
                         :key="`heading-${level}`"
                         type="button"
                         class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        :class="{ 'bg-surface': editor?.isActive('heading', { level }) }"
+                        :class="{ 'bg-primary text-primary-foreground not-disabled:hover:bg-primary-hover': editor?.isActive('heading', { level }) }"
                         :aria-pressed="editor?.isActive('heading', { level }) ?? false"
                         :aria-label="`Titre niveau ${level}`"
                         @click="editor?.chain().focus().toggleHeading({ level }).run()"
@@ -461,7 +490,7 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
                     <button
                         type="button"
                         class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        :class="{ 'bg-surface': editor?.isActive('bulletList') }"
+                        :class="{ 'bg-primary text-primary-foreground not-disabled:hover:bg-primary-hover': editor?.isActive('bulletList') }"
                         :aria-pressed="editor?.isActive('bulletList') ?? false"
                         aria-label="Liste à puces"
                         @click="editor?.chain().focus().toggleBulletList().run()"
@@ -472,7 +501,7 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
                     <button
                         type="button"
                         class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        :class="{ 'bg-surface': editor?.isActive('orderedList') }"
+                        :class="{ 'bg-primary text-primary-foreground not-disabled:hover:bg-primary-hover': editor?.isActive('orderedList') }"
                         :aria-pressed="editor?.isActive('orderedList') ?? false"
                         aria-label="Liste numérotée"
                         @click="editor?.chain().focus().toggleOrderedList().run()"
@@ -501,6 +530,19 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
                     >
                         Supprimer le tableau
                     </button>
+
+                    <template v-if="editor?.isActive('table')">
+                        <button
+                            v-for="action in tableStructureActions"
+                            :key="action.command"
+                            type="button"
+                            class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                            :aria-label="action.ariaLabel"
+                            @click="runTableCommand(action.command)"
+                        >
+                            {{ action.label }}
+                        </button>
+                    </template>
 
                     <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
 
@@ -567,8 +609,8 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
             <div class="mt-6 flex items-center gap-3">
                 <button
                     type="button"
-                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                    :disabled="form.processing || isAttachmentUploading"
+                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground not-disabled:hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                    :disabled="!canSave"
                     @click="onSaveClick"
                 >
                     {{ form.processing ? 'Enregistrement…' : (isAttachmentUploading ? 'Envoi de la pièce jointe…' : 'Enregistrer') }}
@@ -643,7 +685,7 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
                     </button>
                     <button
                         type="button"
-                        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground not-disabled:hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                         :disabled="isUploadingImage"
                         @click="uploadPendingImage"
                     >

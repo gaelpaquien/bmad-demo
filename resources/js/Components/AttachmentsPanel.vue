@@ -66,22 +66,23 @@ const props = defineProps({
 // wrongly firing for.
 const emit = defineEmits(['update:attachments', 'update:uploading', 'before-request', 'after-request']);
 
-const ACCEPTED_LABEL = 'PDF, Word (.docx), Excel (.xlsx)';
+const ACCEPTED_LABEL = 'PDF, Word, Excel';
 
 // Mirrors DocumentAttachment::MAX_PER_DOCUMENT — the server re-validates at
 // every entry point, this only saves a round-trip.
 const MAX_ATTACHMENTS = 10;
 
-const { isDragging, validationError, onDragover, onDragleave, fileFromDropEvent, fileFromInputEvent } = useFileDropZone({
+const MAX_FILE_SIZE_LABEL = '20 Mo';
+
+const { isDragging, validationError, onDragover, onDragleave, filesFromDropEvent, filesFromInputEvent } = useFileDropZone({
     acceptedExtensions: ['pdf', 'docx', 'xlsx'],
     acceptedLabel: ACCEPTED_LABEL,
     maxFileSizeBytes: 20 * 1024 * 1024,
-    maxFileSizeLabel: '20 Mo',
+    maxFileSizeLabel: MAX_FILE_SIZE_LABEL,
 });
 
-// Expanded by default — the empty state ("Aucune pièce jointe.") and the
-// drop zone must be visible without an extra click (Verification, manual
-// checks: "affiché sur Éditeur et Fiche document sans pièce jointe").
+// Expanded by default — the drop zone must be visible without an extra
+// click. An empty list renders nothing at all below it.
 // "Rétractable" describes the toggle affording collapse, not a
 // collapsed-by-default starting state.
 const isOpen = ref(true);
@@ -97,7 +98,7 @@ function openFilePicker() {
     fileInputRef.value?.click();
 }
 
-const clientError = ref('');
+const clientErrors = ref([]);
 const isUploading = ref(false);
 
 // Surfaced to the host (Editor.vue, `v-model:uploading`) so "Enregistrer"
@@ -119,18 +120,13 @@ function attachImmediateFile(file) {
         forceFormData: true,
         preserveState: true,
         preserveScroll: true,
-        onStart: () => {
-            isUploading.value = true;
-        },
         onSuccess: () => {
             immediateForm.reset();
         },
         onError: () => {
-            clientError.value = immediateForm.errors.file ?? 'Impossible de joindre ce fichier.';
+            clientErrors.value.push(`${file.name} : ${immediateForm.errors.file ?? 'Impossible de joindre ce fichier.'}`);
         },
-        onFinish: () => {
-            isUploading.value = false;
-        },
+        onFinish: uploadNextQueuedFile,
     });
     emit('after-request');
 }
@@ -149,7 +145,7 @@ function detachImmediateAttachment(attachment) {
         preserveState: true,
         preserveScroll: true,
         onError: () => {
-            clientError.value = 'Impossible de retirer cette pièce jointe.';
+            clientErrors.value = ['Impossible de retirer cette pièce jointe.'];
         },
         onFinish: () => {
             detachingAttachmentId.value = null;
@@ -163,8 +159,6 @@ function detachImmediateAttachment(attachment) {
 const page = usePage();
 
 function uploadDraftFile(file) {
-    isUploading.value = true;
-
     router.post('/documents/create/attachments', {
         draft_token: props.draftToken,
         file,
@@ -173,11 +167,9 @@ function uploadDraftFile(file) {
         preserveState: true,
         preserveScroll: true,
         onError: (errors) => {
-            clientError.value = errors.file ?? errors.draft_token ?? 'Impossible de joindre ce fichier.';
+            clientErrors.value.push(`${file.name} : ${errors.file ?? errors.draft_token ?? 'Impossible de joindre ce fichier.'}`);
         },
-        onFinish: () => {
-            isUploading.value = false;
-        },
+        onFinish: uploadNextQueuedFile,
     });
 }
 
@@ -211,29 +203,21 @@ function removeDraftAttachment(attachment) {
     emit('update:attachments', props.attachments.filter((candidate) => candidate.filename !== attachment.filename));
 }
 
-// --- Entrée commune (bouton + glisser-déposer) ------------------------------
+// --- Entrée commune (bouton + glisser-déposer, un ou plusieurs fichiers) ----
+//
+// Every endpoint takes exactly one file per request, so a multi-file
+// selection is sent as a queue, one upload after the other: each request's
+// onFinish starts the next one. Sequential rather than parallel so draft
+// mode's flash.uploadedAttachment watcher (one global slot per response)
+// never sees two uploads land at once.
 
-function handleFile(file) {
-    // Re-entrancy guard (code review finding, mirrors
-    // detachImmediateAttachment()'s own detachingAttachmentId check) — a
-    // second drop/pick while a previous upload is still in flight is
-    // silently ignored rather than firing an overlapping request.
-    if (isUploading.value) {
-        return;
-    }
+const uploadQueue = [];
 
-    clientError.value = '';
-    immediateForm.clearErrors('file');
+function uploadNextQueuedFile() {
+    const file = uploadQueue.shift();
 
-    if (props.attachments.length >= MAX_ATTACHMENTS) {
-        clientError.value = `${MAX_ATTACHMENTS} pièces jointes maximum par document.`;
-        return;
-    }
-
-    const error = validationError(file);
-
-    if (error) {
-        clientError.value = error;
+    if (!file) {
+        isUploading.value = false;
         return;
     }
 
@@ -244,18 +228,62 @@ function handleFile(file) {
     }
 }
 
+function handleFiles(files) {
+    // Re-entrancy guard (code review finding, mirrors
+    // detachImmediateAttachment()'s own detachingAttachmentId check) — a
+    // second drop/pick while a previous batch is still uploading is
+    // silently ignored rather than firing overlapping requests.
+    if (isUploading.value || files.length === 0) {
+        return;
+    }
+
+    clientErrors.value = [];
+    immediateForm.clearErrors('file');
+
+    // The whole selection is refused rather than silently truncated when it
+    // doesn't fit — the user then knows exactly how many can still be added.
+    const remainingSlots = MAX_ATTACHMENTS - props.attachments.length;
+
+    if (files.length > remainingSlots) {
+        clientErrors.value = [remainingSlots > 0
+            ? `${MAX_ATTACHMENTS} pièces jointes maximum par document : encore ${remainingSlots} possible(s).`
+            : `${MAX_ATTACHMENTS} pièces jointes maximum par document.`];
+        return;
+    }
+
+    // An invalid file is reported by name and skipped; the valid ones of the
+    // same selection are still sent.
+    const validFiles = files.filter((file) => {
+        const error = validationError(file);
+
+        if (error) {
+            clientErrors.value.push(files.length > 1 ? `${file.name} : ${error}` : error);
+        }
+
+        return !error;
+    });
+
+    if (validFiles.length === 0) {
+        return;
+    }
+
+    uploadQueue.push(...validFiles);
+    isUploading.value = true;
+    uploadNextQueuedFile();
+}
+
 function onInputChange(event) {
-    handleFile(fileFromInputEvent(event));
+    handleFiles(filesFromInputEvent(event));
 }
 
 function onDrop(event) {
-    handleFile(fileFromDropEvent(event));
+    handleFiles(filesFromDropEvent(event));
 }
 
 function removeAttachment(attachment) {
     // A stale "10 pièces jointes maximum" (or any earlier rejection) must
     // not outlive the removal that brings the list back under the limit.
-    clientError.value = '';
+    clientErrors.value = [];
 
     if (props.mode === 'immediate') {
         detachImmediateAttachment(attachment);
@@ -270,6 +298,10 @@ function isRemoving(attachment) {
 
 const previewUrl = (attachment) => `/documents/${props.documentId}/attachments/${attachment.id}/preview`;
 const downloadUrl = (attachment) => `/documents/${props.documentId}/attachments/${attachment.id}/download`;
+
+// Re-evaluated on every add/remove, so "Parcourir" re-enables itself as soon
+// as a removal frees a slot.
+const isLimitReached = computed(() => props.attachments.length >= MAX_ATTACHMENTS);
 
 const attachmentCountLabel = computed(() => (props.attachments.length > 0 ? ` (${props.attachments.length})` : ''));
 </script>
@@ -309,12 +341,12 @@ const attachmentCountLabel = computed(() => (props.attachments.length > 0 ? ` ($
                 @drop.prevent="onDrop"
             >
                 <p class="text-xs text-muted">
-                    Glissez-déposez un fichier ici, ou
+                    Glissez-déposez un ou plusieurs fichiers ici, ou
                 </p>
                 <button
                     type="button"
-                    class="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                    :disabled="isUploading"
+                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground not-disabled:hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                    :disabled="isUploading || isLimitReached"
                     @click="openFilePicker"
                 >
                     Parcourir
@@ -324,12 +356,15 @@ const attachmentCountLabel = computed(() => (props.attachments.length > 0 ? ` ($
                     type="file"
                     class="sr-only"
                     accept=".pdf,.docx,.xlsx"
-                    aria-label="Sélectionner une pièce jointe"
-                    :disabled="isUploading"
+                    multiple
+                    aria-label="Sélectionner une ou plusieurs pièces jointes"
+                    :disabled="isUploading || isLimitReached"
                     @change="onInputChange"
                 >
                 <p class="text-xs text-muted">
-                    Formats acceptés : {{ ACCEPTED_LABEL }}
+                    Formats acceptés : {{ ACCEPTED_LABEL }}<br>
+                    {{ MAX_ATTACHMENTS }} fichiers maximum<br>
+                    {{ MAX_FILE_SIZE_LABEL }} maximum par fichier
                 </p>
             </div>
 
@@ -337,15 +372,16 @@ const attachmentCountLabel = computed(() => (props.attachments.length > 0 ? ` ($
                 Envoi en cours…
             </p>
 
-            <p v-if="clientError" class="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">
-                {{ clientError }}
+            <p
+                v-for="error in clientErrors"
+                :key="error"
+                class="mt-2 text-xs text-red-600 dark:text-red-400"
+                role="alert"
+            >
+                {{ error }}
             </p>
 
-            <p v-if="attachments.length === 0" class="mt-3 text-sm text-muted">
-                Aucune pièce jointe.
-            </p>
-
-            <ul v-else class="mt-3 flex flex-col gap-2">
+            <ul v-if="attachments.length > 0" class="mt-3 flex flex-col gap-2">
                 <li
                     v-for="attachment in attachments"
                     :key="attachment.id ?? attachment.filename"

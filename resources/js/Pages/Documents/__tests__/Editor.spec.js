@@ -17,8 +17,9 @@ import TagSelector from '@/Components/TagSelector.vue';
 // `chain().focus().insertTable(...).run()` / `chain().focus().deleteTable().run()`
 // keep working however many links are chained.
 const {
-    isActiveMock, chainMock, insertTableMock, deleteTableMock, runMock, formPostMock, formPatchMock,
+    isActiveMock, chainMock, insertTableMock, deleteTableMock, tableCommandMock, runMock, formPostMock, formPatchMock, editorState,
 } = vi.hoisted(() => {
+    const tableCommandMock = vi.fn();
     const insertTableMock = vi.fn();
     const deleteTableMock = vi.fn();
     const runMock = vi.fn();
@@ -33,6 +34,22 @@ const {
         },
         deleteTable: (...args) => {
             deleteTableMock(...args);
+            return chainObj;
+        },
+        addColumnAfter: () => {
+            tableCommandMock('addColumnAfter');
+            return chainObj;
+        },
+        deleteColumn: () => {
+            tableCommandMock('deleteColumn');
+            return chainObj;
+        },
+        addRowAfter: () => {
+            tableCommandMock('addRowAfter');
+            return chainObj;
+        },
+        deleteRow: () => {
+            tableCommandMock('deleteRow');
             return chainObj;
         },
         toggleHeading: () => chainObj,
@@ -51,9 +68,13 @@ const {
         chainMock: vi.fn(() => chainObj),
         insertTableMock,
         deleteTableMock,
+        tableCommandMock,
         runMock,
         formPostMock,
         formPatchMock,
+        // Read by the mocked editor's `isEmpty` getter — lets a test put the
+        // editor body in the empty state that keeps "Enregistrer" disabled.
+        editorState: { isEmpty: false },
     };
 });
 
@@ -64,6 +85,9 @@ vi.mock('@tiptap/vue-3', async () => {
         isActive: isActiveMock,
         chain: chainMock,
         getHTML: () => '',
+        get isEmpty() {
+            return editorState.isEmpty;
+        },
         isEditable: true,
         setEditable: () => {},
         view: { posAtCoords: () => null },
@@ -197,6 +221,30 @@ describe('Documents/Editor — tableaux imbriqués (spec-3-6)', () => {
         expect(deleteTableMock).toHaveBeenCalledTimes(1);
         expect(runMock).toHaveBeenCalled();
     });
+
+    // --- Structure du tableau (lignes / colonnes) ---------------------------
+
+    it('hides the row/column buttons when the cursor is outside any table', () => {
+        const wrapper = mountEditor();
+
+        expect(wrapper.find('button[aria-label="Ajouter une colonne à droite"]').exists()).toBe(false);
+    });
+
+    it.each([
+        ['Ajouter une colonne à droite', 'addColumnAfter'],
+        ['Supprimer la colonne', 'deleteColumn'],
+        ['Ajouter une ligne en dessous', 'addRowAfter'],
+        ['Supprimer la ligne', 'deleteRow'],
+    ])('runs %s (%s) when the cursor is inside a table', async (ariaLabel, command) => {
+        isActiveMock.mockImplementation((type) => type === 'table');
+        tableCommandMock.mockClear();
+        const wrapper = mountEditor();
+
+        await wrapper.find(`button[aria-label="${ariaLabel}"]`).trigger('click');
+
+        expect(tableCommandMock).toHaveBeenCalledExactlyOnceWith(command);
+        expect(runMock).toHaveBeenCalled();
+    });
 });
 
 // spec-ajustements-consultation-editeur: the unsaved-changes notion is gone
@@ -315,6 +363,7 @@ describe('Documents/Editor — champ Tags visible sans révélation en deux temp
     // `document` prop) must submit directly on the very first click.
     it('submits directly to /documents/create on the first click on "Enregistrer" for a brand-new document', async () => {
         const wrapper = mountEditor();
+        await wrapper.find('#document-title').setValue('Nouveau document');
 
         const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Enregistrer'));
         await saveButton.trigger('click');
@@ -338,11 +387,50 @@ describe('Documents/Editor — limite de pièces jointes (spec-limite-pieces-joi
             this.errors = { draft_attachments: '10 pièces jointes maximum par document.' };
         });
         const wrapper = mountEditor();
+        await wrapper.find('#document-title').setValue('Nouveau document');
 
         const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Enregistrer'));
         await saveButton.trigger('click');
         await nextTick();
 
         expect(wrapper.find('[role="alert"]').text()).toBe('10 pièces jointes maximum par document.');
+    });
+});
+
+describe('Documents/Editor — "Enregistrer" bloqué tant que les champs requis sont vides', () => {
+    beforeEach(() => {
+        formPostMock.mockReset();
+        editorState.isEmpty = false;
+    });
+
+    function findSaveButton(wrapper) {
+        return wrapper.findAll('button').find((button) => button.text() === 'Enregistrer');
+    }
+
+    it('disables "Enregistrer" and sends nothing while the title is empty', async () => {
+        const wrapper = mountEditor();
+
+        await wrapper.find('#document-title').setValue('   ');
+        await findSaveButton(wrapper).trigger('click');
+
+        expect(findSaveButton(wrapper).attributes('disabled')).toBeDefined();
+        expect(formPostMock).not.toHaveBeenCalled();
+    });
+
+    it('disables "Enregistrer" while the content is empty, even with a title', async () => {
+        editorState.isEmpty = true;
+        const wrapper = mountEditor();
+
+        await wrapper.find('#document-title').setValue('Nouveau document');
+
+        expect(findSaveButton(wrapper).attributes('disabled')).toBeDefined();
+    });
+
+    it('enables "Enregistrer" once both the title and the content are filled', async () => {
+        const wrapper = mountEditor();
+
+        await wrapper.find('#document-title').setValue('Nouveau document');
+
+        expect(findSaveButton(wrapper).attributes('disabled')).toBeUndefined();
     });
 });

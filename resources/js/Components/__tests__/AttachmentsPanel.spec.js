@@ -65,22 +65,25 @@ describe('AttachmentsPanel', () => {
         pageState.props.flash = {};
     });
 
-    // --- État vide ("toujours affiché") -----------------------------------
+    // --- État vide : aucun message, aucune liste -----------------------------
 
-    it('always shows "Aucune pièce jointe." when the list is empty, immediate mode', () => {
+    it('renders no list and no empty-state message when there is no attachment', () => {
         const wrapper = mount(AttachmentsPanel, {
             props: { attachments: [], mode: 'immediate', documentId: 42 },
         });
 
-        expect(wrapper.text()).toContain('Aucune pièce jointe.');
+        expect(wrapper.find('ul').exists()).toBe(false);
+        expect(wrapper.text()).not.toContain('Aucune pièce jointe');
     });
 
-    it('always shows "Aucune pièce jointe." when the list is empty, draft mode', () => {
+    it('shows the accepted formats, the file count limit and the per-file size limit', () => {
         const wrapper = mount(AttachmentsPanel, {
             props: { attachments: [], mode: 'draft', draftToken: 'draft-token' },
         });
 
-        expect(wrapper.text()).toContain('Aucune pièce jointe.');
+        expect(wrapper.text()).toContain('Formats acceptés : PDF, Word, Excel');
+        expect(wrapper.text()).toContain('10 fichiers maximum');
+        expect(wrapper.text()).toContain('20 Mo maximum par fichier');
     });
 
     // --- Rendu de la liste ---------------------------------------------------
@@ -119,17 +122,17 @@ describe('AttachmentsPanel', () => {
 
         const toggle = wrapper.find('button[aria-controls]');
         expect(toggle.attributes('aria-expanded')).toBe('true');
-        expect(wrapper.text()).toContain('Aucune pièce jointe.');
+        expect(wrapper.text()).toContain('Glissez-déposez un ou plusieurs fichiers ici');
 
         await toggle.trigger('click');
 
         expect(toggle.attributes('aria-expanded')).toBe('false');
-        expect(wrapper.text()).not.toContain('Aucune pièce jointe.');
+        expect(wrapper.text()).not.toContain('Glissez-déposez un ou plusieurs fichiers ici');
 
         await toggle.trigger('click');
 
         expect(toggle.attributes('aria-expanded')).toBe('true');
-        expect(wrapper.text()).toContain('Aucune pièce jointe.');
+        expect(wrapper.text()).toContain('Glissez-déposez un ou plusieurs fichiers ici');
     });
 
     // --- Format non supporté (client-side, pas d'envoi réseau) ----------------
@@ -179,6 +182,21 @@ describe('AttachmentsPanel', () => {
         expect(routerPostMock).not.toHaveBeenCalled();
     });
 
+    it('disables "Parcourir" at 10 attachments and re-enables it once one is removed', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: attachmentsOfCount(10), mode: 'immediate', documentId: 42 },
+        });
+        const browseButton = () => wrapper.findAll('button').find((button) => button.text() === 'Parcourir');
+
+        expect(browseButton().attributes('disabled')).toBeDefined();
+        expect(wrapper.find('input[type="file"]').attributes('disabled')).toBeDefined();
+
+        await wrapper.setProps({ attachments: attachmentsOfCount(9) });
+
+        expect(browseButton().attributes('disabled')).toBeUndefined();
+        expect(wrapper.find('input[type="file"]').attributes('disabled')).toBeUndefined();
+    });
+
     it('clears the limit error on removal and accepts a new attachment once back under the limit', async () => {
         const draftList = attachmentsOfCount(10).map((attachment) => ({ ...attachment, filename: `${attachment.id}.pdf` }));
         const wrapper = mount(AttachmentsPanel, {
@@ -197,6 +215,62 @@ describe('AttachmentsPanel', () => {
 
         expect(wrapper.text()).not.toContain('pièces jointes maximum');
         expect(routerPostMock).toHaveBeenCalledTimes(1);
+    });
+
+    // --- Sélection multiple : envoi en file, un fichier après l'autre ----------
+
+    it('accepts several files through a multiple file input', () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        expect(wrapper.find('input[type="file"]').attributes('multiple')).toBeDefined();
+    });
+
+    it.each([
+        ['immediate', { documentId: 42 }, () => formPostMock, 1],
+        ['draft', { draftToken: 'draft-token' }, () => routerPostMock, 2],
+    ])('uploads a multi-file drop one file after the other in %s mode', async (mode, extraProps, postMockOf, optionsIndex) => {
+        const postMock = postMockOf();
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode, ...extraProps },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf'), pdfFile('b.pdf')] } });
+        expect(postMock).toHaveBeenCalledTimes(1);
+
+        postMock.mock.calls[0][optionsIndex].onFinish();
+        expect(postMock).toHaveBeenCalledTimes(2);
+
+        postMock.mock.calls[1][optionsIndex].onFinish();
+        await wrapper.vm.$nextTick();
+
+        expect(postMock).toHaveBeenCalledTimes(2);
+        expect(wrapper.emitted('update:uploading').at(-1)).toEqual([false]);
+    });
+
+    it('refuses the whole selection when it exceeds the remaining slots, sending no request', async () => {
+        const draftList = attachmentsOfCount(9).map((attachment) => ({ ...attachment, filename: `${attachment.id}.pdf` }));
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: draftList, mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf'), pdfFile('b.pdf')] } });
+
+        expect(wrapper.text()).toContain('10 pièces jointes maximum par document : encore 1 possible(s).');
+        expect(routerPostMock).not.toHaveBeenCalled();
+    });
+
+    it('skips an invalid file of a multi-file selection, naming it, and still sends the valid ones', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pngFile('photo.png'), pdfFile('ok.pdf')] } });
+
+        expect(wrapper.text()).toContain('photo.png : Format non supporté');
+        expect(routerPostMock).toHaveBeenCalledTimes(1);
+        expect(routerPostMock.mock.calls[0][1].file.name).toBe('ok.pdf');
     });
 
     // --- Mode immediate : ajout ------------------------------------------------
@@ -224,11 +298,6 @@ describe('AttachmentsPanel', () => {
         await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('first.pdf')] } });
         expect(formPostMock).toHaveBeenCalledTimes(1);
 
-        // Simulates the in-flight state Inertia would set via onStart —
-        // formPostMock itself is a bare spy, so onStart is never invoked
-        // automatically.
-        formPostMock.mock.calls[0][1].onStart();
-
         await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('second.pdf')] } });
         expect(formPostMock).toHaveBeenCalledTimes(1);
     });
@@ -254,10 +323,8 @@ describe('AttachmentsPanel', () => {
 
         await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile()] } });
 
-        const { onStart, onFinish } = formPostMock.mock.calls[0][1];
-        onStart();
         await wrapper.vm.$nextTick();
-        onFinish();
+        formPostMock.mock.calls[0][1].onFinish();
         await wrapper.vm.$nextTick();
 
         const emitted = wrapper.emitted('update:uploading');
