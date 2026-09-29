@@ -34,6 +34,7 @@ describe('Sidebar', () => {
 
         try {
             localStorage.removeItem('bmad-demo-theme');
+            localStorage.removeItem('bmad-demo-sidebar-collapsed');
         } catch (e) {
             // Private browsing / storage disabled — nothing to clean up.
         }
@@ -98,7 +99,7 @@ describe('Sidebar', () => {
         pageState.props = {};
         const createWrapper = mount(Sidebar);
         const create = createWrapper.find('a[href="/documents/create"]');
-        const documentsLink = createWrapper.find('a[href="/"]');
+        const documentsLink = createWrapper.find('nav a[href="/"]');
 
         expect(create.attributes('aria-current')).toBe('page');
         expect(create.classes()).toContain('bg-primary');
@@ -108,7 +109,7 @@ describe('Sidebar', () => {
         pageState.props = { document: { id: 1, title: 'Existing' } };
         const editWrapper = mount(Sidebar);
         const edit = editWrapper.find('a[href="/documents/create"]');
-        const documentsLinkWhileEditing = editWrapper.find('a[href="/"]');
+        const documentsLinkWhileEditing = editWrapper.find('nav a[href="/"]');
 
         expect(edit.attributes('aria-current')).toBeUndefined();
         expect(edit.classes()).not.toContain('bg-primary');
@@ -124,7 +125,7 @@ describe('Sidebar', () => {
         pageState.component = 'Documents/Import';
         const wrapper = mount(Sidebar);
         const importLink = wrapper.find('a[href="/documents/import"]');
-        const documentsLink = wrapper.find('a[href="/"]');
+        const documentsLink = wrapper.find('nav a[href="/"]');
 
         expect(importLink.attributes('aria-current')).toBe('page');
         expect(importLink.classes()).toContain('bg-primary');
@@ -139,7 +140,7 @@ describe('Sidebar', () => {
     it('renders the Documents nav item as active when the current page is not Recherche', () => {
         pageState.component = 'Documents/Show';
         const wrapper = mount(Sidebar);
-        const navLink = wrapper.find('a[href="/"]');
+        const navLink = wrapper.find('nav a[href="/"]');
         const searchLink = wrapper.find('a[href="/recherche"]');
 
         expect(navLink.attributes('aria-current')).toBe('page');
@@ -158,7 +159,7 @@ describe('Sidebar', () => {
         pageState.component = 'Documents/Editor';
         pageState.props = { document: { id: 1, title: 'Existing' } };
         const wrapper = mount(Sidebar);
-        const navLink = wrapper.find('a[href="/"]');
+        const navLink = wrapper.find('nav a[href="/"]');
 
         expect(navLink.attributes('aria-current')).toBe('page');
         expect(navLink.classes()).toContain('bg-primary');
@@ -169,7 +170,7 @@ describe('Sidebar', () => {
     it('renders the Recherche nav item as active on the Documents/Search page, Documents turning inactive', () => {
         pageState.component = 'Documents/Search';
         const wrapper = mount(Sidebar);
-        const navLink = wrapper.find('a[href="/"]');
+        const navLink = wrapper.find('nav a[href="/"]');
         const searchLink = wrapper.find('a[href="/recherche"]');
 
         expect(searchLink.exists()).toBe(true);
@@ -185,7 +186,7 @@ describe('Sidebar', () => {
     it('renders the Configuration nav item as active on the Documents/Configuration page, Documents turning inactive', () => {
         pageState.component = 'Documents/Configuration';
         const wrapper = mount(Sidebar);
-        const navLink = wrapper.find('a[href="/"]');
+        const navLink = wrapper.find('nav a[href="/"]');
         const configLink = wrapper.find('a[href="/configuration"]');
 
         expect(configLink.exists()).toBe(true);
@@ -204,7 +205,7 @@ describe('Sidebar', () => {
         pageState.component = 'Documents/X';
         const wrapper = mount(Sidebar);
 
-        expect(wrapper.find('a[href="/"]').attributes('aria-current')).toBeUndefined();
+        expect(wrapper.find('nav a[href="/"]').attributes('aria-current')).toBeUndefined();
         expect(wrapper.find('a[href="/recherche"]').attributes('aria-current')).toBeUndefined();
         expect(wrapper.find('a[href="/configuration"]').attributes('aria-current')).toBeUndefined();
     });
@@ -215,12 +216,12 @@ describe('Sidebar', () => {
     it('restores Documents as active after navigating from Recherche to another surface', () => {
         pageState.component = 'Documents/Search';
         const wrapper = mount(Sidebar);
-        expect(wrapper.find('a[href="/"]').attributes('aria-current')).toBeUndefined();
+        expect(wrapper.find('nav a[href="/"]').attributes('aria-current')).toBeUndefined();
 
         pageState.component = 'Documents/Show';
 
         return wrapper.vm.$nextTick().then(() => {
-            expect(wrapper.find('a[href="/"]').attributes('aria-current')).toBe('page');
+            expect(wrapper.find('nav a[href="/"]').attributes('aria-current')).toBe('page');
             expect(wrapper.find('a[href="/recherche"]').attributes('aria-current')).toBeUndefined();
         });
     });
@@ -230,22 +231,63 @@ describe('Sidebar', () => {
     // document, Importer un document, Recherche, Configuration, then the
     // theme toggle then footer — the footer itself is static text, not a
     // separate focusable stop.
-    it('exposes Documents, Créer un document, Importer un document, Recherche, Configuration then the theme toggle as focusable items, in that order', () => {
+    it('exposes the brand, Documents, Créer un document, Importer un document, Recherche, Configuration, the theme toggle then the collapse toggle as focusable items, in that order', () => {
         const wrapper = mount(Sidebar);
         const focusable = wrapper.findAll('a, button');
 
-        expect(focusable).toHaveLength(6);
-        expect(focusable[0].element.tagName).toBe('A');
-        expect(focusable[0].text()).toBe('Documents');
+        expect(focusable).toHaveLength(8);
+        expect(focusable[0].attributes('data-testid')).toBe('sidebar-brand');
         expect(focusable[1].element.tagName).toBe('A');
-        expect(focusable[1].text()).toBe('Créer un document');
+        expect(focusable[1].text()).toBe('Documents');
         expect(focusable[2].element.tagName).toBe('A');
-        expect(focusable[2].text()).toBe('Importer un document');
+        expect(focusable[2].text()).toBe('Créer un document');
         expect(focusable[3].element.tagName).toBe('A');
-        expect(focusable[3].text()).toBe('Recherche');
+        expect(focusable[3].text()).toBe('Importer un document');
         expect(focusable[4].element.tagName).toBe('A');
-        expect(focusable[4].text()).toBe('Configuration');
-        expect(focusable[5].element.tagName).toBe('BUTTON');
+        expect(focusable[4].text()).toBe('Recherche');
+        expect(focusable[5].element.tagName).toBe('A');
+        expect(focusable[5].text()).toBe('Configuration');
+        expect(focusable[6].element.tagName).toBe('BUTTON');
+        expect(focusable[7].attributes('data-testid')).toBe('sidebar-collapse-toggle');
+    });
+
+    it('renders the brand as a link to the homepage with the app logo', () => {
+        const wrapper = mount(Sidebar);
+        const brand = wrapper.find('[data-testid="sidebar-brand"]');
+
+        expect(brand.element.tagName).toBe('A');
+        expect(brand.attributes('href')).toBe('/');
+        expect(brand.text()).toBe('BMAD Démo');
+        expect(brand.find('svg').exists()).toBe(true);
+    });
+
+    // Collapsed mode hides labels visually (`sr-only`, keeping accessible
+    // names), shows them as tooltips instead, and persists across reloads.
+    it('collapses to icons only, shows labels as tooltips and persists the choice in localStorage', async () => {
+        const wrapper = mount(Sidebar);
+        const toggle = wrapper.find('[data-testid="sidebar-collapse-toggle"]');
+        const documentsLink = wrapper.find('nav a[href="/"]');
+
+        expect(toggle.attributes('aria-label')).toBe('Réduire le menu');
+        expect(documentsLink.find('span').classes()).not.toContain('sr-only');
+        expect(documentsLink.attributes('title')).toBeUndefined();
+
+        await toggle.trigger('click');
+
+        expect(toggle.attributes('aria-label')).toBe('Déployer le menu');
+        expect(wrapper.find('aside').classes()).toContain('w-16');
+        expect(documentsLink.find('span').classes()).toContain('sr-only');
+        expect(documentsLink.attributes('title')).toBe('Documents');
+        expect(wrapper.find('[data-testid="sidebar-brand"] span').classes()).toContain('sr-only');
+        expect(localStorage.getItem('bmad-demo-sidebar-collapsed')).toBe('true');
+
+        const remounted = mount(Sidebar);
+        expect(remounted.find('aside').classes()).toContain('w-16');
+
+        await toggle.trigger('click');
+
+        expect(wrapper.find('aside').classes()).toContain('w-sidebar-width');
+        expect(localStorage.getItem('bmad-demo-sidebar-collapsed')).toBe('false');
     });
 
     // I/O matrix "Toggle thème": clicking flips `.dark` on <html> and
