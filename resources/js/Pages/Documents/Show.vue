@@ -119,6 +119,11 @@ const creationLabel = computed(() => {
     return `${isCreated.value ? 'Créé' : 'Importé'} le ${formattedDate.value}`;
 });
 
+const hasMetadata = computed(() => Boolean(creationLabel.value)
+    || documentTags.value.length > 0
+    || isEditing.value
+    || attachments.value.length > 0);
+
 const previewUrl = computed(() => `/documents/${props.document.id}/preview`);
 const downloadUrl = computed(() => `/documents/${props.document.id}/download`);
 const exportPdfUrl = computed(() => `/documents/${props.document.id}/export/pdf`);
@@ -410,8 +415,7 @@ onBeforeUnmount(() => {
     <AppLayout>
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
             <!-- Title and actions share one line: the title truncates
-                 (full text in `title`), the actions never shrink and carry
-                 the creation date right-aligned beneath them. Full width
+                 (full text in `title`), the actions never shrink. Full width
                  below xl so the actions still fit, 3/4 above: wide enough
                  for a readable PDF preview without stretching the page edge
                  to edge (same container on every page). -->
@@ -420,7 +424,7 @@ onBeforeUnmount(() => {
                     {{ document.title }}
                 </h1>
 
-                <div class="flex shrink-0 flex-col items-end gap-2">
+                <div class="shrink-0">
                     <div v-if="isEditing" class="flex items-center gap-3">
                         <button
                             type="button"
@@ -537,10 +541,6 @@ onBeforeUnmount(() => {
                             Supprimer
                         </button>
                     </div>
-
-                    <p v-if="creationLabel" class="text-xs text-muted">
-                        <time :datetime="document.created_at">{{ creationLabel }}</time>
-                    </p>
                 </div>
             </div>
 
@@ -548,71 +548,86 @@ onBeforeUnmount(() => {
                 {{ exportPdfError }}
             </p>
 
-            <!-- Read-only rows align on the first line's baseline so the label sits
-                 level with the first chip even once the chips wrap; the Tags
-                 editor top-aligns instead, next to its input. -->
-            <dl v-if="documentTags.length > 0 || isEditing || attachments.length > 0" class="mt-6 space-y-3 text-sm text-foreground">
-                <!-- Empty rows are hidden entirely, except Tags while its
-                     edit mode is open (the TagSelector lives there). -->
-                <div v-if="documentTags.length > 0 || isEditing" class="flex gap-2" :class="isEditing ? 'items-start' : 'items-baseline'">
-                    <dt class="shrink-0 font-medium" :class="{ 'mt-2': isEditing }">Tags :</dt>
-                    <dd v-if="isEditing" ref="tagsEditorRef" class="w-full max-w-md">
-                        <TagSelector
-                            v-model="draftTagIds"
-                            :disabled="isSavingTags"
-                            :show-label="false"
-                            placeholder="Ajouter un tag…"
-                        />
-                        <p v-if="tagsError" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
-                            {{ tagsError }}
-                        </p>
-                    </dd>
-                    <dd v-else class="flex min-w-0 flex-1 flex-wrap items-baseline gap-2">
-                        <TagChip v-for="tag in documentTags" :key="tag.id" :name="tag.name" />
-                    </dd>
-                </div>
-                <div v-if="attachments.length > 0" class="flex items-baseline gap-2">
-                    <dt class="shrink-0 font-medium">Pièces jointes :</dt>
-                    <!-- Attachments flow inline and only wrap when the line is
-                         full; a name longer than the whole line breaks inside
-                         its own pill rather than being truncated. -->
-                    <dd class="min-w-0 flex-1">
-                        <ul class="flex flex-wrap items-baseline gap-2">
-                            <li
-                                v-for="attachment in attachments"
-                                :key="attachment.id"
-                                class="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md bg-surface-alt px-2.5 py-1 text-sm text-foreground"
-                            >
-                                <span class="min-w-0 [overflow-wrap:anywhere]">
-                                    {{ attachment.original_filename }}
-                                </span>
-                                <span class="flex shrink-0 items-baseline gap-2">
-                                    <a
-                                        :href="attachmentPreviewUrl(attachment)"
-                                        target="_blank"
-                                        rel="noopener"
-                                        class="text-xs text-muted hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                                    >
-                                        Aperçu
-                                    </a>
-                                    <a
-                                        :href="attachmentDownloadUrl(attachment)"
-                                        class="text-xs text-muted hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                                    >
-                                        Télécharger
-                                    </a>
-                                </span>
-                            </li>
-                        </ul>
-                    </dd>
-                </div>
-            </dl>
+            <!-- Metadata block: the creation date opens it, in the same text
+                 style as the rows beneath. Read-only rows align on the first
+                 line's baseline so the label sits level with the first chip
+                 even once the chips wrap; the Tags editor top-aligns instead,
+                 next to its input. -->
+            <!-- Section separators fade out at both ends so they read as a pause
+                 in the page rather than a hard rule. -->
+            <hr v-if="hasMetadata" class="my-8 h-px border-0 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]">
+            <div v-if="hasMetadata" class="space-y-4 text-sm text-foreground">
+                <p v-if="creationLabel">
+                    <time :datetime="document.created_at">{{ creationLabel }}</time>
+                </p>
+                <dl v-if="documentTags.length > 0 || isEditing || attachments.length > 0" class="space-y-4">
+                    <!-- Empty rows are hidden entirely, except Tags while its
+                         edit mode is open (the TagSelector lives there). -->
+                    <div v-if="documentTags.length > 0 || isEditing" class="flex gap-2" :class="isEditing ? 'items-start' : 'items-baseline'">
+                        <dt class="shrink-0 font-medium" :class="{ 'mt-2': isEditing }">Tags :</dt>
+                        <dd v-if="isEditing" ref="tagsEditorRef" class="w-full max-w-md">
+                            <TagSelector
+                                v-model="draftTagIds"
+                                :disabled="isSavingTags"
+                                :show-label="false"
+                                placeholder="Ajouter un tag…"
+                            />
+                            <p v-if="tagsError" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                                {{ tagsError }}
+                            </p>
+                        </dd>
+                        <dd v-else class="flex min-w-0 flex-1 flex-wrap items-baseline gap-2">
+                            <TagChip v-for="tag in documentTags" :key="tag.id" :name="tag.name" size="regular" />
+                        </dd>
+                    </div>
+                    <div v-if="attachments.length > 0" class="flex items-baseline gap-2">
+                        <dt class="shrink-0 font-medium">Pièces jointes :</dt>
+                        <!-- Attachments flow inline and only wrap when the line is
+                             full; a name longer than the whole line breaks inside
+                             its own pill rather than being truncated. -->
+                        <dd class="min-w-0 flex-1">
+                            <ul class="flex flex-wrap items-baseline gap-2">
+                                <li
+                                    v-for="attachment in attachments"
+                                    :key="attachment.id"
+                                    class="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md bg-surface-alt px-2.5 py-1 text-sm text-foreground"
+                                >
+                                    <span class="min-w-0 [overflow-wrap:anywhere]">
+                                        {{ attachment.original_filename }}
+                                    </span>
+                                    <span class="flex shrink-0 items-baseline gap-2">
+                                        <a
+                                            :href="attachmentPreviewUrl(attachment)"
+                                            target="_blank"
+                                            rel="noopener"
+                                            class="text-xs text-muted hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                                        >
+                                            Aperçu
+                                        </a>
+                                        <a
+                                            :href="attachmentDownloadUrl(attachment)"
+                                            class="text-xs text-muted hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                                        >
+                                            Télécharger
+                                        </a>
+                                    </span>
+                                </li>
+                            </ul>
+                        </dd>
+                    </div>
+                </dl>
+            </div>
 
-            <div class="mt-8">
+            <hr class="my-8 h-px border-0 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]">
+
+            <div>
+                <!-- A created document flows into the page like an article: no
+                     frame, and an unbroken string (long URL, pasted token) wraps
+                     at the container edge instead of overflowing the screen. -->
                 <!-- eslint-disable-next-line vue/no-v-html -- content authored by the same local user in the app's own WYSIWYG editor (spec-2-1); no auth boundary exists in v1 (NFR3). -->
                 <div
                     v-if="isCreated"
-                    class="tiptap-content min-h-[200px] rounded-md border border-border bg-background px-4 py-3 text-sm text-foreground"
+                    class="tiptap-content min-w-0 text-sm text-foreground [overflow-wrap:anywhere]"
                     v-html="document.content_html"
                 ></div>
 

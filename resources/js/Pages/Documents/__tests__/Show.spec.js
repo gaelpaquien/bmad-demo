@@ -89,6 +89,11 @@ function chipNames(wrapper) {
     return wrapper.findAllComponents(TagChip).map((chip) => chip.text());
 }
 
+function headerActionLabels(wrapper) {
+    return Array.from(wrapper.find('h1').element.parentElement.querySelectorAll('button, a'))
+        .map((element) => element.textContent.trim());
+}
+
 async function enterEditMode(wrapper) {
     await findButton(wrapper, 'Modifier').trigger('click');
     await settle();
@@ -120,22 +125,17 @@ describe('Documents/Show — consultation', () => {
         expect(title.classes()).toEqual(expect.arrayContaining(['truncate', 'min-w-0']));
         expect(title.attributes('title')).toBe('Document de test');
 
-        const header = title.element.parentElement;
-        const headerButtons = Array.from(header.querySelectorAll('button, a')).map((element) => element.textContent.trim());
-        expect(headerButtons).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
+        expect(headerActionLabels(wrapper)).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
     });
 
     it('lists the same header actions in the same order for an imported and a created document', () => {
-        const headerLabels = (wrapper) => Array.from(wrapper.find('h1').element.parentElement.querySelectorAll('button, a'))
-            .map((element) => element.textContent.trim());
-
         const imported = mountShow();
         // In production a created document always arrives with sourceMissing
         // true (no file_path), so it is mounted that way here.
         const created = mountCreated();
 
-        expect(headerLabels(imported)).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
-        expect(headerLabels(created)).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
+        expect(headerActionLabels(imported)).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
+        expect(headerActionLabels(created)).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
     });
 
     it('hides the Tags and Pièces jointes rows entirely when both are empty', () => {
@@ -148,11 +148,13 @@ describe('Documents/Show — consultation', () => {
         expect(wrapper.find('dl').exists()).toBe(false);
     });
 
-    it('shows the creation date in the header, worded after how the document entered the library', () => {
-        const headerText = (wrapper) => wrapper.find('h1').element.parentElement.textContent;
+    it('shows the creation date just above the Tags row, worded after how the document entered the library', () => {
+        const imported = mountShow({ created_at: '2026-01-15T12:00:00Z' });
+        const metadataText = imported.find('dl').element.parentElement.textContent;
 
-        expect(headerText(mountShow({ created_at: '2026-01-15T12:00:00Z' }))).toContain('Importé le 15 janvier 2026');
-        expect(headerText(mountCreated({ created_at: '2026-01-15T12:00:00Z' }))).toContain('Créé le 15 janvier 2026');
+        expect(metadataText).toContain('Importé le 15 janvier 2026');
+        expect(metadataText.indexOf('Importé le')).toBeLessThan(metadataText.indexOf('Tags :'));
+        expect(mountCreated({ created_at: '2026-01-15T12:00:00Z' }).find('time').text()).toContain('Créé le 15 janvier 2026');
         expect(mountShow({ created_at: null }).find('time').exists()).toBe(false);
     });
 
@@ -191,9 +193,7 @@ describe('Documents/Show — Télécharger', () => {
     it('keeps Télécharger · Modifier · Supprimer with an enabled "Télécharger" on a created document despite sourceMissing', () => {
         const wrapper = mountCreated();
 
-        const headerLabels = Array.from(wrapper.find('h1').element.parentElement.querySelectorAll('button, a'))
-            .map((element) => element.textContent.trim());
-        expect(headerLabels).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
+        expect(headerActionLabels(wrapper)).toEqual(['Télécharger', 'Modifier', 'Supprimer']);
         expect(findButton(wrapper, 'Télécharger').attributes('disabled')).toBeUndefined();
         expect(wrapper.find('a[href="/documents/7/download"]').exists()).toBe(false);
     });
