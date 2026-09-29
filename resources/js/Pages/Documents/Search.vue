@@ -449,12 +449,12 @@ function formatDate(dateString) {
                         v-for="tagId in selectedTagIds"
                         :key="`tag-${tagId}`"
                         type="button"
-                        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground not-disabled:hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         :aria-label="`Retirer le filtre tag ${tagName(tagId)}`"
                         @click="removeTagFilter(tagId)"
                     >
                         {{ tagName(tagId) }}
-                        <span aria-hidden="true" class="text-base leading-none">×</span>
+                        <span aria-hidden="true" class="text-lg leading-none transition-opacity hover:opacity-60">×</span>
                     </button>
                 </div>
             </div>
