@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { router } from '@inertiajs/vue3';
 import Search from '@/Pages/Documents/Search.vue';
 
@@ -127,9 +127,153 @@ describe('Documents/Search', () => {
         });
 
         await wrapper.find('input[type="search"]').setValue('contrat');
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(500);
 
         expect(router.get).toHaveBeenCalledTimes(1);
         expect(router.get.mock.calls[0][2].only).toContain('tags');
+    });
+});
+
+// Typing delay and loading feedback: the debounced search waits 500ms
+// (enough for a slower typist pausing mid-word), Enter skips the wait, and
+// a spinner appears only once a search has been pending for 300ms. The
+// spied `router.get`'s `onStart`/`onFinish` options are invoked by hand to
+// simulate a request's lifecycle.
+describe('Documents/Search typing delay and spinner', () => {
+    let wrapper;
+
+    function mountSearch() {
+        wrapper = mount(Search, {
+            props: { documents: [], search: '', tagFilters: [] },
+            attachTo: document.body,
+            global: { stubs: globalStubs },
+        });
+
+        return wrapper;
+    }
+
+    function lastVisitOptions() {
+        return router.get.mock.calls.at(-1)[2];
+    }
+
+    async function searchNow(term) {
+        const input = wrapper.find('input[type="search"]');
+
+        await input.setValue(term);
+        await input.trigger('keydown', { key: 'Enter' });
+    }
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        router.get.mockClear();
+    });
+
+    afterEach(() => {
+        wrapper?.unmount();
+        vi.useRealTimers();
+    });
+
+    it('waits 500ms after the last keystroke before searching', async () => {
+        const input = mountSearch().find('input[type="search"]');
+
+        await input.setValue('cub');
+        vi.advanceTimersByTime(400);
+        await input.setValue('cubiscan');
+        vi.advanceTimersByTime(400);
+
+        expect(router.get).not.toHaveBeenCalled();
+
+        vi.advanceTimersByTime(100);
+
+        expect(router.get).toHaveBeenCalledTimes(1);
+        expect(router.get.mock.calls[0][1]).toEqual({ search: 'cubiscan' });
+    });
+
+    it('searches immediately on Enter, without a second search once the delay elapses', async () => {
+        mountSearch();
+
+        await searchNow('cubiscan');
+
+        expect(router.get).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(1000);
+
+        expect(router.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the spinner only once a search has been pending for 300ms, and hides it when it finishes', async () => {
+        mountSearch();
+
+        await searchNow('cubiscan');
+        lastVisitOptions().onStart();
+
+        vi.advanceTimersByTime(299);
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('[role="status"]').exists()).toBe(false);
+
+        vi.advanceTimersByTime(1);
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('[role="status"]').text()).toContain('Recherche en cours');
+
+        lastVisitOptions().onFinish();
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('[role="status"]').exists()).toBe(false);
+    });
+
+    it('replaces the previous results with the in-progress message while the search is pending', async () => {
+        wrapper = mount(Search, {
+            props: {
+                documents: [{ id: 42, title: 'Contrat prestataire', mime_type: 'application/pdf', source: 'imported', created_at: '2026-01-15T10:30:00Z', tags: [] }],
+                search: 'contrat',
+                tagFilters: [],
+            },
+            attachTo: document.body,
+            global: { stubs: globalStubs },
+        });
+
+        await searchNow('cubiscan');
+        lastVisitOptions().onStart();
+        vi.advanceTimersByTime(300);
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('a[href="/documents/42"]').exists()).toBe(false);
+        expect(wrapper.find('[role="status"]').text()).toBe('Recherche en cours…');
+    });
+
+    it('never shows the spinner for a search answered in under 300ms', async () => {
+        mountSearch();
+
+        await searchNow('cubiscan');
+        lastVisitOptions().onStart();
+        vi.advanceTimersByTime(200);
+        lastVisitOptions().onFinish();
+
+        vi.advanceTimersByTime(500);
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('[role="status"]').exists()).toBe(false);
+    });
+
+    it('keeps the spinner while a newer search is pending, when the older cancelled one finishes', async () => {
+        mountSearch();
+
+        await searchNow('cubiscan');
+        const olderVisit = lastVisitOptions();
+        olderVisit.onStart();
+
+        await searchNow('cubiscan speed');
+        const newerVisit = lastVisitOptions();
+        newerVisit.onStart();
+
+        olderVisit.onFinish();
+        vi.advanceTimersByTime(300);
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('[role="status"]').exists()).toBe(true);
+
+        newerVisit.onFinish();
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('[role="status"]').exists()).toBe(false);
     });
 });

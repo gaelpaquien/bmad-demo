@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
+use App\Support\KeywordDatabaseEngine;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -56,9 +57,10 @@ class Document extends Model
     }
 
     /**
-     * Scout index limited to `extracted_text`/`attachments_extracted_text`
-     * (Boundaries & Constraints, spec-1-6/spec-3-3) — title/metadata
-     * deliberately excluded, driver `database` runs this straight through a
+     * Scout index on `title` plus `extracted_text`/`attachments_extracted_text`
+     * (spec-1-6/spec-3-3; title added 2026-09-29, AD-8) — other metadata and
+     * tag names stay excluded (tags are a filter, never a search term),
+     * driver `database` runs this straight through a
      * `LIKE`/fulltext query against the named columns, never re-executing
      * this method to aggregate related rows in memory (Design Notes,
      * spec-3-3) — hence `attachments_extracted_text` being a real column,
@@ -68,9 +70,21 @@ class Document extends Model
     public function toSearchableArray(): array
     {
         return [
+            'title' => $this->title,
             'extracted_text' => $this->extracted_text,
             'attachments_extracted_text' => $this->attachments_extracted_text,
         ];
+    }
+
+    /**
+     * Keyword semantics on top of Scout's `database` driver (any keyword
+     * matches, ranked by how many match, title matches first) — see
+     * KeywordDatabaseEngine. Bound here rather than as a new `SCOUT_DRIVER`
+     * so no environment change is needed and no other model is affected.
+     */
+    public function searchableUsing(): KeywordDatabaseEngine
+    {
+        return new KeywordDatabaseEngine(priorityColumns: ['title']);
     }
 
     /**

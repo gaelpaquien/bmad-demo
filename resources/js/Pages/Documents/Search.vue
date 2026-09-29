@@ -29,7 +29,20 @@ const searchTerm = ref(props.search);
 const selectedTagIds = ref([...props.tagFilters]);
 const searchInputRef = ref(null);
 
+// 500ms rather than the initial 300ms: a slower typist pausing mid-word
+// otherwise fired a search on almost every letter. Enter skips the wait.
+const SEARCH_DEBOUNCE_MS = 500;
+// The spinner only shows once a search has been pending this long, so a
+// fast response never flashes it.
+const SPINNER_DELAY_MS = 300;
+
+const isSearching = ref(false);
+
 let debounceTimer = null;
+// Identifies the most recent navigation: Inertia cancels a still-pending
+// visit when a newer one starts, and the cancelled visit's `onFinish` must
+// not hide the spinner the newer one is still waiting on.
+let latestVisitId = 0;
 // Set right before a programmatic (non-typed) write to `searchTerm`/the tag
 // selection so the watchers below can tell it apart from an actual user
 // edit and skip re-navigating — otherwise syncing from server props (e.g. a
@@ -84,10 +97,31 @@ function navigate() {
         params.tag_id = selectedTagIds.value;
     }
 
+    const visitId = ++latestVisitId;
+    let spinnerTimer = null;
+
     router.get(
         '/recherche',
         params,
-        { preserveState: true, replace: true, only: ['documents', 'search', 'tagFilters', 'tags'] },
+        {
+            preserveState: true,
+            replace: true,
+            only: ['documents', 'search', 'tagFilters', 'tags'],
+            onStart: () => {
+                spinnerTimer = setTimeout(() => {
+                    if (visitId === latestVisitId) {
+                        isSearching.value = true;
+                    }
+                }, SPINNER_DELAY_MS);
+            },
+            onFinish: () => {
+                clearTimeout(spinnerTimer);
+
+                if (visitId === latestVisitId) {
+                    isSearching.value = false;
+                }
+            },
+        },
     );
 }
 
@@ -101,7 +135,7 @@ watch(searchTerm, () => {
         clearTimeout(debounceTimer);
     }
 
-    debounceTimer = setTimeout(navigate, 300);
+    debounceTimer = setTimeout(navigate, SEARCH_DEBOUNCE_MS);
 });
 
 // Filters are a discrete selection, not free typing — no debounce,
@@ -160,6 +194,31 @@ function formatDate(dateString) {
                 Recherche
             </h1>
 
+            <section
+                aria-labelledby="search-help-title"
+                class="mb-4 rounded-lg border border-border bg-surface p-4 text-sm text-muted"
+            >
+                <h2 id="search-help-title" class="mb-1 font-medium text-foreground">
+                    Comment fonctionne la recherche
+                </h2>
+                <p class="mb-3">
+                    Les mots-clés sont cherchés dans le titre, le contenu des documents et celui de leurs pièces jointes,
+                    sans tenir compte des majuscules. Les résultats sont classés en plaçant d'abord les documents dont le
+                    titre contient les mots-clés, puis ceux qui en contiennent le plus ; à pertinence égale, les plus
+                    récents apparaissent en premier.
+                </p>
+                <dl class="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[max-content_1fr]">
+                    <dt><code class="rounded bg-background px-1.5 py-0.5 font-mono text-xs text-foreground">cubiscan speed</code></dt>
+                    <dd>au moins un des mots (OU)</dd>
+                    <dt><code class="rounded bg-background px-1.5 py-0.5 font-mono text-xs text-foreground">+cubiscan +speed</code></dt>
+                    <dd>les deux mots obligatoires (ET)</dd>
+                    <dt><code class="rounded bg-background px-1.5 py-0.5 font-mono text-xs text-foreground">cubiscan -speed</code></dt>
+                    <dd>« cubiscan », mais sans « speed »</dd>
+                    <dt><code class="rounded bg-background px-1.5 py-0.5 font-mono text-xs text-foreground">"cubiscan speed"</code></dt>
+                    <dd>l'expression exacte, dans cet ordre</dd>
+                </dl>
+            </section>
+
             <div class="relative mb-6">
                 <label for="search-input" class="sr-only">
                     Rechercher un document
@@ -169,7 +228,8 @@ function formatDate(dateString) {
                     ref="searchInputRef"
                     v-model="searchTerm"
                     type="search"
-                    placeholder="Saisissez un ou plusieurs mots-clés présents dans le contenu des documents ou de leurs pièces jointes…"
+                    placeholder="Rechercher dans les titres, contenus et pièces jointes… (ex. : cubiscan +speed)"
+                    @keydown.enter.prevent="navigate"
                 />
             </div>
 
@@ -198,7 +258,19 @@ function formatDate(dateString) {
             </div>
 
             <div aria-live="polite" aria-atomic="true">
-                <div v-if="documents.length === 0 && trimmedSearchTerm" class="flex flex-col items-center gap-4 py-16 text-center">
+                <div
+                    v-if="isSearching"
+                    role="status"
+                    class="flex items-center justify-center gap-3 py-16 text-muted"
+                >
+                    <svg class="h-5 w-5 animate-spin text-foreground dark:text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    <p>Recherche en cours…</p>
+                </div>
+
+                <div v-else-if="documents.length === 0 && trimmedSearchTerm" class="flex flex-col items-center gap-4 py-16 text-center">
                     <p class="text-muted">
                         Aucun document ne correspond à votre recherche.
                     </p>

@@ -103,10 +103,9 @@ class DocumentController extends Controller
 
         $documents = $search === ''
             ? []
-            // Scout's `database` driver interpolates the term unescaped into a
-            // `LIKE '%...%'` clause (Laravel\Scout\Engines\DatabaseEngine) — `%`/`_`
-            // are LIKE wildcards, so they're escaped here to keep the match literal.
-            : Document::search(addcslashes($search, '%_'))
+            // Keyword splitting, LIKE escaping and relevance ranking all live in
+            // KeywordDatabaseEngine (Document::searchableUsing()).
+            : Document::search($search)
                 ->query(fn ($query) => $this->applyFilters($query, $tagIds, [])
                     ->select($columns)->with('tags:id,name')->latest())
                 ->get();

@@ -81,7 +81,7 @@ it('returns an empty list without failing when no document matches the search te
     );
 });
 
-it('never matches a document by title, only by extracted text', function () {
+it('matches a document by its title even when its extracted text does not contain the term', function () {
     $document = Document::factory()->create([
         'title' => 'Facture janvier.pdf',
         'extracted_text' => 'Contenu sans rapport avec le titre.',
@@ -92,10 +92,37 @@ it('never matches a document by title, only by extracted text', function () {
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
-        ->has('documents', 0)
+        ->has('documents', 1)
+        ->where('documents.0.id', $document->id)
     );
+});
 
-    expect($document->title)->toContain('Facture');
+it('ranks title matches before content matches, even over documents matching more keywords', function () {
+    $contentWithBothKeywords = Document::factory()->create([
+        'title' => 'Compte-rendu.pdf',
+        'extracted_text' => 'Le cubiscan et son speed.',
+        'created_at' => now(),
+    ]);
+    $titleWithOneKeyword = Document::factory()->create([
+        'title' => 'Notice Cubiscan.pdf',
+        'extracted_text' => 'Contenu sans rapport.',
+        'created_at' => now()->subDays(2),
+    ]);
+    $titleWithBothKeywords = Document::factory()->create([
+        'title' => 'Cubiscan Speed.pdf',
+        'extracted_text' => 'Contenu sans rapport.',
+        'created_at' => now()->subDays(3),
+    ]);
+
+    $response = $this->get('/recherche?search='.urlencode('cubiscan speed'));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 3)
+        ->where('documents.0.id', $titleWithBothKeywords->id)
+        ->where('documents.1.id', $titleWithOneKeyword->id)
+        ->where('documents.2.id', $contentWithBothKeywords->id)
+    );
 });
 
 it('never matches a document by its tag name, only by extracted text (tags are a filter, never a search term)', function () {
@@ -255,3 +282,172 @@ it('drops a malformed tag_id value instead of erroring', function () {
         ->where('documents.0.id', $document->id)
     );
 });
+
+it('matches a document containing any one of several keywords, in any order', function () {
+    $withBoth = Document::factory()->create(['extracted_text' => 'Le Speed mesure le colis, puis le CubiScan pèse.']);
+    $withFirstOnly = Document::factory()->create(['extracted_text' => 'Notice du cubiscan 150.']);
+    $withSecondOnly = Document::factory()->create(['extracted_text' => 'Speed test du réseau.']);
+    $withNeither = Document::factory()->create(['extracted_text' => 'Compte-rendu de réunion hebdomadaire.']);
+
+    $response = $this->get('/recherche?search=cubiscan%20speed');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Search')
+        ->where('search', 'cubiscan speed')
+        ->has('documents', 3)
+        ->where('documents', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
+            === collect([$withBoth->id, $withFirstOnly->id, $withSecondOnly->id])->sort()->values()->all())
+    );
+
+    expect($withNeither)->not->toBeNull();
+});
+
+it('ranks documents matching more keywords first, most-recent-first among equals', function () {
+    $oneKeywordNewest = Document::factory()->create([
+        'extracted_text' => 'Notice du cubiscan.',
+        'created_at' => now(),
+    ]);
+    $oneKeywordOlder = Document::factory()->create([
+        'extracted_text' => 'Speed test du réseau.',
+        'created_at' => now()->subDay(),
+    ]);
+    $bothKeywordsOldest = Document::factory()->create([
+        'extracted_text' => 'Cubiscan et speed dans le même document.',
+        'created_at' => now()->subDays(2),
+    ]);
+
+    $response = $this->get('/recherche?search=cubiscan%20speed');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 3)
+        ->where('documents.0.id', $bothKeywordsOldest->id)
+        ->where('documents.1.id', $oneKeywordNewest->id)
+        ->where('documents.2.id', $oneKeywordOlder->id)
+    );
+});
+
+it('counts a keyword found only in an attachment towards the ranking', function () {
+    $splitAcrossDocumentAndAttachment = Document::factory()->create([
+        'extracted_text' => 'Notice du cubiscan.',
+        'attachments_extracted_text' => 'Réglages du speed.',
+        'created_at' => now()->subDay(),
+    ]);
+    $singleKeyword = Document::factory()->create([
+        'extracted_text' => 'Autre notice du cubiscan.',
+        'created_at' => now(),
+    ]);
+
+    $response = $this->get('/recherche?search=cubiscan%20speed');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 2)
+        ->where('documents.0.id', $splitAcrossDocumentAndAttachment->id)
+        ->where('documents.1.id', $singleKeyword->id)
+    );
+});
+
+it('treats a quoted phrase as a single exact keyword', function () {
+    $exactPhrase = Document::factory()->create(['extracted_text' => 'Le cubiscan speed est calibré.']);
+    $wordsApart = Document::factory()->create(['extracted_text' => 'Le speed et le cubiscan.']);
+
+    $response = $this->get('/recherche?search=%22cubiscan%20speed%22');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 1)
+        ->where('documents.0.id', $exactPhrase->id)
+    );
+
+    expect($wordsApart)->not->toBeNull();
+});
+
+it('matches LIKE wildcard characters in a keyword literally', function () {
+    $literal = Document::factory()->create(['extracted_text' => 'Remise de 50% accordée.']);
+    $wildcardOnly = Document::factory()->create(['extracted_text' => 'Remise de 500 euros.']);
+
+    $response = $this->get('/recherche?search=50%25');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 1)
+        ->where('documents.0.id', $literal->id)
+    );
+
+    expect($wildcardOnly)->not->toBeNull();
+});
+
+it('requires every keyword prefixed with + to be present', function () {
+    $withBoth = Document::factory()->create(['extracted_text' => 'Le speed et le cubiscan.']);
+    $withFirstOnly = Document::factory()->create(['extracted_text' => 'Notice du cubiscan.']);
+
+    $response = $this->get('/recherche?search='.urlencode('+cubiscan +speed'));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('search', '+cubiscan +speed')
+        ->has('documents', 1)
+        ->where('documents.0.id', $withBoth->id)
+    );
+
+    expect($withFirstOnly)->not->toBeNull();
+});
+
+it('uses unprefixed keywords only to rank results once a + keyword is present', function () {
+    $requiredAndOptional = Document::factory()->create([
+        'extracted_text' => 'Le cubiscan et son speed.',
+        'created_at' => now()->subDay(),
+    ]);
+    $requiredOnly = Document::factory()->create([
+        'extracted_text' => 'Notice du cubiscan.',
+        'created_at' => now(),
+    ]);
+    $optionalOnly = Document::factory()->create(['extracted_text' => 'Speed test du réseau.']);
+
+    $response = $this->get('/recherche?search='.urlencode('+cubiscan speed'));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 2)
+        ->where('documents.0.id', $requiredAndOptional->id)
+        ->where('documents.1.id', $requiredOnly->id)
+    );
+
+    expect($optionalOnly)->not->toBeNull();
+});
+
+it('excludes documents containing a keyword prefixed with -, including in their attachments', function () {
+    $kept = Document::factory()->create(['extracted_text' => 'Notice du cubiscan.']);
+    $excludedByContent = Document::factory()->create(['extracted_text' => 'Le cubiscan et son speed.']);
+    $excludedByAttachment = Document::factory()->create([
+        'extracted_text' => 'Autre notice du cubiscan.',
+        'attachments_extracted_text' => 'Réglages du speed.',
+    ]);
+
+    $response = $this->get('/recherche?search='.urlencode('cubiscan -speed'));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 1)
+        ->where('documents.0.id', $kept->id)
+    );
+
+    expect($excludedByContent)->not->toBeNull();
+    expect($excludedByAttachment)->not->toBeNull();
+});
+
+// AC2: a term made only of exclusions (or of a lone +/- typed before the
+// word) would otherwise list almost the whole
+// library.
+it('returns an empty result set when the search term only contains excluded keywords or lone operators', function (string $term) {
+    Document::factory()->create(['extracted_text' => 'Notice du cubiscan.']);
+
+    $response = $this->get('/recherche?search='.urlencode($term));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 0)
+    );
+})->with(['-speed', '+', '- +']);
