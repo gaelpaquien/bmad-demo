@@ -12,6 +12,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
 import TextInput from '@/Components/TextInput.vue';
+import FieldRequirement from '@/Components/FieldRequirement.vue';
 
 // Present only when reopening a previously created document to correct it
 // (spec-2-3) — absent (null) on a brand-new draft, in which case every
@@ -132,8 +133,9 @@ const editor = useEditor({
     ],
     editorProps: {
         attributes: {
-            class: 'tiptap-content min-h-[320px] rounded-b-md border border-t-0 border-border bg-background px-4 py-3 text-sm text-foreground focus:outline-none',
+            class: 'tiptap-content min-h-[320px] rounded-b-sm bg-background px-4 py-3 text-sm text-foreground focus:outline-none',
             'aria-label': 'Contenu du document',
+            'aria-required': 'true',
         },
     },
     onCreate: ({ editor: mountedEditor }) => {
@@ -453,12 +455,13 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
             <div>
                 <label for="document-title" class="mb-1 block text-sm font-medium text-foreground">
-                    Titre
+                    Titre<FieldRequirement required />
                 </label>
                 <TextInput
                     id="document-title"
                     ref="titleInputRef"
                     v-model="form.title"
+                    aria-required="true"
                     placeholder="Titre du document"
                 />
                 <p v-if="form.errors.title" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
@@ -467,118 +470,127 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
             </div>
 
             <div class="mt-6">
-                <div
-                    role="toolbar"
-                    aria-label="Mise en forme du document"
-                    class="flex flex-wrap items-center gap-1 rounded-t-md border border-border bg-surface-alt p-2"
-                >
-                    <button
-                        v-for="level in [1, 2, 3]"
-                        :key="`heading-${level}`"
-                        type="button"
-                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        :class="{ 'bg-primary text-primary-foreground not-disabled:hover:bg-primary-hover': editor?.isActive('heading', { level }) }"
-                        :aria-pressed="editor?.isActive('heading', { level }) ?? false"
-                        :aria-label="`Titre niveau ${level}`"
-                        @click="editor?.chain().focus().toggleHeading({ level }).run()"
+                <p class="mb-1 text-sm font-medium text-foreground">
+                    Contenu<FieldRequirement required />
+                </p>
+                <!-- One bordered frame around toolbar + content, reacting to
+                     focus anywhere inside it — same `border-2` / focus
+                     `border-foreground` treatment as TextInput. Inner corners
+                     use `rounded-*-sm` (outer 6px minus the 2px border). -->
+                <div class="rounded-md border-2 border-border focus-within:border-foreground">
+                    <div
+                        role="toolbar"
+                        aria-label="Mise en forme du document"
+                        class="flex flex-wrap items-center gap-1 rounded-t-sm border-b border-border bg-surface-alt p-2"
                     >
-                        H{{ level }}
-                    </button>
-
-                    <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
-
-                    <button
-                        type="button"
-                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        :class="{ 'bg-primary text-primary-foreground not-disabled:hover:bg-primary-hover': editor?.isActive('bulletList') }"
-                        :aria-pressed="editor?.isActive('bulletList') ?? false"
-                        aria-label="Liste à puces"
-                        @click="editor?.chain().focus().toggleBulletList().run()"
-                    >
-                        • Liste
-                    </button>
-
-                    <button
-                        type="button"
-                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        :class="{ 'bg-primary text-primary-foreground not-disabled:hover:bg-primary-hover': editor?.isActive('orderedList') }"
-                        :aria-pressed="editor?.isActive('orderedList') ?? false"
-                        aria-label="Liste numérotée"
-                        @click="editor?.chain().focus().toggleOrderedList().run()"
-                    >
-                        1. Liste
-                    </button>
-
-                    <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
-
-                    <button
-                        type="button"
-                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                        :disabled="editor?.isActive('table')"
-                        aria-label="Insérer un tableau"
-                        @click="insertTable"
-                    >
-                        Tableau
-                    </button>
-
-                    <button
-                        type="button"
-                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                        :disabled="!editor?.isActive('table')"
-                        aria-label="Supprimer le tableau"
-                        @click="deleteTable"
-                    >
-                        Supprimer le tableau
-                    </button>
-
-                    <template v-if="editor?.isActive('table')">
                         <button
-                            v-for="action in tableStructureActions"
-                            :key="action.command"
+                            v-for="level in [1, 2, 3]"
+                            :key="`heading-${level}`"
                             type="button"
                             class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                            :aria-label="action.ariaLabel"
-                            @click="runTableCommand(action.command)"
+                            :class="{ 'bg-primary text-primary-foreground not-disabled:hover:bg-primary-hover': editor?.isActive('heading', { level }) }"
+                            :aria-pressed="editor?.isActive('heading', { level }) ?? false"
+                            :aria-label="`Titre niveau ${level}`"
+                            @click="editor?.chain().focus().toggleHeading({ level }).run()"
                         >
-                            {{ action.label }}
+                            H{{ level }}
                         </button>
-                    </template>
-
-                    <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
-
-                    <button
-                        type="button"
-                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        aria-label="Insérer une image"
-                        @click="openFilePicker"
+    
+                        <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
+    
+                        <button
+                            type="button"
+                            class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                            :class="{ 'bg-primary text-primary-foreground not-disabled:hover:bg-primary-hover': editor?.isActive('bulletList') }"
+                            :aria-pressed="editor?.isActive('bulletList') ?? false"
+                            aria-label="Liste à puces"
+                            @click="editor?.chain().focus().toggleBulletList().run()"
+                        >
+                            • Liste
+                        </button>
+    
+                        <button
+                            type="button"
+                            class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                            :class="{ 'bg-primary text-primary-foreground not-disabled:hover:bg-primary-hover': editor?.isActive('orderedList') }"
+                            :aria-pressed="editor?.isActive('orderedList') ?? false"
+                            aria-label="Liste numérotée"
+                            @click="editor?.chain().focus().toggleOrderedList().run()"
+                        >
+                            1. Liste
+                        </button>
+    
+                        <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
+    
+                        <button
+                            type="button"
+                            class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                            :disabled="editor?.isActive('table')"
+                            aria-label="Insérer un tableau"
+                            @click="insertTable"
+                        >
+                            Tableau
+                        </button>
+    
+                        <button
+                            type="button"
+                            class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                            :disabled="!editor?.isActive('table')"
+                            aria-label="Supprimer le tableau"
+                            @click="deleteTable"
+                        >
+                            Supprimer le tableau
+                        </button>
+    
+                        <template v-if="editor?.isActive('table')">
+                            <button
+                                v-for="action in tableStructureActions"
+                                :key="action.command"
+                                type="button"
+                                class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                                :aria-label="action.ariaLabel"
+                                @click="runTableCommand(action.command)"
+                            >
+                                {{ action.label }}
+                            </button>
+                        </template>
+    
+                        <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
+    
+                        <button
+                            type="button"
+                            class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                            aria-label="Insérer une image"
+                            @click="openFilePicker"
+                        >
+                            Image
+                        </button>
+                        <input
+                            ref="imageInputRef"
+                            type="file"
+                            class="sr-only"
+                            accept="image/*"
+                            aria-label="Sélectionner une image à insérer"
+                            @change="onImageInputChange"
+                        >
+                    </div>
+    
+                    <p
+                        v-if="isLoadingContent"
+                        class="rounded-b-sm bg-background px-4 py-3 text-sm text-muted"
                     >
-                        Image
-                    </button>
-                    <input
-                        ref="imageInputRef"
-                        type="file"
-                        class="sr-only"
-                        accept="image/*"
-                        aria-label="Sélectionner une image à insérer"
-                        @change="onImageInputChange"
+                        Chargement du contenu…
+                    </p>
+                    <div
+                        v-else
+                        class="relative"
+                        :class="{ 'outline outline-2 outline-offset-[-2px] outline-primary': isDraggingImage }"
+                        @dragover.prevent="isDraggingImage = true"
+                        @dragleave.prevent="isDraggingImage = false"
+                        @drop.prevent="onEditorDrop"
                     >
-                </div>
-
-                <p
-                    v-if="isLoadingContent"
-                    class="rounded-b-md border border-t-0 border-border bg-background px-4 py-3 text-sm text-muted"
-                >
-                    Chargement du contenu…
-                </p>
-                <div
-                    v-else
-                    class="relative"
-                    :class="{ 'outline outline-2 outline-offset-[-2px] outline-primary': isDraggingImage }"
-                    @dragover.prevent="isDraggingImage = true"
-                    @dragleave.prevent="isDraggingImage = false"
-                    @drop.prevent="onEditorDrop"
-                >
-                    <EditorContent :editor="editor" />
+                        <EditorContent :editor="editor" />
+                    </div>
                 </div>
 
                 <p v-if="form.errors.content_html" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
@@ -658,12 +670,13 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
 
                 <div class="mt-4">
                     <label for="image-alt-input" class="mb-1 block text-sm font-medium text-foreground">
-                        Texte alternatif
+                        Texte alternatif<FieldRequirement required />
                     </label>
                     <TextInput
                         id="image-alt-input"
                         ref="imageAltInputRef"
                         v-model="pendingImageAlt"
+                        aria-required="true"
                         placeholder="Décrivez cette image"
                         :disabled="isUploadingImage"
                         @keydown.enter.prevent="uploadPendingImage"

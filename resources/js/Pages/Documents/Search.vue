@@ -169,7 +169,7 @@ function formatDate(dateString) {
                     ref="searchInputRef"
                     v-model="searchTerm"
                     type="search"
-                    placeholder="Rechercher un document"
+                    placeholder="Saisissez un ou plusieurs mots-clés présents dans le contenu des documents ou de leurs pièces jointes…"
                 />
             </div>
 

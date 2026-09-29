@@ -2,6 +2,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import TextInput from '@/Components/TextInput.vue';
+import FieldRequirement from '@/Components/FieldRequirement.vue';
 
 // Reusable multi-tag selector — mounted identically everywhere a document's
 // tags are assigned or filtered on (Import modal, editor create/edit,
@@ -170,7 +171,7 @@ function onKeydown(event) {
 <template>
     <div class="w-full">
         <label v-if="showLabel" :for="`${instanceId}-input`" class="mb-1 block text-sm font-medium text-foreground">
-            Tags
+            Tags<FieldRequirement />
         </label>
 
         <div v-if="selectedTags.length > 0" class="mb-2 flex flex-wrap gap-2">

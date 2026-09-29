@@ -4,6 +4,8 @@ import { computed, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
+import TextInput from '@/Components/TextInput.vue';
+import FieldRequirement from '@/Components/FieldRequirement.vue';
 import { useFileDropZone } from '@/Composables/useFileDropZone';
 
 // Single-form import page (spec-refonte-import-formulaire-unique): choosing
@@ -30,6 +32,10 @@ const draftToken = crypto.randomUUID();
 
 const form = useForm({
     file: null,
+    // Disabled and empty until a file is chosen, then prefilled with the
+    // file's name minus its final extension — still editable, and reset
+    // along with the file on "Retirer".
+    title: '',
     tag_ids: [],
     draft_token: draftToken,
     // Populated from `attachments` right before submit().
@@ -75,7 +81,13 @@ const tagsErrorMessage = computed(() => {
 
 const isBusy = computed(() => form.processing || isAttachmentUploading.value);
 
-const canSave = computed(() => !!form.file && !isBusy.value);
+const canSave = computed(() => !!form.file && form.title.trim() !== '' && !isBusy.value);
+
+// "Rapport.v2.pdf" → "Rapport.v2"; a name that is only an extension
+// (".pdf") is kept as-is rather than yielding an empty title.
+function titleFromFilename(filename) {
+    return filename.replace(/\.[^.]+$/, '') || filename;
+}
 
 function handleFile(file) {
     clientError.value = '';
@@ -86,10 +98,13 @@ function handleFile(file) {
     if (error) {
         clientError.value = error;
         form.file = null;
+        form.title = '';
         return;
     }
 
     form.file = file;
+    form.title = titleFromFilename(file.name);
+    form.clearErrors('title');
 }
 
 function onInputChange(event) {
@@ -112,7 +127,8 @@ function removeFile() {
     }
 
     form.file = null;
-    form.clearErrors('file');
+    form.title = '';
+    form.clearErrors('file', 'title');
     clientError.value = '';
 }
 
@@ -144,13 +160,29 @@ function submit() {
                 Importer un document
             </h1>
 
+            <div class="mb-6">
+                <label for="document-title" class="mb-1 block text-sm font-medium text-foreground">
+                    Titre<FieldRequirement required />
+                </label>
+                <TextInput
+                    id="document-title"
+                    v-model="form.title"
+                    aria-required="true"
+                    placeholder="Titre du document"
+                    :disabled="!form.file || form.processing"
+                />
+                <p v-if="form.errors.title" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                    {{ form.errors.title }}
+                </p>
+            </div>
+
             <!-- Same card shape as AttachmentsPanel (header + bordered body,
                  compact dropzone, file row) so the main document and its
                  attachments read as two sections of one form rather than a
                  duplicated widget. Not collapsible: the main file is required. -->
             <section class="rounded-md border border-border bg-surface-alt" aria-labelledby="main-document-heading">
                 <h2 id="main-document-heading" class="px-4 py-3 text-sm font-medium text-foreground">
-                    Document principal
+                    Document principal<FieldRequirement required />
                 </h2>
 
                 <div class="border-t border-border px-4 py-4">
@@ -178,6 +210,7 @@ function submit() {
                             class="sr-only"
                             accept=".pdf,.docx,.xlsx"
                             aria-label="Sélectionner le document principal"
+                            aria-required="true"
                             @change="onInputChange"
                         />
                         <p class="text-xs text-muted">

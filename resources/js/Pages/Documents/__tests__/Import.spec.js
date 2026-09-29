@@ -101,6 +101,49 @@ describe('Documents/Import — formulaire unique (spec-refonte-import-formulaire
         expect(router.post).not.toHaveBeenCalled();
     });
 
+    it('keeps the title field empty and disabled until a file is chosen', () => {
+        const wrapper = mountImport();
+        const titleInput = wrapper.find('#document-title');
+
+        expect(titleInput.element.value).toBe('');
+        expect(titleInput.attributes('disabled')).toBeDefined();
+    });
+
+    it('prefills an editable title with the filename minus its final extension', async () => {
+        const wrapper = mountImport();
+
+        await chooseFile(wrapper, pdfFile('Rapport.v2.pdf'));
+
+        const titleInput = wrapper.find('#document-title');
+        expect(titleInput.attributes('disabled')).toBeUndefined();
+        expect(titleInput.element.value).toBe('Rapport.v2');
+
+        await titleInput.setValue('Rapport annuel');
+
+        expect(formState.instance.title).toBe('Rapport annuel');
+    });
+
+    it('empties and disables the title again on "Retirer"', async () => {
+        const wrapper = mountImport();
+
+        await chooseFile(wrapper, pdfFile());
+        await wrapper.find('#document-title').setValue('Rapport annuel');
+        await findButton(wrapper, 'Retirer').trigger('click');
+
+        const titleInput = wrapper.find('#document-title');
+        expect(titleInput.element.value).toBe('');
+        expect(titleInput.attributes('disabled')).toBeDefined();
+    });
+
+    it('disables "Enregistrer" when the title is cleared', async () => {
+        const wrapper = mountImport();
+
+        await chooseFile(wrapper, pdfFile());
+        await wrapper.find('#document-title').setValue('  ');
+
+        expect(findButton(wrapper, 'Enregistrer').attributes('disabled')).toBeDefined();
+    });
+
     it('stays on the dropzone with the client error for an unsupported file', async () => {
         const wrapper = mountImport();
 
@@ -155,6 +198,7 @@ describe('Documents/Import — formulaire unique (spec-refonte-import-formulaire
             preserveState: true,
         }));
         expect(formState.instance.file).toBe(file);
+        expect(formState.instance.title).toBe('Rapport');
         expect(formState.instance.tag_ids).toEqual([1, 2]);
         expect(formState.instance.draft_token).toBe(panel.props('draftToken'));
         expect(panel.props('mode')).toBe('draft');

@@ -26,6 +26,10 @@ import { ref } from 'vue';
 // is OS/browser-controlled, not ours — often a light/white halo in dark
 // mode) kept rendering on top of/alongside the lime border and visually
 // drowned it out. The lime border is the only focus indicator now.
+//
+// Disabled fields get a `foreground`-tinted fill on top of the reduced
+// opacity: `bg-background` alone sat too close to the surrounding surfaces
+// (especially in dark mode) for the field to read as unusable.
 const model = defineModel({ type: [String, Number], default: '' });
 
 const props = defineProps({
@@ -52,6 +56,6 @@ defineExpose({
         ref="inputEl"
         v-model="model"
         :type="props.type"
-        class="w-full h-10 rounded-md border-2 border-border bg-background px-3 text-sm text-foreground focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        class="w-full h-10 rounded-md border-2 border-border bg-background px-3 text-sm text-foreground focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:bg-foreground/10 disabled:opacity-60"
     >
 </template>

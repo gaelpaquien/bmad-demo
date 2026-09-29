@@ -2,6 +2,7 @@
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import { useFileDropZone } from '@/Composables/useFileDropZone';
+import FieldRequirement from '@/Components/FieldRequirement.vue';
 
 // Retractable side panel mounted in Editor.vue (spec-3-3, FR13) — never on
 // Show.vue, which only ever renders a plain read-only list (Boundaries &
@@ -315,7 +316,7 @@ const attachmentCountLabel = computed(() => (props.attachments.length > 0 ? ` ($
             :aria-controls="panelId"
             @click="toggleOpen"
         >
-            <span>Pièces jointes{{ attachmentCountLabel }}</span>
+            <span>Pièces jointes{{ attachmentCountLabel }}<FieldRequirement /></span>
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"

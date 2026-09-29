@@ -8,6 +8,9 @@ final readonly class ImportDocumentData
 {
     public function __construct(
         public UploadedFile $file,
+        // The title chosen on the import page — null falls back to the
+        // file's original name.
+        public ?string $title = null,
         // The client-generated draft token the import page's attachments
         // were temporarily stored under (spec-refonte-import-formulaire-unique)
         // — null when no attachment was ever added.

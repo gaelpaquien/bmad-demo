@@ -56,6 +56,10 @@ class ImportDocumentRequest extends FormRequest
                 'required',
                 File::types(['pdf', 'docx', 'xlsx'])->max(20 * 1024),
             ],
+            // Prefilled client-side from the filename (minus its extension)
+            // and editable; optional here so any caller omitting it falls
+            // back to the original filename in ImportDocumentAction.
+            'title' => ['nullable', 'string', 'max:255'],
             // An optional set of tags chosen on the import page's
             // TagSelector, assigned afterwards through
             // SyncDocumentTagsAction (Boundaries & Constraints, spec-3-1) —
@@ -93,6 +97,7 @@ class ImportDocumentRequest extends FormRequest
             'file.mimes' => "Format non supporté. {$acceptedFormats}",
             'file.max' => "Fichier trop volumineux (20 Mo maximum). {$acceptedFormats}",
             'file.uploaded' => $this->uploadFailureMessage($acceptedFormats),
+            'title.max' => 'Le titre est trop long (255 caractères maximum).',
             'tag_ids.array' => 'Tags invalides.',
             'tag_ids.*.integer' => 'Tag invalide.',
             'tag_ids.*.exists' => 'Tag invalide.',

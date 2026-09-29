@@ -36,6 +36,26 @@ it('imports a valid PDF, extracts its text and redirects to the document page', 
     Storage::disk('local')->assertExists($document->file_path);
 });
 
+it('uses the submitted title while keeping the original filename on disk', function () {
+    $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
+
+    $this->post('/documents', ['file' => $file, 'title' => 'Contrat fournisseur']);
+
+    $document = Document::sole();
+
+    expect($document->title)->toBe('Contrat fournisseur');
+    expect($document->file_path)->toBe("documents/{$document->id}/contract.pdf");
+});
+
+it('rejects a title over 255 characters and creates no document', function () {
+    $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
+
+    $response = $this->post('/documents', ['file' => $file, 'title' => str_repeat('a', 256)]);
+
+    $response->assertSessionHasErrors(['title' => 'Le titre est trop long (255 caractères maximum).']);
+    expect(Document::count())->toBe(0);
+});
+
 it('redirects to the document page even with no previous URL in session', function () {
     $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
 

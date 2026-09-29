@@ -44,7 +44,7 @@ class ImportDocumentAction
     {
         $document = DB::transaction(function () use ($data) {
             $document = Document::create([
-                'title' => $data->file->getClientOriginalName(),
+                'title' => $data->title ?? $data->file->getClientOriginalName(),
                 'source' => DocumentSource::Imported,
                 'mime_type' => $data->file->getMimeType(),
                 'extraction_status' => ExtractionStatus::Pending,

@@ -207,6 +207,7 @@ class DocumentController extends Controller
         $document = DB::transaction(function () use ($request, $import, $syncTags) {
             $document = $import(new ImportDocumentData(
                 file: $request->file('file'),
+                title: $request->validated('title'),
                 draftToken: $request->validated('draft_token'),
                 draftAttachments: $request->validated('draft_attachments', []),
             ));
