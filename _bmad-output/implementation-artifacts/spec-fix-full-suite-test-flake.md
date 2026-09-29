@@ -74,4 +74,4 @@ Le mécanisme "gated" décrit en Design Notes ne gate rien en pratique sur cette
 
 **Décision :** ce hook complique le code applicatif pour compenser une lenteur d'environnement (pas une cause du projet lui-même), au prix d'un ralentissement ~15-20x de toute la suite — disproportionné par rapport au bénéfice (jamais mesuré : aucune campagne de 8 runs n'a été faite avec ce hook actif). Rejeté. `tests/Pest.php` restauré à l'état `HEAD` (`c151c4a4`), aucun changement applicatif conservé. Le nettoyage défensif déjà en place dans `tests/Feature/DeleteDocumentTest.php` (commit `575cf05`) est conservé tel quel (hors périmètre de ce rejet).
 
-**Suite à donner :** ajouter une exclusion Windows Defender sur le dossier du projet (nécessite des droits admin, hors capacité de l'agent) — si la cause racine est bien l'antivirus, ça devrait faire disparaître le flake original sans aucun contournement côté code. Voir action item de rétro mis à jour dans `sprint-status.yaml`.
+**Suite à donner :** aucune. L'exclusion Windows Defender envisagée ici a été abandonnée par décision utilisateur le 2026-09-29 ; l'action item correspondant a été retiré de `sprint-status.yaml`.
