@@ -33,7 +33,10 @@ export default defineConfig({
     ],
     server: {
         watch: {
-            ignored: ['**/storage/framework/views/**'],
+            // The whole storage/ tree, not just compiled views: on Windows the
+            // watcher's open handles on storage/framework/testing block the
+            // test suite from deleting its fake-disk directories.
+            ignored: ['**/storage/**'],
         },
     },
 });
