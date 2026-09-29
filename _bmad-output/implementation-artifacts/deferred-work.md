@@ -333,3 +333,55 @@
 - source_spec: none
   summary: Limiter à 10 le nombre de pièces jointes par document (brouillons + pièces jointes déjà rattachées, sur les trois points d'entrée : import, éditeur, document existant) et ajouter le pré-contrôle client des 20 Mo sur les pièces jointes — pas de plafond de poids total ; vérifier qu'un fichier trop lourd affiche bien une erreur côté client et ne provoque jamais de 500 (y compris au-delà de `post_max_size`).
   evidence: Séparé du lot « ajustements de mise en page de la consultation » (2026-09-28) — règle métier backend indépendante avec ses tests ; décisions validées : max 10 pièces jointes, pré-contrôle client 20 Mo, pas de plafond total. La politique de poids serveur est déjà cohérente (pdf/docx/xlsx ≤ 20 Mo partout).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
+  summary: Aucun plafond sur le nombre de mots-clés ni sur la longueur du terme de recherche. Chaque mot-clé ajoute un `LIKE '%…%'` par colonne dans le filtre et dans les deux tris. Un paragraphe collé produit une requête énorme, lente, et peut dépasser la limite de paramètres liés.
+  evidence: Blind Hunter + Edge Case Hunter (code review f6456b3..9b2497d, 2026-09-29), `KeywordDatabaseEngine::addTextSearchConstraints()` et `DocumentController::search()` (pas de validation `max`). Usage mono-utilisateur, lié à l'écart NFR2 déjà noté dans la spec. Corriger suppose de choisir un plafond (par exemple 20 mots-clés ou 255 caractères) et le comportement au-delà (tronquer ou refuser).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
+  summary: Les mots-clés se comparent en sous-chaîne, pas en mot entier. « on » trouve « bonjour », et en OU un mot court (« le », « de ») fait remonter presque toute la bibliothèque. Une expression entre guillemets est elle aussi une sous-chaîne (« cubiscan speed » trouve « xcubiscan speedy »).
+  evidence: Blind Hunter + Edge Case Hunter (code review f6456b3..9b2497d, 2026-09-29), `KeywordDatabaseEngine.php` `$bindingsFor` (`'%'.…'%'`). L'encart d'aide de `Search.vue` décrit désormais ce comportement (corrigé pendant la revue). Il reste à choisir entre une longueur minimale, des mots vides ou des frontières de mot : c'est un arbitrage produit.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
+  summary: L'aide « sans tenir compte des majuscules ni des accents » n'est vraie qu'en production (MySQL, collation `utf8mb4_unicode_ci`). Sous SQLite (tests), `LIKE` n'ignore la casse que pour l'ASCII (« Été » ne trouve pas « été »). Sous MySQL, cela dépend de la collation. Les accents ne sont jamais normalisés, et le SQL brut du moteur n'est testé que sous SQLite (`phpunit.xml`), jamais sous MySQL.
+  evidence: Blind Hunter + Edge Case Hunter + Verification Gap (code review f6456b3..9b2497d, 2026-09-29), `KeywordDatabaseEngine.php` (seul `pgsql` passe par `ilike`). En production MySQL, une collation `utf8mb4_*_ci` couvre la casse et les accents. Corriger demande de normaliser explicitement (`lower()`) ou de faire tourner les tests sous MySQL.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
+  summary: Le découpage du terme a des cas limites non documentés ni testés. `++foo` et `+-foo` gardent l'opérateur en trop dans le motif, qui ne trouve alors rien. Un guillemet non fermé transforme toute la fin du terme en expression. Un terme qui commence vraiment par un tiret (`-5`, `-20%`) est toujours lu comme une exclusion. Une expression dont les mots sont séparés par un retour à la ligne dans `extracted_text` n'est pas trouvée.
+  evidence: Blind Hunter + Edge Case Hunter (code review f6456b3..9b2497d, 2026-09-29), `KeywordDatabaseEngine::keywordsFrom()` (regex `([+-]?)(?:"([^"]*)"?|(\S+))`). Impact faible, saisies rares. Corriger suppose de fixer des règles (opérateurs multiples, échappement du tiret, normalisation des espaces).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
+  summary: `KeywordDatabaseEngine` remplace entièrement `addTextSearchConstraints()` de Scout : les colonnes `#[SearchUsingPrefix]`, `#[SearchUsingFullText]` et d'embedding sont ignorées sans erreur, et un terme vide renvoie zéro résultat au lieu de toutes les lignes.
+  evidence: Blind Hunter + Edge Case Hunter (code review f6456b3..9b2497d, 2026-09-29). `Document` n'utilise aucun de ces attributs aujourd'hui, et le terme vide est déjà court-circuité par `DocumentController::search()`, ce qui reste cohérent avec la règle « jamais toute la bibliothèque ». À traiter si un de ces attributs est ajouté un jour (lever une exception, ou les prendre en charge).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ajustements-formulaires-sidebar.md`
+  summary: Dans l'éditeur, « Enregistrer » dépend de `editor.isEmpty` de TipTap, qui considère un tableau aux cellules vides comme un contenu vide, alors que le serveur (`content_html` `required`) accepterait `<table>…</table>`. Le bouton désactivé n'explique pas non plus pourquoi il l'est.
+  evidence: Acceptance Auditor + Blind Hunter (code review f6456b3..9b2497d, 2026-09-29), `Editor.vue` L.143/153 et `@tiptap/core` `isNodeEmpty`. Un tableau vide n'est sans doute pas un contenu utile. Le client est donc plus strict que le serveur, contrairement à la règle « le serveur reste l'autorité ». Impact faible, arbitrage produit.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ajustements-formulaires-sidebar.md`
+  summary: Accessibilité de l'éditeur et de la sidebar :
+    - le libellé « Contenu » est un `<p>` non relié à l'éditeur (pas d'`aria-labelledby`) ;
+    - `aria-required` est posé sur le contenteditable sans rôle explicite ;
+    - le bouton « Réduire le menu » change à la fois son `aria-label` et `aria-expanded`, sans `aria-controls`, donc son état est annoncé deux fois ;
+    - le titre-lien de la sidebar double l'arrêt de tabulation vers « Documents » ;
+    - le logo Laravel par défaut est toujours là (commentaire « à remplacer ») ;
+    - quelques lignes du bloc barre d'outils de `Editor.vue` ne contiennent que des espaces.
+  evidence: Blind Hunter (code review f6456b3..9b2497d, 2026-09-29), `Editor.vue` (bloc Contenu et barre d'outils) et `Sidebar.vue` L.107 et L.233-234. Des raffinements, hors critères d'acceptation de la spec a posteriori.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
+  summary: Sur la page Recherche, le message « Recherche en cours… » remplace les résultats précédents, qui clignotent à chaque recherche de plus de 300 ms. Le placeholder long (avec l'exemple de syntaxe) est tronqué sur écran étroit.
+  evidence: Blind Hunter (code review f6456b3..9b2497d, 2026-09-29), `Search.vue` L.231 et L.260-265. Choix de présentation, à revoir avec le design (garder les résultats atténués pendant le chargement, raccourcir le placeholder).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
+  summary: L'indexation du contenu des documents créés dans l'éditeur a deux défauts, ce qui fausse la recherche :
+    - `deriveExtractedText()` insère une espace avant chaque balise, donc un mot mis en forme en partie (`<strong>Cubi</strong>scan`) est indexé en deux (« Cubi scan ») et `cubiscan` ne le trouve pas ;
+    - `strip_tags()` ne décode pas les entités HTML, donc « R&D » est indexé `R&amp;D`, et un espace insécable `&nbsp;` reste tel quel.
+  evidence: Acceptance Auditor (seconde revue de code, 2026-09-29), `app/Actions/Concerns/SanitizesDocumentContent.php` `deriveExtractedText()`. Défaut préexistant, antérieur à la recherche par mots-clés, qui le rend plus visible. La correction (espacer seulement les balises de bloc, puis `html_entity_decode`) demande de réindexer les documents existants.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
+  summary: La région `aria-live` de la page Recherche englobe aussi la liste des résultats (`aria-atomic="true"`), si bien qu'un lecteur d'écran peut relire toute la liste à chaque recherche. Il faudrait une région live réservée aux messages d'état (chargement, aucun résultat, nombre de résultats).
+  evidence: Blind Hunter (seconde revue de code, 2026-09-29), `Search.vue`, conteneur des résultats. Préexistant : la seconde revue a seulement retiré l'annonce en double du chargement.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
+  summary: Une recherche contradictoire ou faite uniquement d'exclusions (`speed -speed`, `-speed`) affiche le message ordinaire « Aucun document ne correspond », sans expliquer pourquoi. L'aide le documente, mais la page ne le signale pas au moment où cela arrive.
+  evidence: Blind Hunter (seconde revue de code, 2026-09-29), `KeywordDatabaseEngine::addTextSearchConstraints()` (`whereRaw('1 = 0')`). Il faudrait que le contrôleur renvoie un indicateur à la page : amélioration UX à faible impact.

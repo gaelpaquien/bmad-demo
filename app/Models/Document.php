@@ -59,9 +59,9 @@ class Document extends Model
     /**
      * Scout index on `title` plus `extracted_text`/`attachments_extracted_text`
      * (spec-1-6/spec-3-3; title added 2026-09-29, AD-8) — other metadata and
-     * tag names stay excluded (tags are a filter, never a search term),
-     * driver `database` runs this straight through a
-     * `LIKE`/fulltext query against the named columns, never re-executing
+     * tag names stay excluded (tags are a filter, never a search term).
+     * KeywordDatabaseEngine (see searchableUsing()) queries the named
+     * columns directly with one escaped `LIKE` per keyword and column, never re-executing
      * this method to aggregate related rows in memory (Design Notes,
      * spec-3-3) — hence `attachments_extracted_text` being a real column,
      * kept in sync by `syncAttachmentsExtractedText()` rather than derived
@@ -78,7 +78,8 @@ class Document extends Model
 
     /**
      * Keyword semantics on top of Scout's `database` driver (any keyword
-     * matches, ranked by how many match, title matches first) — see
+     * matches, ranked by how many match, title matches first) and sole
+     * owner of `LIKE` escaping for search terms — see
      * KeywordDatabaseEngine. Bound here rather than as a new `SCOUT_DRIVER`
      * so no environment change is needed and no other model is affected.
      */

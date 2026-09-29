@@ -17,5 +17,7 @@ defineProps({
 
 <template>
     <span v-if="required" class="ml-0.5 text-red-600 dark:text-red-400" aria-hidden="true">*</span>
-    <span v-else class="ml-1.5 font-normal text-muted">optionnel</span>
+    <!-- The margin only separates visually: the sr-only comma keeps assistive
+         tech from reading the label and "optionnel" as one word. -->
+    <span v-else class="ml-1.5 font-normal text-muted"><span class="sr-only">, </span>optionnel</span>
 </template>

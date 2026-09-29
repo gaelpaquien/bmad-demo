@@ -84,9 +84,17 @@ const isBusy = computed(() => form.processing || isAttachmentUploading.value);
 const canSave = computed(() => !!form.file && form.title.trim() !== '' && !isBusy.value);
 
 // "Rapport.v2.pdf" → "Rapport.v2"; a name that is only an extension
-// (".pdf") is kept as-is rather than yielding an empty title.
+// (".pdf") is kept as-is rather than yielding an empty title. Cut to the
+// server's 255-character limit (`max:255` in ImportDocumentRequest):
+// `maxlength` only stops typing, never a value set from a long filename.
+// Cut by character (`Array.from`), not UTF-16 unit, so an emoji at the
+// boundary is never split in half.
+const MAX_TITLE_LENGTH = 255;
+
 function titleFromFilename(filename) {
-    return filename.replace(/\.[^.]+$/, '') || filename;
+    const title = filename.replace(/\.[^.]+$/, '') || filename;
+
+    return Array.from(title).slice(0, MAX_TITLE_LENGTH).join('');
 }
 
 function handleFile(file) {
@@ -168,6 +176,7 @@ function submit() {
                     id="document-title"
                     v-model="form.title"
                     aria-required="true"
+                    :maxlength="MAX_TITLE_LENGTH"
                     placeholder="Titre du document"
                     :disabled="!form.file || form.processing"
                 />

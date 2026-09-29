@@ -21,7 +21,7 @@ implementation_commits: ['64a2d4e', '6b12460', '63e300f']
 - **Titre à l'import (`63e300f`)** : le champ Titre est désactivé tant qu'aucun fichier n'est choisi. Il est ensuite prérempli avec le nom du fichier sans sa dernière extension, reste modifiable et se vide au retrait du fichier. Côté serveur, `title` est optionnel (`nullable|string|max:255`), avec repli sur le nom de fichier d'origine dans `ImportDocumentAction`.
 - **Champs obligatoires (`63e300f`)** : un composant `FieldRequirement` affiche « * » (masqué aux lecteurs d'écran, le champ portant `aria-required`) ou « optionnel ». Les champs désactivés sont plus nettement grisés. L'éditeur a une bordure de 2px commune à la barre d'outils et au contenu, mise en évidence au focus comme les autres champs.
 - **Éditeur (`6b12460`)** : « Enregistrer » est désactivé tant que le titre ou le contenu est vide (`editor.isEmpty` de TipTap) ou qu'un envoi est en cours. L'état actif de la barre d'outils est plus visible. Des boutons +/− colonne et ligne apparaissent quand le curseur est dans un tableau.
-- **Pièces jointes (`6b12460`)** : sélection ou dépôt de plusieurs fichiers, envoyés un par un en file (la sélection entière est refusée si elle dépasse la limite de 10). « Parcourir » est désactivé à la limite. Le message « Aucune pièce jointe » disparaît, et les consignes de format, de nombre et de poids tiennent sur trois lignes.
+- **Pièces jointes (`6b12460`)** : sélection ou dépôt de plusieurs fichiers, envoyés un par un en file (les fichiers valides sont refusés en bloc s'ils dépassent la limite de 10 ; les fichiers invalides, signalés par leur nom, ne comptent pas dans la limite ; une autre visite qui interrompt l'envoi arrête la file). « Parcourir » est désactivé à la limite. Le message « Aucune pièce jointe » disparaît, et les consignes de format, de nombre et de poids tiennent sur trois lignes.
 - **Survol (`6b12460`)** : nouveau token `--color-primary-hover` (lime assombri, plus marqué en sombre), sans effet sur un bouton désactivé.
 
 ## Boundaries & Constraints
@@ -58,7 +58,16 @@ implementation_commits: ['64a2d4e', '6b12460', '63e300f']
 
 - Sans titre envoyé, le serveur garde le nom de fichier **avec** son extension, alors que le client la retire. Seul un appelant autre que la page d'import est concerné.
 - `AttachmentsPanel.vue` émet encore `before-request`/`after-request` sans aucun consommateur (déjà noté dans `deferred-work.md`) ; le fichier a été retouché sans ce nettoyage.
-- Pas de revue adversariale menée : `bmad-code-review` sur `f6456b3..63e300f` reste à faire, en priorité sur la file d'envoi des pièces jointes.
+- Revue adversariale menée le 2026-09-29 (`bmad-code-review` sur `f6456b3..9b2497d`). Corrigé :
+  - la file d'envoi s'arrête quand une autre visite interrompt l'envoi en cours (elle relançait le fichier suivant et annulait la navigation) et se vide au démontage ;
+  - les fichiers invalides ne comptent plus dans la limite de 10, et le message de limite accorde le singulier et le pluriel ;
+  - « Retirer » est désactivé pendant un envoi en mode immédiat ;
+  - les erreurs identiques ont chacune leur clé ;
+  - « optionnel » est séparé du libellé pour les lecteurs d'écran ;
+  - le titre à l'import est limité à 255 caractères ;
+  - tests ajoutés pour la file (erreur serveur, annulation, démontage, plusieurs flashs en brouillon).
+
+  Différé dans `deferred-work.md` : `isEmpty` et les tableaux vides, raffinements d'accessibilité de l'éditeur et de la sidebar.
 
 ## Suggested Review Order
 
@@ -96,11 +105,11 @@ implementation_commits: ['64a2d4e', '6b12460', '63e300f']
 
 **Pièces jointes**
 
-- Sélection entière refusée au-delà de la limite, fichiers invalides signalés par leur nom.
-  [`AttachmentsPanel.vue:232`](../../resources/js/Components/AttachmentsPanel.vue#L232)
+- Fichiers invalides signalés par leur nom et écartés, puis fichiers valides refusés en bloc au-delà de la limite.
+  [`AttachmentsPanel.vue:258`](../../resources/js/Components/AttachmentsPanel.vue#L258)
 
-- File d'envoi séquentielle.
-  [`AttachmentsPanel.vue:217`](../../resources/js/Components/AttachmentsPanel.vue#L217)
+- File d'envoi séquentielle, arrêtée quand une autre visite interrompt l'envoi.
+  [`AttachmentsPanel.vue:243`](../../resources/js/Components/AttachmentsPanel.vue#L243)
 
 **Survol des boutons lime**
 

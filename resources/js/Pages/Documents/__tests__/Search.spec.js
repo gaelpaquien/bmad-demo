@@ -44,7 +44,7 @@ describe('Documents/Search', () => {
             global: { stubs: globalStubs },
         });
 
-        expect(wrapper.findAll('li').length).toBe(0);
+        expect(wrapper.findAll('[data-testid="search-results"] li').length).toBe(0);
         expect(wrapper.text()).not.toContain('Aucun document ne correspond');
     });
 
@@ -111,7 +111,7 @@ describe('Documents/Search', () => {
             global: { stubs: globalStubs },
         });
 
-        expect(wrapper.findAll('li').length).toBe(0);
+        expect(wrapper.findAll('[data-testid="search-results"] li').length).toBe(0);
         expect(wrapper.text()).not.toContain('Aucun document ne correspond');
     });
 
@@ -201,6 +201,18 @@ describe('Documents/Search typing delay and spinner', () => {
         expect(router.get).toHaveBeenCalledTimes(1);
     });
 
+    it.each([
+        ['flagged as composing', { isComposing: true }],
+        ['fired after compositionend (Safari)', { isComposing: false, keyCode: 229 }],
+    ])('does not search on the Enter that confirms an IME composition, %s', async (_, eventInit) => {
+        const input = mountSearch().find('input[type="search"]');
+
+        await input.setValue('été');
+        await input.trigger('keydown', { key: 'Enter', ...eventInit });
+
+        expect(router.get).not.toHaveBeenCalled();
+    });
+
     it('shows the spinner only once a search has been pending for 300ms, and hides it when it finishes', async () => {
         mountSearch();
 
@@ -209,15 +221,15 @@ describe('Documents/Search typing delay and spinner', () => {
 
         vi.advanceTimersByTime(299);
         await wrapper.vm.$nextTick();
-        expect(wrapper.find('[role="status"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(false);
 
         vi.advanceTimersByTime(1);
         await wrapper.vm.$nextTick();
-        expect(wrapper.find('[role="status"]').text()).toContain('Recherche en cours');
+        expect(wrapper.find('[data-testid="search-loading"]').text()).toContain('Recherche en cours');
 
         lastVisitOptions().onFinish();
         await wrapper.vm.$nextTick();
-        expect(wrapper.find('[role="status"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(false);
     });
 
     it('replaces the previous results with the in-progress message while the search is pending', async () => {
@@ -237,7 +249,7 @@ describe('Documents/Search typing delay and spinner', () => {
         await wrapper.vm.$nextTick();
 
         expect(wrapper.find('a[href="/documents/42"]').exists()).toBe(false);
-        expect(wrapper.find('[role="status"]').text()).toBe('Recherche en cours…');
+        expect(wrapper.find('[data-testid="search-loading"]').text()).toBe('Recherche en cours…');
     });
 
     it('never shows the spinner for a search answered in under 300ms', async () => {
@@ -251,7 +263,7 @@ describe('Documents/Search typing delay and spinner', () => {
         vi.advanceTimersByTime(500);
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.find('[role="status"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(false);
     });
 
     it('keeps the spinner while a newer search is pending, when the older cancelled one finishes', async () => {
@@ -269,11 +281,50 @@ describe('Documents/Search typing delay and spinner', () => {
         vi.advanceTimersByTime(300);
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.find('[role="status"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(true);
 
         newerVisit.onFinish();
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.find('[role="status"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(false);
+    });
+});
+
+// The help box starts folded so the search field stays near the top; the
+// reader's choice is remembered across visits, like the sidebar's.
+describe('Documents/Search help box', () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    function mountSearch() {
+        return mount(Search, {
+            props: { documents: [], search: '', tagFilters: [] },
+            global: { stubs: globalStubs },
+        });
+    }
+
+    function helpToggle(wrapper) {
+        return wrapper.find('button[aria-controls="search-help"]');
+    }
+
+    it('starts folded, and its toggle unfolds it', async () => {
+        const wrapper = mountSearch();
+
+        expect(helpToggle(wrapper).attributes('aria-expanded')).toBe('false');
+        expect(wrapper.find('#search-help').exists()).toBe(false);
+
+        await helpToggle(wrapper).trigger('click');
+
+        expect(helpToggle(wrapper).attributes('aria-expanded')).toBe('true');
+        expect(wrapper.find('#search-help').text()).toContain('Opérateurs');
+    });
+
+    it('remembers an unfolded help box on the next visit', async () => {
+        await helpToggle(mountSearch()).trigger('click');
+
+        const nextVisit = mountSearch();
+
+        expect(nextVisit.find('#search-help').exists()).toBe(true);
     });
 });

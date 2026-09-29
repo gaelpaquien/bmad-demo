@@ -125,6 +125,45 @@ function navigate() {
     );
 }
 
+// Enter also confirms an IME composition (accented or Asian characters):
+// that keypress belongs to the input method, not a request to search, so it
+// is neither prevented nor turned into a search. Safari fires it after
+// `compositionend`, with `isComposing` false but keyCode 229.
+function searchNowUnlessComposing(event) {
+    if (event.isComposing || event.keyCode === 229) {
+        return;
+    }
+
+    event.preventDefault();
+    navigate();
+}
+
+// The help box is folded by default so the search field stays near the
+// top; the reader's choice is remembered like the sidebar's.
+const SEARCH_HELP_OPEN_STORAGE_KEY = 'bmad-demo-search-help-open';
+
+function readStoredHelpOpen() {
+    try {
+        return localStorage.getItem(SEARCH_HELP_OPEN_STORAGE_KEY) === 'true';
+    } catch (e) {
+        return false;
+    }
+}
+
+const isHelpOpen = ref(readStoredHelpOpen());
+
+function toggleHelp() {
+    isHelpOpen.value = !isHelpOpen.value;
+
+    try {
+        localStorage.setItem(SEARCH_HELP_OPEN_STORAGE_KEY, isHelpOpen.value ? 'true' : 'false');
+    } catch (e) {
+        // Private browsing or storage disabled: the state just won't persist across reloads.
+    }
+}
+
+const codeClass = 'rounded bg-background px-1.5 py-0.5 font-mono text-xs text-foreground';
+
 watch(searchTerm, () => {
     if (isSyncingSearchFromProps) {
         isSyncingSearchFromProps = false;
@@ -194,29 +233,139 @@ function formatDate(dateString) {
                 Recherche
             </h1>
 
-            <section
-                aria-labelledby="search-help-title"
-                class="mb-4 rounded-lg border border-border bg-surface p-4 text-sm text-muted"
-            >
-                <h2 id="search-help-title" class="mb-1 font-medium text-foreground">
-                    Comment fonctionne la recherche
-                </h2>
-                <p class="mb-3">
-                    Les mots-clés sont cherchés dans le titre, le contenu des documents et celui de leurs pièces jointes,
-                    sans tenir compte des majuscules. Les résultats sont classés en plaçant d'abord les documents dont le
-                    titre contient les mots-clés, puis ceux qui en contiennent le plus ; à pertinence égale, les plus
-                    récents apparaissent en premier.
-                </p>
-                <dl class="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[max-content_1fr]">
-                    <dt><code class="rounded bg-background px-1.5 py-0.5 font-mono text-xs text-foreground">cubiscan speed</code></dt>
-                    <dd>au moins un des mots (OU)</dd>
-                    <dt><code class="rounded bg-background px-1.5 py-0.5 font-mono text-xs text-foreground">+cubiscan +speed</code></dt>
-                    <dd>les deux mots obligatoires (ET)</dd>
-                    <dt><code class="rounded bg-background px-1.5 py-0.5 font-mono text-xs text-foreground">cubiscan -speed</code></dt>
-                    <dd>« cubiscan », mais sans « speed »</dd>
-                    <dt><code class="rounded bg-background px-1.5 py-0.5 font-mono text-xs text-foreground">"cubiscan speed"</code></dt>
-                    <dd>l'expression exacte, dans cet ordre</dd>
-                </dl>
+            <section class="mb-4 rounded-lg border border-border bg-surface text-sm text-muted">
+                <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-lg px-4 py-3 text-left font-medium text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                    :aria-expanded="isHelpOpen"
+                    aria-controls="search-help"
+                    @click="toggleHelp"
+                >
+                    <span>Comment fonctionne la recherche ?</span>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="h-4 w-4 shrink-0 transition-transform"
+                        :class="{ 'rotate-180': isHelpOpen }"
+                        aria-hidden="true"
+                    >
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
+                </button>
+
+                <div v-if="isHelpOpen" id="search-help" class="border-t border-border px-4 py-4">
+                    <h2 class="mb-1 font-medium text-foreground">
+                        Où et comment les mots sont cherchés
+                    </h2>
+                    <ul class="mb-4 list-disc space-y-1 pl-5">
+                        <li>
+                            Dans le titre, le contenu du document et le contenu de ses pièces jointes. Les tags ne sont
+                            jamais cherchés : ils servent de filtre (voir plus bas).
+                        </li>
+                        <li>
+                            Seul le texte est cherché : un PDF scanné, qui ne contient que des images, n'a aucun texte à
+                            trouver.
+                        </li>
+                        <li>Sans tenir compte des majuscules ni des accents : « ete » trouve « Été ».</li>
+                        <li>
+                            Un mot est aussi trouvé à l'intérieur d'un mot plus long : « port » trouve « rapport » et
+                            « portail ».
+                        </li>
+                        <li>
+                            Les mots sont séparés par des espaces. Les autres caractères (<code :class="codeClass">%</code>,
+                            <code :class="codeClass">_</code>, ponctuation…) sont cherchés tels quels, sauf les guillemets
+                            <code :class="codeClass">"</code> : ils délimitent une expression, et placés au début ou à la
+                            fin d'un mot, ils ne sont pas cherchés.
+                        </li>
+                        <li>Un mot répété, même avec d'autres majuscules ou accents, ne compte qu'une seule fois.</li>
+                    </ul>
+
+                    <h2 class="mb-1 font-medium text-foreground">
+                        Opérateurs
+                    </h2>
+                    <dl class="mb-4 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[max-content_1fr]">
+                        <dt><code :class="codeClass">cubiscan speed</code></dt>
+                        <dd>au moins un des mots (OU).</dd>
+                        <dt><code :class="codeClass">+cubiscan +speed</code></dt>
+                        <dd>chaque mot précédé de <code :class="codeClass">+</code> est obligatoire (ET).</dd>
+                        <dt><code :class="codeClass">+cubiscan speed</code></dt>
+                        <dd>
+                            « cubiscan » obligatoire. Dès qu'un mot est obligatoire, les mots sans opérateur deviennent
+                            facultatifs : ils ne filtrent plus, ils font seulement remonter les documents qui les
+                            contiennent.
+                        </dd>
+                        <dt><code :class="codeClass">cubiscan -speed</code></dt>
+                        <dd>« cubiscan », mais aucun document contenant « speed », même dans une pièce jointe.</dd>
+                        <dt><code :class="codeClass">"cubiscan speed"</code></dt>
+                        <dd>
+                            ces caractères dans cet ordre, espaces compris : l'expression n'est pas trouvée si, dans le
+                            document, ses mots sont séparés par un retour à la ligne. Les espaces au début et à la fin de
+                            l'expression sont ignorés. Comme un mot seul, elle peut commencer ou finir à l'intérieur d'un
+                            mot. <code :class="codeClass">+</code> et <code :class="codeClass">-</code> s'appliquent aussi
+                            à une expression (<code :class="codeClass">-"mode test"</code>). Un guillemet non fermé court
+                            jusqu'à la fin de la saisie.
+                        </dd>
+                        <dt><code :class="codeClass">speed -speed</code></dt>
+                        <dd>
+                            quand un même mot porte plusieurs opérateurs, le plus strict l'emporte, quel que soit l'ordre :
+                            exclu (<code :class="codeClass">-</code>), puis obligatoire (<code :class="codeClass">+</code>),
+                            puis facultatif. Ici « speed » est exclu et il ne reste rien à trouver : aucun résultat.
+                        </dd>
+                    </dl>
+
+                    <h2 class="mb-1 font-medium text-foreground">
+                        Cas particuliers
+                    </h2>
+                    <ul class="mb-4 list-disc space-y-1 pl-5">
+                        <li>
+                            Une recherche faite uniquement d'exclusions (<code :class="codeClass">-speed</code>) ne
+                            renvoie rien : ajoutez au moins un mot à trouver.
+                        </li>
+                        <li>
+                            Un <code :class="codeClass">+</code> ou un <code :class="codeClass">-</code> isolé, suivi
+                            d'une espace, est ignoré : collez-le au mot (<code :class="codeClass">+speed</code>).
+                        </li>
+                        <li>
+                            Seul le premier signe d'un mot est un opérateur : <code :class="codeClass">++speed</code>
+                            rend obligatoire « +speed », signe compris.
+                        </li>
+                        <li>
+                            Pour chercher un mot qui commence par <code :class="codeClass">+</code> ou
+                            <code :class="codeClass">-</code> (« -5 », « +33 »), mettez-le entre guillemets
+                            (<code :class="codeClass">"-5"</code>).
+                        </li>
+                    </ul>
+
+                    <h2 class="mb-1 font-medium text-foreground">
+                        Filtre par tag
+                    </h2>
+                    <ul class="mb-4 list-disc space-y-1 pl-5">
+                        <li>Avec plusieurs tags sélectionnés, un document doit porter au moins un de ces tags (OU).</li>
+                        <li>
+                            Le filtre s'ajoute aux mots-clés (ET) : un document doit correspondre aux mots-clés et porter
+                            un des tags. Sans mot-clé, aucun résultat n'est affiché, même avec un tag.
+                        </li>
+                        <li>Choisir ou retirer un tag relance la recherche aussitôt.</li>
+                    </ul>
+
+                    <h2 class="mb-1 font-medium text-foreground">
+                        Classement et lancement
+                    </h2>
+                    <ul class="list-disc space-y-1 pl-5">
+                        <li>
+                            D'abord les documents dont le titre contient le plus de mots-clés différents (obligatoires et
+                            facultatifs), puis ceux qui en contiennent le plus au total. Un mot présent plusieurs fois
+                            dans un document ne compte qu'une fois. À égalité, les documents créés ou importés le plus
+                            récemment viennent en premier.
+                        </li>
+                        <li>La recherche part une demi-seconde après la dernière frappe, ou tout de suite avec Entrée.</li>
+                    </ul>
+                </div>
             </section>
 
             <div class="relative mb-6">
@@ -229,7 +378,7 @@ function formatDate(dateString) {
                     v-model="searchTerm"
                     type="search"
                     placeholder="Rechercher dans les titres, contenus et pièces jointes… (ex. : cubiscan +speed)"
-                    @keydown.enter.prevent="navigate"
+                    @keydown.enter="searchNowUnlessComposing"
                 />
             </div>
 
@@ -257,10 +406,13 @@ function formatDate(dateString) {
                 </div>
             </div>
 
+            <!-- The live region stays mounted so every state change is
+                 announced; the states inside carry no role of their own, which
+                 would announce the loading message a second time. -->
             <div aria-live="polite" aria-atomic="true">
                 <div
                     v-if="isSearching"
-                    role="status"
+                    data-testid="search-loading"
                     class="flex items-center justify-center gap-3 py-16 text-muted"
                 >
                     <svg class="h-5 w-5 animate-spin text-foreground dark:text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -276,7 +428,7 @@ function formatDate(dateString) {
                     </p>
                 </div>
 
-                <ul v-else-if="documents.length > 0" class="border-t border-border">
+                <ul v-else-if="documents.length > 0" data-testid="search-results" class="border-t border-border">
                     <li v-for="document in documents" :key="document.id">
                         <Link
                             :href="`/documents/${document.id}`"

@@ -379,6 +379,103 @@ it('matches LIKE wildcard characters in a keyword literally', function () {
     expect($wildcardOnly)->not->toBeNull();
 });
 
+it('matches the _ wildcard and the ! escape character in a keyword literally', function (string $term, string $literalText, string $lookalikeText) {
+    $literal = Document::factory()->create(['extracted_text' => $literalText]);
+    Document::factory()->create(['extracted_text' => $lookalikeText]);
+
+    $response = $this->get('/recherche?search='.urlencode($term));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 1)
+        ->where('documents.0.id', $literal->id)
+    );
+})->with([
+    'underscore is not a single-character wildcard' => ['a_b', 'Code a_b du lot.', 'Code axb du lot.'],
+    'escape character is not swallowed' => ['a!b', 'Code a!b du lot.', 'Code ab du lot.'],
+]);
+
+// The production collation ignores accents, so "ete" and "été" are one
+// keyword: merged, the exclusion wins and nothing is left to find.
+it('merges keywords that only differ by accents or case into a single keyword', function () {
+    Document::factory()->create(['extracted_text' => 'Planning ete sans accent.']);
+
+    $response = $this->get('/recherche?search='.urlencode('ete -ÉTÉ'));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 0)
+    );
+});
+
+it('reads only the first sign of a keyword as an operator', function () {
+    $withSign = Document::factory()->create(['extracted_text' => 'Option +speed activée.']);
+    Document::factory()->create(['extracted_text' => 'Option speed activée.']);
+
+    $response = $this->get('/recherche?search='.urlencode('++speed'));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 1)
+        ->where('documents.0.id', $withSign->id)
+    );
+});
+
+it('searches a quoted term starting with an operator literally instead of excluding it', function () {
+    $matching = Document::factory()->create(['extracted_text' => 'Température de -5 degrés.']);
+    Document::factory()->create(['extracted_text' => 'Température de 5 degrés.']);
+
+    $response = $this->get('/recherche?search='.urlencode('"-5"'));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 1)
+        ->where('documents.0.id', $matching->id)
+    );
+});
+
+it('applies the tag filter to every document of a multi-keyword OR search', function () {
+    $tag = Tag::factory()->create();
+    $otherTag = Tag::factory()->create();
+
+    $matching = Document::factory()->create(['extracted_text' => 'Notice du cubiscan.']);
+    $matching->tags()->sync([$tag->id]);
+
+    $wrongTag = Document::factory()->create(['extracted_text' => 'Speed test du réseau.']);
+    $wrongTag->tags()->sync([$otherTag->id]);
+
+    $response = $this->get('/recherche?search='.urlencode('cubiscan speed')."&tag_id[]={$tag->id}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 1)
+        ->where('documents.0.id', $matching->id)
+    );
+});
+
+it('keeps the strictest operator when the same keyword is repeated, whatever the word order', function (string $term, array $expectedTexts) {
+    $documents = collect([
+        'Notice du cubiscan.',
+        'Le cubiscan et son speed.',
+        'Speed test du réseau.',
+    ])->mapWithKeys(fn (string $text) => [$text => Document::factory()->create(['extracted_text' => $text])]);
+
+    $response = $this->get('/recherche?search='.urlencode($term));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('documents', fn ($results) => collect($results)->pluck('id')->all()
+            === collect($expectedTexts)->map(fn (string $text) => $documents[$text]->id)->all())
+    );
+})->with([
+    'required after optional' => ['cubiscan speed +speed', ['Le cubiscan et son speed.', 'Speed test du réseau.']],
+    'required before optional' => ['+speed cubiscan speed', ['Le cubiscan et son speed.', 'Speed test du réseau.']],
+    'excluded after optional' => ['cubiscan speed -speed', ['Notice du cubiscan.']],
+    'excluded before optional' => ['cubiscan -speed speed', ['Notice du cubiscan.']],
+    'excluded against required' => ['cubiscan +speed -speed', ['Notice du cubiscan.']],
+    'only the excluded keyword left' => ['-speed speed', []],
+]);
+
 it('requires every keyword prefixed with + to be present', function () {
     $withBoth = Document::factory()->create(['extracted_text' => 'Le speed et le cubiscan.']);
     $withFirstOnly = Document::factory()->create(['extracted_text' => 'Notice du cubiscan.']);

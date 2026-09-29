@@ -1,6 +1,6 @@
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useFileDropZone } from '@/Composables/useFileDropZone';
 import FieldRequirement from '@/Components/FieldRequirement.vue';
 
@@ -127,6 +127,7 @@ function attachImmediateFile(file) {
         onError: () => {
             clientErrors.value.push(`${file.name} : ${immediateForm.errors.file ?? 'Impossible de joindre ce fichier.'}`);
         },
+        onCancel: () => abandonQueue(file),
         onFinish: uploadNextQueuedFile,
     });
     emit('after-request');
@@ -170,6 +171,7 @@ function uploadDraftFile(file) {
         onError: (errors) => {
             clientErrors.value.push(`${file.name} : ${errors.file ?? errors.draft_token ?? 'Impossible de joindre ce fichier.'}`);
         },
+        onCancel: () => abandonQueue(file),
         onFinish: uploadNextQueuedFile,
     });
 }
@@ -211,8 +213,32 @@ function removeDraftAttachment(attachment) {
 // onFinish starts the next one. Sequential rather than parallel so draft
 // mode's flash.uploadedAttachment watcher (one global slot per response)
 // never sees two uploads land at once.
+//
+// Any other visit (a sidebar link, "Annuler"…) interrupts the upload in
+// flight, and Inertia still fires that upload's onFinish: the queue is
+// emptied on cancel so the next file never starts — its own visit would in
+// turn interrupt the one the user just triggered.
 
 const uploadQueue = [];
+
+// The interrupted file may already have reached the server before the
+// cancel, hence "peut-être" for it; the queued ones were never sent.
+function abandonQueue(interruptedFile) {
+    const neverSentNames = uploadQueue.map((file) => file.name);
+    uploadQueue.length = 0;
+
+    clientErrors.value.push(`Envoi interrompu : ${interruptedFile.name} n'a peut-être pas été joint, vérifiez la liste.`);
+
+    if (neverSentNames.length > 0) {
+        clientErrors.value.push(neverSentNames.length > 1
+            ? `${neverSentNames.join(', ')} n'ont pas été envoyés.`
+            : `${neverSentNames[0]} n'a pas été envoyé.`);
+    }
+}
+
+onBeforeUnmount(() => {
+    uploadQueue.length = 0;
+});
 
 function uploadNextQueuedFile() {
     const file = uploadQueue.shift();
@@ -241,17 +267,6 @@ function handleFiles(files) {
     clientErrors.value = [];
     immediateForm.clearErrors('file');
 
-    // The whole selection is refused rather than silently truncated when it
-    // doesn't fit — the user then knows exactly how many can still be added.
-    const remainingSlots = MAX_ATTACHMENTS - props.attachments.length;
-
-    if (files.length > remainingSlots) {
-        clientErrors.value = [remainingSlots > 0
-            ? `${MAX_ATTACHMENTS} pièces jointes maximum par document : encore ${remainingSlots} possible(s).`
-            : `${MAX_ATTACHMENTS} pièces jointes maximum par document.`];
-        return;
-    }
-
     // An invalid file is reported by name and skipped; the valid ones of the
     // same selection are still sent.
     const validFiles = files.filter((file) => {
@@ -268,9 +283,29 @@ function handleFiles(files) {
         return;
     }
 
+    // The valid files are refused as a whole rather than silently truncated
+    // when they don't fit — the user then knows exactly how many can still
+    // be added. Invalid files never count against the limit.
+    const remainingSlots = MAX_ATTACHMENTS - props.attachments.length;
+
+    if (validFiles.length > remainingSlots) {
+        clientErrors.value.push(limitErrorFor(remainingSlots));
+        return;
+    }
+
     uploadQueue.push(...validFiles);
     isUploading.value = true;
     uploadNextQueuedFile();
+}
+
+function limitErrorFor(remainingSlots) {
+    if (remainingSlots <= 0) {
+        return `${MAX_ATTACHMENTS} pièces jointes maximum par document.`;
+    }
+
+    return remainingSlots === 1
+        ? `${MAX_ATTACHMENTS} pièces jointes maximum par document : encore 1 possible.`
+        : `${MAX_ATTACHMENTS} pièces jointes maximum par document : encore ${remainingSlots} possibles.`;
 }
 
 function onInputChange(event) {
@@ -283,8 +318,12 @@ function onDrop(event) {
 
 function removeAttachment(attachment) {
     // A stale "10 pièces jointes maximum" (or any earlier rejection) must
-    // not outlive the removal that brings the list back under the limit.
-    clientErrors.value = [];
+    // not outlive the removal that brings the list back under the limit —
+    // except while a batch is still uploading, whose per-file errors the
+    // user may not have read yet.
+    if (!isUploading.value) {
+        clientErrors.value = [];
+    }
 
     if (props.mode === 'immediate') {
         detachImmediateAttachment(attachment);
@@ -293,8 +332,11 @@ function removeAttachment(attachment) {
     }
 }
 
-function isRemoving(attachment) {
-    return props.mode === 'immediate' && detachingAttachmentId.value === attachment.id;
+// In immediate mode a detach is an Inertia visit that would interrupt the
+// upload in flight, so "Retirer" waits for the batch to finish. A draft
+// removal is a local splice and stays available.
+function isRemoveDisabled(attachment) {
+    return props.mode === 'immediate' && (isUploading.value || detachingAttachmentId.value === attachment.id);
 }
 
 const previewUrl = (attachment) => `/documents/${props.documentId}/attachments/${attachment.id}/preview`;
@@ -374,8 +416,8 @@ const attachmentCountLabel = computed(() => (props.attachments.length > 0 ? ` ($
             </p>
 
             <p
-                v-for="error in clientErrors"
-                :key="error"
+                v-for="(error, index) in clientErrors"
+                :key="index"
                 class="mt-2 text-xs text-red-600 dark:text-red-400"
                 role="alert"
             >
@@ -412,7 +454,7 @@ const attachmentCountLabel = computed(() => (props.attachments.length > 0 ? ` ($
                         <button
                             type="button"
                             class="rounded-sm px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-500 dark:hover:bg-red-950/30"
-                            :disabled="isRemoving(attachment)"
+                            :disabled="isRemoveDisabled(attachment)"
                             :aria-label="`Retirer la pièce jointe ${attachment.original_filename}`"
                             @click="removeAttachment(attachment)"
                         >

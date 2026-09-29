@@ -11,10 +11,12 @@ import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
 // a request completing. `vi.hoisted()` is required here (unlike
 // TagSelector.spec.js's self-contained factory) since these mocks must also
 // be reachable from the test bodies below, not just from inside the factory.
-const { routerPostMock, routerDeleteMock, formPostMock } = vi.hoisted(() => ({
+const { routerPostMock, routerDeleteMock, formPostMock, formState } = vi.hoisted(() => ({
     routerPostMock: vi.fn(),
     routerDeleteMock: vi.fn(),
     formPostMock: vi.fn(),
+    // Last useForm() instance, so a test can set the server errors it exposes.
+    formState: { instance: null },
 }));
 
 vi.mock('@inertiajs/vue3', async () => {
@@ -27,14 +29,18 @@ vi.mock('@inertiajs/vue3', async () => {
             post: routerPostMock,
             delete: routerDeleteMock,
         },
-        useForm: (initial) => reactive({
-            ...initial,
-            processing: false,
-            errors: {},
-            post: formPostMock,
-            reset: vi.fn(),
-            clearErrors: vi.fn(),
-        }),
+        useForm: (initial) => {
+            formState.instance = reactive({
+                ...initial,
+                processing: false,
+                errors: {},
+                post: formPostMock,
+                reset: vi.fn(),
+                clearErrors: vi.fn(),
+            });
+
+            return formState.instance;
+        },
     };
 });
 
@@ -257,8 +263,175 @@ describe('AttachmentsPanel', () => {
 
         await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf'), pdfFile('b.pdf')] } });
 
-        expect(wrapper.text()).toContain('10 pièces jointes maximum par document : encore 1 possible(s).');
+        expect(wrapper.text()).toContain('10 pièces jointes maximum par document : encore 1 possible.');
         expect(routerPostMock).not.toHaveBeenCalled();
+    });
+
+    it('uses the plural for several remaining slots', async () => {
+        const draftList = attachmentsOfCount(8).map((attachment) => ({ ...attachment, filename: `${attachment.id}.pdf` }));
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: draftList, mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf'), pdfFile('b.pdf'), pdfFile('c.pdf')] } });
+
+        expect(wrapper.text()).toContain('10 pièces jointes maximum par document : encore 2 possibles.');
+    });
+
+    it('does not count invalid files against the limit', async () => {
+        const draftList = attachmentsOfCount(9).map((attachment) => ({ ...attachment, filename: `${attachment.id}.pdf` }));
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: draftList, mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pngFile('photo.png'), pdfFile('ok.pdf')] } });
+
+        expect(wrapper.text()).toContain('photo.png : Format non supporté');
+        expect(wrapper.text()).not.toContain('pièces jointes maximum');
+        expect(routerPostMock).toHaveBeenCalledTimes(1);
+        expect(routerPostMock.mock.calls[0][1].file.name).toBe('ok.pdf');
+    });
+
+    it('renders every error even when two messages are identical', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pngFile('photo.png'), pngFile('photo.png')] } });
+
+        const alerts = wrapper.findAll('[role="alert"]').map((alert) => alert.text());
+        expect(alerts).toHaveLength(2);
+        expect(alerts[0]).toBe(alerts[1]);
+    });
+
+    it.each([
+        // Immediate mode reads the message off its useForm() errors, draft
+        // mode off the errors bag handed to onError.
+        ['immediate', { documentId: 42 }, () => formPostMock, 1, (options, message) => {
+            formState.instance.errors = { file: message };
+            options.onError();
+        }],
+        ['draft', { draftToken: 'draft-token' }, () => routerPostMock, 2, (options, message) => options.onError({ file: message })],
+    ])('reports a server rejection by file name and still sends the rest of the queue in %s mode', async (mode, extraProps, postMockOf, optionsIndex, rejectWith) => {
+        const postMock = postMockOf();
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode, ...extraProps },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf'), pdfFile('b.pdf')] } });
+        rejectWith(postMock.mock.calls[0][optionsIndex], 'Le fichier a est invalide.');
+        postMock.mock.calls[0][optionsIndex].onFinish();
+        rejectWith(postMock.mock.calls[1][optionsIndex], 'Le fichier b est invalide.');
+        postMock.mock.calls[1][optionsIndex].onFinish();
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.findAll('[role="alert"]').map((alert) => alert.text())).toEqual([
+            'a.pdf : Le fichier a est invalide.',
+            'b.pdf : Le fichier b est invalide.',
+        ]);
+        expect(postMock).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+        ['immediate', { documentId: 42 }, () => formPostMock, 1],
+        ['draft', { draftToken: 'draft-token' }, () => routerPostMock, 2],
+    ])('stops the queue when the upload in flight is cancelled by another visit in %s mode', async (mode, extraProps, postMockOf, optionsIndex) => {
+        const postMock = postMockOf();
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode, ...extraProps },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf'), pdfFile('b.pdf'), pdfFile('c.pdf')] } });
+        postMock.mock.calls[0][optionsIndex].onCancel();
+        postMock.mock.calls[0][optionsIndex].onFinish();
+        await wrapper.vm.$nextTick();
+
+        expect(postMock).toHaveBeenCalledTimes(1);
+        expect(wrapper.findAll('[role="alert"]').map((alert) => alert.text())).toEqual([
+            'Envoi interrompu : a.pdf n\'a peut-être pas été joint, vérifiez la liste.',
+            'b.pdf, c.pdf n\'ont pas été envoyés.',
+        ]);
+        expect(wrapper.emitted('update:uploading').at(-1)).toEqual([false]);
+    });
+
+    it('uses the singular when a single queued file was never sent', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf'), pdfFile('b.pdf')] } });
+        routerPostMock.mock.calls[0][2].onCancel();
+        routerPostMock.mock.calls[0][2].onFinish();
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.text()).toContain('b.pdf n\'a pas été envoyé.');
+    });
+
+    it('reports only the interrupted file when nothing else was queued', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf')] } });
+        routerPostMock.mock.calls[0][2].onCancel();
+        routerPostMock.mock.calls[0][2].onFinish();
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.findAll('[role="alert"]').map((alert) => alert.text())).toEqual([
+            'Envoi interrompu : a.pdf n\'a peut-être pas été joint, vérifiez la liste.',
+        ]);
+    });
+
+    it('keeps Retirer available and the batch errors shown when removing a draft attachment mid-upload', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: draftAttachments, mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf'), pdfFile('b.pdf')] } });
+        routerPostMock.mock.calls[0][2].onError({ file: 'Le fichier est invalide.' });
+        await wrapper.vm.$nextTick();
+        const removeButton = wrapper.find('button[aria-label="Retirer la pièce jointe brouillon.pdf"]');
+
+        expect(removeButton.attributes('disabled')).toBeUndefined();
+
+        await removeButton.trigger('click');
+
+        expect(wrapper.emitted('update:attachments')).toEqual([[[]]]);
+        expect(wrapper.text()).toContain('a.pdf : Le fichier est invalide.');
+    });
+
+    it('sends nothing more once unmounted mid-queue', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf'), pdfFile('b.pdf')] } });
+        const { onFinish } = routerPostMock.mock.calls[0][2];
+        wrapper.unmount();
+        onFinish();
+
+        expect(routerPostMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps every file of a multi-file draft upload, one flash after the other', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: {
+                attachments: [],
+                mode: 'draft',
+                draftToken: 'draft-token',
+                'onUpdate:attachments': (attachments) => wrapper.setProps({ attachments }),
+            },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile('a.pdf'), pdfFile('b.pdf')] } });
+        pageState.props.flash = { uploadedAttachment: { filename: 'a-uuid.pdf', original_filename: 'a.pdf', mime_type: 'application/pdf', draftToken: 'draft-token' } };
+        routerPostMock.mock.calls[0][2].onFinish();
+        await wrapper.vm.$nextTick();
+        pageState.props.flash = { uploadedAttachment: { filename: 'b-uuid.pdf', original_filename: 'b.pdf', mime_type: 'application/pdf', draftToken: 'draft-token' } };
+        routerPostMock.mock.calls[1][2].onFinish();
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.props('attachments').map((attachment) => attachment.original_filename)).toEqual(['a.pdf', 'b.pdf']);
     });
 
     it('skips an invalid file of a multi-file selection, naming it, and still sends the valid ones', async () => {
@@ -361,6 +534,22 @@ describe('AttachmentsPanel', () => {
         expect(routerDeleteMock).toHaveBeenCalledTimes(1);
         expect(routerDeleteMock.mock.calls[0][0]).toBe('/documents/42/attachments/1');
         expect(routerDeleteMock.mock.calls[0][1].preserveState).toBe(true);
+    });
+
+    it('disables Retirer in immediate mode while an upload is in flight', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: immediateAttachments, mode: 'immediate', documentId: 42 },
+        });
+        const removeButton = () => wrapper.find('button[aria-label="Retirer la pièce jointe contrat.pdf"]');
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile()] } });
+
+        expect(removeButton().attributes('disabled')).toBeDefined();
+
+        formPostMock.mock.calls[0][1].onFinish();
+        await wrapper.vm.$nextTick();
+
+        expect(removeButton().attributes('disabled')).toBeUndefined();
     });
 
     // --- before-request/after-request (retro Epic 3, item 7) --------------------

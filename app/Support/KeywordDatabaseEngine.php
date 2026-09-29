@@ -5,6 +5,7 @@ namespace App\Support;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Laravel\Scout\Builder;
 use Laravel\Scout\Engines\DatabaseEngine;
+use Normalizer;
 
 /**
  * Scout's `database` driver with keyword semantics (AD-8 stays intact: the
@@ -34,6 +35,16 @@ class KeywordDatabaseEngine extends DatabaseEngine
     private const REQUIRED = 'required';
 
     private const EXCLUDED = 'excluded';
+
+    /**
+     * When the same keyword appears with several operators, the strictest
+     * wins regardless of word order: excluded over required over optional.
+     */
+    private const STRICTNESS = [
+        self::OPTIONAL => 0,
+        self::REQUIRED => 1,
+        self::EXCLUDED => 2,
+    ];
 
     /**
      * Escape character for `LIKE` patterns, declared explicitly on every
@@ -124,9 +135,10 @@ class KeywordDatabaseEngine extends DatabaseEngine
     /**
      * Splits a search term into distinct keywords: a "quoted phrase" stays a
      * single keyword, everything else splits on whitespace; a leading `+`
-     * marks it required, a leading `-` excluded. Duplicates are dropped
-     * case-insensitively (first occurrence wins) so a repeated word never
-     * counts twice in the ranking.
+     * marks it required, a leading `-` excluded. Duplicates are merged
+     * ignoring case and accents so a repeated word never counts twice in the
+     * ranking; the merged keyword keeps its strictest operator
+     * (`speed -speed` excludes "speed", `speed +speed` requires it).
      *
      * @return array<int, array{text: string, operator: string}>
      */
@@ -145,17 +157,33 @@ class KeywordDatabaseEngine extends DatabaseEngine
                 continue;
             }
 
-            $keywords[mb_strtolower($text)] ??= [
-                'text' => $text,
-                'operator' => match ($match[1]) {
-                    '+' => self::REQUIRED,
-                    '-' => self::EXCLUDED,
-                    default => self::OPTIONAL,
-                },
-            ];
+            $operator = match ($match[1]) {
+                '+' => self::REQUIRED,
+                '-' => self::EXCLUDED,
+                default => self::OPTIONAL,
+            };
+
+            $key = self::deduplicationKeyFor($text);
+            $existing = $keywords[$key] ?? null;
+
+            if ($existing === null || self::STRICTNESS[$operator] > self::STRICTNESS[$existing['operator']]) {
+                $keywords[$key] = ['text' => $existing['text'] ?? $text, 'operator' => $operator];
+            }
         }
 
         return array_values($keywords);
+    }
+
+    /**
+     * Case- and accent-insensitive, like the production collation
+     * (`utf8mb4_unicode_ci`): "ete" and "Été" match the same rows, so they
+     * must merge into one keyword rather than count twice in the ranking.
+     */
+    private static function deduplicationKeyFor(string $text): string
+    {
+        $decomposed = Normalizer::normalize(mb_strtolower($text), Normalizer::FORM_D);
+
+        return preg_replace('/\p{Mn}+/u', '', $decomposed === false ? mb_strtolower($text) : $decomposed);
     }
 
     private static function escapeLike(string $value): string

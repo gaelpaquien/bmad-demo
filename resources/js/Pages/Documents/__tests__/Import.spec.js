@@ -123,6 +123,24 @@ describe('Documents/Import — formulaire unique (spec-refonte-import-formulaire
         expect(formState.instance.title).toBe('Rapport annuel');
     });
 
+    it('cuts a title prefilled from a long filename to the 255-character server limit', async () => {
+        const wrapper = mountImport();
+
+        await chooseFile(wrapper, pdfFile(`${'a'.repeat(300)}.pdf`));
+
+        const titleInput = wrapper.find('#document-title');
+        expect(titleInput.element.value).toBe('a'.repeat(255));
+        expect(titleInput.attributes('maxlength')).toBe('255');
+    });
+
+    it('never splits an emoji when cutting a long prefilled title', async () => {
+        const wrapper = mountImport();
+
+        await chooseFile(wrapper, pdfFile(`${'a'.repeat(254)}📄📄.pdf`));
+
+        expect(wrapper.find('#document-title').element.value).toBe(`${'a'.repeat(254)}📄`);
+    });
+
     it('empties and disables the title again on "Retirer"', async () => {
         const wrapper = mountImport();
 
