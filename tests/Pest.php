@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
 
 /*
@@ -47,4 +48,20 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * First session error message for `$key`. Sessions are JSON-serialized
+ * (config/session.php), so a request carrying a PHP-rejected upload can
+ * leave `errors` as its serialized array rather than a ViewErrorBag.
+ */
+function sessionErrorMessage(string $key): ?string
+{
+    $errors = session('errors');
+
+    if ($errors instanceof ViewErrorBag) {
+        return $errors->first($key) ?: null;
+    }
+
+    return data_get($errors, "default.messages.{$key}.0");
 }

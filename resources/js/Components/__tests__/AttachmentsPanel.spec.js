@@ -145,6 +145,60 @@ describe('AttachmentsPanel', () => {
         expect(formPostMock).not.toHaveBeenCalled();
     });
 
+    it('rejects a file over 20 Mo client-side, sending no request', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode: 'draft', draftToken: 'draft-token' },
+        });
+        const bigFile = pdfFile('gros.pdf');
+        Object.defineProperty(bigFile, 'size', { value: 20 * 1024 * 1024 + 1 });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [bigFile] } });
+
+        expect(wrapper.text()).toContain('Fichier trop volumineux (20 Mo maximum)');
+        expect(routerPostMock).not.toHaveBeenCalled();
+    });
+
+    // --- Limite de 10 pièces jointes (client-side, pas d'envoi réseau) --------
+
+    function attachmentsOfCount(count) {
+        return Array.from({ length: count }, (_, index) => ({ id: index + 1, original_filename: `annexe-${index + 1}.pdf` }));
+    }
+
+    it.each([
+        ['immediate', { documentId: 42 }],
+        ['draft', { draftToken: 'draft-token' }],
+    ])('refuses an 11th attachment in %s mode, sending no request', async (mode, extraProps) => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: attachmentsOfCount(10), mode, ...extraProps },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile()] } });
+
+        expect(wrapper.text()).toContain('10 pièces jointes maximum par document.');
+        expect(formPostMock).not.toHaveBeenCalled();
+        expect(routerPostMock).not.toHaveBeenCalled();
+    });
+
+    it('clears the limit error on removal and accepts a new attachment once back under the limit', async () => {
+        const draftList = attachmentsOfCount(10).map((attachment) => ({ ...attachment, filename: `${attachment.id}.pdf` }));
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: draftList, mode: 'draft', draftToken: 'draft-token' },
+        });
+        const dropZone = wrapper.find('.border-dashed');
+
+        await dropZone.trigger('drop', { dataTransfer: { files: [pdfFile()] } });
+        expect(wrapper.text()).toContain('10 pièces jointes maximum par document.');
+
+        await wrapper.findAll('button').find((button) => button.text() === 'Retirer').trigger('click');
+        expect(wrapper.text()).not.toContain('pièces jointes maximum');
+
+        await wrapper.setProps({ attachments: wrapper.emitted('update:attachments').at(-1)[0] });
+        await dropZone.trigger('drop', { dataTransfer: { files: [pdfFile()] } });
+
+        expect(wrapper.text()).not.toContain('pièces jointes maximum');
+        expect(routerPostMock).toHaveBeenCalledTimes(1);
+    });
+
     // --- Mode immediate : ajout ------------------------------------------------
 
     it('posts to /documents/{id}/attachments on a valid drop in immediate mode', async () => {

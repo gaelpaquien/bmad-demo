@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\DescribesUploadFailure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\File;
 
 class UploadDraftAttachmentRequest extends FormRequest
 {
+    use DescribesUploadFailure;
+
     /**
      * No authentication/authorization exists in v1 (NFR3) — always allowed.
      */
@@ -44,6 +47,7 @@ class UploadDraftAttachmentRequest extends FormRequest
             'file.required' => "Merci de sélectionner un fichier à joindre. {$acceptedFormats}",
             'file.mimes' => "Format non supporté. {$acceptedFormats}",
             'file.max' => "Fichier trop volumineux (20 Mo maximum). {$acceptedFormats}",
+            'file.uploaded' => $this->uploadFailureMessage($acceptedFormats),
         ];
     }
 }

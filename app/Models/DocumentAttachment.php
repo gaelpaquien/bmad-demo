@@ -20,6 +20,13 @@ class DocumentAttachment extends Model
 {
     use HasFactory;
 
+    /**
+     * Upper bound on the attachments a single document may carry, enforced
+     * at every entry point (immediate attach, import, editor draft) and
+     * mirrored client-side by AttachmentsPanel.vue.
+     */
+    public const MAX_PER_DOCUMENT = 10;
+
     protected $fillable = [
         'document_id',
         'file_path',

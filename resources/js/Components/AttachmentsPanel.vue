@@ -68,6 +68,10 @@ const emit = defineEmits(['update:attachments', 'update:uploading', 'before-requ
 
 const ACCEPTED_LABEL = 'PDF, Word (.docx), Excel (.xlsx)';
 
+// Mirrors DocumentAttachment::MAX_PER_DOCUMENT — the server re-validates at
+// every entry point, this only saves a round-trip.
+const MAX_ATTACHMENTS = 10;
+
 const { isDragging, validationError, onDragover, onDragleave, fileFromDropEvent, fileFromInputEvent } = useFileDropZone({
     acceptedExtensions: ['pdf', 'docx', 'xlsx'],
     acceptedLabel: ACCEPTED_LABEL,
@@ -221,6 +225,11 @@ function handleFile(file) {
     clientError.value = '';
     immediateForm.clearErrors('file');
 
+    if (props.attachments.length >= MAX_ATTACHMENTS) {
+        clientError.value = `${MAX_ATTACHMENTS} pièces jointes maximum par document.`;
+        return;
+    }
+
     const error = validationError(file);
 
     if (error) {
@@ -244,6 +253,10 @@ function onDrop(event) {
 }
 
 function removeAttachment(attachment) {
+    // A stale "10 pièces jointes maximum" (or any earlier rejection) must
+    // not outlive the removal that brings the list back under the limit.
+    clientError.value = '';
+
     if (props.mode === 'immediate') {
         detachImmediateAttachment(attachment);
     } else {

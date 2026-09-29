@@ -335,6 +335,48 @@ it('relocates two kept draft attachments in the same transaction', function () {
         ->toBe(['annexe-1.pdf', 'annexe-2.docx']);
 });
 
+it('rejects a draft attachment PHP itself refused (over upload_max_filesize) with the French size message', function () {
+    Storage::fake('local');
+
+    $file = new UploadedFile(__DIR__.'/../Fixtures/sample.pdf', 'big.pdf', 'application/pdf', UPLOAD_ERR_INI_SIZE, true);
+
+    $response = test()->post('/documents/create/attachments', [
+        'draft_token' => Str::uuid()->toString(),
+        'file' => $file,
+    ]);
+
+    $response->assertRedirect();
+    expect(sessionErrorMessage('file'))->toStartWith('Fichier trop volumineux (20 Mo maximum).');
+    expect(session('uploadedAttachment'))->toBeNull();
+});
+
+it('redirects back with the French size message, never a 500, when a draft upload exceeds post_max_size', function () {
+    $response = test()
+        ->from('/documents/create')
+        ->withServerVariables(['CONTENT_LENGTH' => (string) (1024 ** 3)])
+        ->post('/documents/create/attachments');
+
+    $response->assertRedirect('/documents/create');
+    expect(sessionErrorMessage('file'))->toStartWith('Fichier trop volumineux (20 Mo maximum).');
+    expect(session('uploadedAttachment'))->toBeNull();
+});
+
+it('rejects more than 10 draft attachments, creating no document', function () {
+    Storage::fake('local');
+
+    $response = test()->post('/documents/create', createDocumentPayload([
+        'draft_token' => Str::uuid()->toString(),
+        'draft_attachments' => array_map(fn (int $index) => [
+            'filename' => Str::uuid()->toString().'.pdf',
+            'original_filename' => "annexe-{$index}.pdf",
+        ], range(1, DocumentAttachment::MAX_PER_DOCUMENT + 1)),
+    ]));
+
+    $response->assertSessionHasErrors(['draft_attachments' => '10 pièces jointes maximum par document.']);
+    expect(Document::count())->toBe(0);
+    expect(DocumentAttachment::count())->toBe(0);
+});
+
 it('leaves an uploaded draft attachment in tmp/, creating no row, when it is never listed in draft_attachments', function () {
     Storage::fake('local');
 

@@ -290,6 +290,42 @@ it('rejects a draft attachment filename that is not a server-generated uuid, cre
     expect(DocumentAttachment::count())->toBe(0);
 });
 
+it('rejects more than 10 draft attachments, creating no document', function () {
+    $response = $this->post('/documents', [
+        'file' => UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf')),
+        'draft_token' => Str::uuid()->toString(),
+        'draft_attachments' => array_map(fn (int $index) => [
+            'filename' => Str::uuid()->toString().'.pdf',
+            'original_filename' => "annexe-{$index}.pdf",
+        ], range(1, DocumentAttachment::MAX_PER_DOCUMENT + 1)),
+    ]);
+
+    $response->assertSessionHasErrors(['draft_attachments' => '10 pièces jointes maximum par document.']);
+    expect(Document::count())->toBe(0);
+    expect(DocumentAttachment::count())->toBe(0);
+});
+
+it('rejects a main file PHP itself refused (over upload_max_filesize) with the French size message', function () {
+    $file = new UploadedFile(__DIR__.'/../Fixtures/sample.pdf', 'big.pdf', 'application/pdf', UPLOAD_ERR_INI_SIZE, true);
+
+    $response = $this->post('/documents', ['file' => $file]);
+
+    $response->assertRedirect();
+    expect(sessionErrorMessage('file'))->toStartWith('Fichier trop volumineux (20 Mo maximum).');
+    expect(Document::count())->toBe(0);
+});
+
+it('redirects back with the French size message, never a 500, when the import body exceeds post_max_size', function () {
+    $response = $this
+        ->from('/documents/import')
+        ->withServerVariables(['CONTENT_LENGTH' => (string) (1024 ** 3)])
+        ->post('/documents');
+
+    $response->assertRedirect('/documents/import');
+    expect(sessionErrorMessage('file'))->toStartWith('Fichier trop volumineux (20 Mo maximum).');
+    expect(Document::count())->toBe(0);
+});
+
 it('rejects draft attachments sent without a draft token, creating no document', function () {
     $response = $this->post('/documents', [
         'file' => UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf')),

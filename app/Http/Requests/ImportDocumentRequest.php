@@ -2,12 +2,16 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\DescribesUploadFailure;
+use App\Models\DocumentAttachment;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 
 class ImportDocumentRequest extends FormRequest
 {
+    use DescribesUploadFailure;
+
     /**
      * No authentication/authorization exists in v1 (NFR3) — always allowed.
      */
@@ -67,7 +71,7 @@ class ImportDocumentRequest extends FormRequest
             // RelocatesDraftAttachments::relocateDraftAttachments() — the
             // regex restricts it to exactly the `{uuid}.{ext}` shape
             // UploadDraftAttachmentAction ever generates.
-            'draft_attachments' => ['array'],
+            'draft_attachments' => ['array', 'max:'.DocumentAttachment::MAX_PER_DOCUMENT],
             'draft_attachments.*.filename' => [
                 'required',
                 'string',
@@ -88,12 +92,14 @@ class ImportDocumentRequest extends FormRequest
             'file.required' => "Merci de sélectionner un fichier à importer. {$acceptedFormats}",
             'file.mimes' => "Format non supporté. {$acceptedFormats}",
             'file.max' => "Fichier trop volumineux (20 Mo maximum). {$acceptedFormats}",
+            'file.uploaded' => $this->uploadFailureMessage($acceptedFormats),
             'tag_ids.array' => 'Tags invalides.',
             'tag_ids.*.integer' => 'Tag invalide.',
             'tag_ids.*.exists' => 'Tag invalide.',
             'draft_token.uuid' => 'Session d\'édition invalide, merci de recharger la page.',
             'draft_token.required_with' => 'Session d\'édition manquante pour les pièces jointes, merci de recharger la page.',
             'draft_attachments.array' => 'Pièces jointes invalides.',
+            'draft_attachments.max' => DocumentAttachment::MAX_PER_DOCUMENT.' pièces jointes maximum par document.',
             'draft_attachments.*.filename.required' => 'Pièce jointe invalide.',
             'draft_attachments.*.filename.regex' => 'Pièce jointe invalide.',
             'draft_attachments.*.original_filename.required' => 'Pièce jointe invalide.',

@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { router } from '@inertiajs/vue3';
 import Editor from '@/Pages/Documents/Editor.vue';
@@ -321,5 +322,27 @@ describe('Documents/Editor — champ Tags visible sans révélation en deux temp
         expect(formPostMock).toHaveBeenCalledTimes(1);
         expect(formPostMock.mock.calls[0][0]).toBe('/documents/create');
         expect(formPatchMock).not.toHaveBeenCalled();
+    });
+});
+
+describe('Documents/Editor — limite de pièces jointes (spec-limite-pieces-jointes)', () => {
+    beforeEach(() => {
+        formPostMock.mockReset();
+    });
+
+    it('shows a draft_attachments rejection from the server below the attachments panel', async () => {
+        // The mocked useForm() is reactive and `post` is called as a
+        // method, so `this` is the form itself — mimic Inertia filling
+        // `errors` from a validation redirect.
+        formPostMock.mockImplementationOnce(function () {
+            this.errors = { draft_attachments: '10 pièces jointes maximum par document.' };
+        });
+        const wrapper = mountEditor();
+
+        const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Enregistrer'));
+        await saveButton.trigger('click');
+        await nextTick();
+
+        expect(wrapper.find('[role="alert"]').text()).toBe('10 pièces jointes maximum par document.');
     });
 });

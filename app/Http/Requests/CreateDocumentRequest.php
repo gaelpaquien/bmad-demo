@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\DocumentAttachment;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -72,7 +73,7 @@ class CreateDocumentRequest extends FormRequest
             // generates (code review finding), never trusting client input
             // for a stored path, same principle already applied to
             // `mime_type` elsewhere in this story.
-            'draft_attachments' => ['array'],
+            'draft_attachments' => ['array', 'max:'.DocumentAttachment::MAX_PER_DOCUMENT],
             'draft_attachments.*.filename' => [
                 'required',
                 'string',
@@ -97,6 +98,7 @@ class CreateDocumentRequest extends FormRequest
             'tag_ids.*.exists' => 'Tag invalide.',
             'draft_token.uuid' => 'Session d\'édition invalide, merci de recharger la page.',
             'draft_attachments.array' => 'Pièces jointes invalides.',
+            'draft_attachments.max' => DocumentAttachment::MAX_PER_DOCUMENT.' pièces jointes maximum par document.',
             'draft_attachments.*.filename.required' => 'Pièce jointe invalide.',
             'draft_attachments.*.filename.regex' => 'Pièce jointe invalide.',
             'draft_attachments.*.original_filename.required' => 'Pièce jointe invalide.',

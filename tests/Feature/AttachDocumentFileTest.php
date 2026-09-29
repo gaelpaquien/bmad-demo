@@ -116,6 +116,71 @@ it('rejects a file over the 20MB limit and creates no attachment', function () {
     expect(DocumentAttachment::count())->toBe(0);
 });
 
+it('rejects an upload PHP itself refused (over upload_max_filesize) with the French size message', function () {
+    $document = Document::factory()->create();
+    $file = new UploadedFile(__DIR__.'/../Fixtures/sample.pdf', 'big.pdf', 'application/pdf', UPLOAD_ERR_INI_SIZE, true);
+
+    $response = test()->post("/documents/{$document->id}/attachments", ['file' => $file]);
+
+    $response->assertRedirect();
+    expect(sessionErrorMessage('file'))->toStartWith('Fichier trop volumineux (20 Mo maximum).');
+    expect(DocumentAttachment::count())->toBe(0);
+
+    // The JSON-serialized session is rebuilt into a ViewErrorBag on the
+    // next request, so the message actually reaches the page.
+    test()->get("/documents/{$document->id}")->assertInertia(fn ($page) => $page
+        ->where('errors.file', fn (string $message) => str_starts_with($message, 'Fichier trop volumineux (20 Mo maximum).'))
+    );
+});
+
+it('reports a non-size upload failure (e.g. partial upload) without calling it a size problem', function () {
+    $document = Document::factory()->create();
+    $file = new UploadedFile(__DIR__.'/../Fixtures/sample.pdf', 'coupe.pdf', 'application/pdf', UPLOAD_ERR_PARTIAL, true);
+
+    test()->post("/documents/{$document->id}/attachments", ['file' => $file]);
+
+    expect(sessionErrorMessage('file'))->toBe('L\'envoi du fichier a échoué, merci de réessayer.');
+    expect(DocumentAttachment::count())->toBe(0);
+});
+
+it('redirects back with the French size message, never a 500, when the body exceeds post_max_size', function () {
+    $document = Document::factory()->create();
+
+    $response = test()
+        ->from("/documents/{$document->id}/edit")
+        ->withServerVariables(['CONTENT_LENGTH' => (string) (1024 ** 3)])
+        ->post("/documents/{$document->id}/attachments");
+
+    $response->assertRedirect("/documents/{$document->id}/edit");
+    expect(sessionErrorMessage('file'))->toStartWith('Fichier trop volumineux (20 Mo maximum).');
+    expect(DocumentAttachment::count())->toBe(0);
+});
+
+// --- Limite de pièces jointes -----------------------------------------------
+
+it('accepts a 10th attachment', function () {
+    $document = Document::factory()->create();
+    DocumentAttachment::factory()->count(DocumentAttachment::MAX_PER_DOCUMENT - 1)->for($document)->create();
+    $file = UploadedFile::fake()->createWithContent('contract.pdf', attachFixtureContents('sample.pdf'));
+
+    $response = test()->post("/documents/{$document->id}/attachments", ['file' => $file]);
+
+    $response->assertSessionHasNoErrors();
+    expect($document->attachments()->count())->toBe(DocumentAttachment::MAX_PER_DOCUMENT);
+});
+
+it('rejects an 11th attachment, storing no file and creating no row', function () {
+    $document = Document::factory()->create();
+    DocumentAttachment::factory()->count(DocumentAttachment::MAX_PER_DOCUMENT)->for($document)->create();
+    $file = UploadedFile::fake()->createWithContent('contract.pdf', attachFixtureContents('sample.pdf'));
+
+    $response = test()->post("/documents/{$document->id}/attachments", ['file' => $file]);
+
+    $response->assertSessionHasErrors(['file' => '10 pièces jointes maximum par document.']);
+    expect($document->attachments()->count())->toBe(DocumentAttachment::MAX_PER_DOCUMENT);
+    expect(Storage::disk('local')->allFiles("documents/{$document->id}/attachments"))->toBeEmpty();
+});
+
 it('returns a 404 when attaching to a document id that does not exist', function () {
     $file = UploadedFile::fake()->createWithContent('contract.pdf', attachFixtureContents('sample.pdf'));
 

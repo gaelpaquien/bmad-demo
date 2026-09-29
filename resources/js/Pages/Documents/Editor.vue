@@ -7,7 +7,7 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import TableRow from '@tiptap/extension-table-row';
 import Image from '@tiptap/extension-image';
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
@@ -79,6 +79,15 @@ watch(
 // true (see the template below) and guarding submit() itself closes that
 // window.
 const isAttachmentUploading = ref(false);
+
+// Any `draft_token`/`draft_attachments[.*]` rejection on save has no field
+// of its own to sit under — surfaced once, below the attachments panel
+// (mirrors Import.vue).
+const attachmentsErrorMessage = computed(() => {
+    const key = Object.keys(form.errors).find((field) => field === 'draft_token' || field.startsWith('draft_attachments'));
+
+    return key ? form.errors[key] : '';
+});
 
 const titleInputRef = ref(null);
 
@@ -550,6 +559,9 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
                     :document-id="props.document?.id ?? null"
                     :draft-token="draftToken"
                 />
+                <p v-if="attachmentsErrorMessage" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                    {{ attachmentsErrorMessage }}
+                </p>
             </div>
 
             <div class="mt-6 flex items-center gap-3">
