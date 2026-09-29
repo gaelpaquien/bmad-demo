@@ -88,7 +88,8 @@ const canSave = computed(() => !!form.file && form.title.trim() !== '' && !isBus
 // server's 255-character limit (`max:255` in ImportDocumentRequest):
 // `maxlength` only stops typing, never a value set from a long filename.
 // Cut by character (`Array.from`), not UTF-16 unit, so an emoji at the
-// boundary is never split in half.
+// boundary is never split in half. Mirrored server-side by
+// ImportDocumentAction::titleFromFilename() for a submission without title.
 const MAX_TITLE_LENGTH = 255;
 
 function titleFromFilename(filename) {

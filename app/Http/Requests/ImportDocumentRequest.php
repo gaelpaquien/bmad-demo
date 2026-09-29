@@ -58,7 +58,7 @@ class ImportDocumentRequest extends FormRequest
             ],
             // Prefilled client-side from the filename (minus its extension)
             // and editable; optional here so any caller omitting it falls
-            // back to the original filename in ImportDocumentAction.
+            // back to the filename minus its extension in ImportDocumentAction.
             'title' => ['nullable', 'string', 'max:255'],
             // An optional set of tags chosen on the import page's
             // TagSelector, assigned afterwards through

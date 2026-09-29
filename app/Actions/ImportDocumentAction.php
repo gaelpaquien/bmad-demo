@@ -44,7 +44,7 @@ class ImportDocumentAction
     {
         $document = DB::transaction(function () use ($data) {
             $document = Document::create([
-                'title' => $data->title ?? $data->file->getClientOriginalName(),
+                'title' => $data->title ?? $this->titleFromFilename($data->file->getClientOriginalName()),
                 'source' => DocumentSource::Imported,
                 'mime_type' => $data->file->getMimeType(),
                 'extraction_status' => ExtractionStatus::Pending,
@@ -72,6 +72,19 @@ class ImportDocumentAction
         ExtractDocumentTextJob::dispatch($document);
 
         return $document;
+    }
+
+    /**
+     * Fallback title when none was submitted, mirroring the import page's
+     * `titleFromFilename()`: "Rapport.v2.pdf" → "Rapport.v2", a name that is
+     * only an extension (".pdf") is kept as-is, and the result is cut by
+     * character to the 255-character title limit.
+     */
+    private function titleFromFilename(string $filename): string
+    {
+        $title = preg_replace('/\.[^.]+$/', '', $filename);
+
+        return mb_substr($title === '' ? $filename : $title, 0, 255);
     }
 
     /**

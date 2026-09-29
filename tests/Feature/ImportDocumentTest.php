@@ -29,7 +29,7 @@ it('imports a valid PDF, extracts its text and redirects to the document page', 
 
     $response->assertRedirect("/documents/{$document->id}");
     expect($document->source)->toBe(DocumentSource::Imported);
-    expect($document->title)->toBe('contract.pdf');
+    expect($document->title)->toBe('contract');
     expect($document->file_path)->toBe("documents/{$document->id}/contract.pdf");
     expect($document->extracted_text)->toContain('BMAD Démo sample pdf content');
     expect($document->extraction_status)->toBe(ExtractionStatus::Completed);
@@ -45,6 +45,14 @@ it('uses the submitted title while keeping the original filename on disk', funct
 
     expect($document->title)->toBe('Contrat fournisseur');
     expect($document->file_path)->toBe("documents/{$document->id}/contract.pdf");
+});
+
+it('strips only the last extension from the fallback title', function () {
+    $file = UploadedFile::fake()->createWithContent('Rapport.v2.pdf', fixtureContents('sample.pdf'));
+
+    $this->post('/documents', ['file' => $file]);
+
+    expect(Document::sole()->title)->toBe('Rapport.v2');
 });
 
 it('rejects a title over 255 characters and creates no document', function () {
@@ -160,7 +168,7 @@ it('renders the document detail page with title, type and date after import', fu
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Show')
         ->where('document.id', $document->id)
-        ->where('document.title', 'contract.pdf')
+        ->where('document.title', 'contract')
         ->where('document.source', 'imported')
     );
 });
@@ -251,7 +259,7 @@ it('lists previously imported documents on the index page', function () {
         ->component('Documents/Index')
         ->has('documents.data', 1)
         ->where('documents.data.0.id', $document->id)
-        ->where('documents.data.0.title', 'contract.pdf')
+        ->where('documents.data.0.title', 'contract')
     );
 });
 

@@ -29,12 +29,12 @@ updated: 2026-09-29
 | Bibliothèque (accueil) | Ouverture de l'app, ou clic "Bibliothèque" dans la sidebar | Listing paginé (20/page) de tous les documents (importés et créés), filtres tag + type (FR2, FR3, FR7). Plus de barre de recherche intégrée — la recherche fulltexte vit sur la surface Recherche. Maquette : [`mockups/key-bibliotheque.html`](mockups/key-bibliotheque.html). |
 | Recherche | Clic "Recherche" dans la sidebar | Recherche fulltexte par mots-clés sur le titre et le contenu des documents, pièces jointes incluses (FR6, FR13) `[AMENDED 2026-09-29]`, affinée par un filtre tag (pas de filtre type ici — le type reste un filtre de navigation propre à la Bibliothèque). Maquette : [`mockups/key-recherche.html`](mockups/key-recherche.html). |
 | Fiche document | Clic sur une ligne de document (Bibliothèque ou résultat de Recherche) | Prévisualisation, métadonnées, tags (modifiables), pièces jointes (consultation/téléchargement si document créé, FR13), téléchargement de l'original, accès à l'édition si le document a été créé dans l'outil (FR3, FR4, FR5). Construite depuis les tables seules — pas de maquette (décision explicite, voir `.memlog.md`). |
-| Éditeur | Bouton "Créer un document" (Bibliothèque) ou "Modifier" (Fiche document) | Rédaction WYSIWYG, insertion d'images inline, panneau latéral de pièces jointes (FR13), sauvegarde, export PDF (FR8–FR11). Maquette : [`mockups/key-editeur.html`](mockups/key-editeur.html). |
+| Éditeur | Bouton "Créer un document" (sidebar) ou "Modifier" (Fiche document) | Rédaction WYSIWYG, insertion d'images inline, panneau latéral de pièces jointes (FR13), sauvegarde, export PDF (FR8–FR11). Maquette : [`mockups/key-editeur.html`](mockups/key-editeur.html). |
 | Configuration | Clic "Configuration" dans la sidebar | Gestion des tags : créer, renommer, supprimer (FR14). Maquette : [`mockups/key-configuration.html`](mockups/key-configuration.html). |
 
-Import (FR1) n'est pas une surface séparée : c'est une modale ouverte depuis la Bibliothèque (glisser-déposer ou sélection de fichier), qui se referme sur la Fiche document du fichier importé.
+`[AMENDED 2026-09-29]` Import (FR1) est une page dédiée (`/documents/import`), atteinte par le bouton « Importer un document » de la sidebar, au même titre que « Créer un document » — ce n'est plus une modale. Un seul formulaire réunit fichier (glisser-déposer ou sélection), titre, tags et pièces jointes ; rien n'est envoyé avant « Enregistrer », qui mène à la Fiche document du fichier importé.
 
-Sidebar fixe, toujours visible sur les 5 surfaces (`DESIGN.md.Components.sidebar`) — porte les 3 racines de navigation (Bibliothèque, Recherche, Configuration) ; Fiche document et Éditeur restent atteints par clic contextuel, pas depuis la sidebar directement.
+Sidebar fixe, toujours visible sur les 5 surfaces (`DESIGN.md.Components.sidebar`) — porte les 3 racines de navigation (Bibliothèque, Recherche, Configuration) et, `[AMENDED 2026-09-29]`, les deux actions « Importer un document » (page Import) et « Créer un document » (Éditeur vierge) ; la Fiche document et l'Éditeur d'un document existant restent atteints par clic contextuel.
 
 **Principe de conception (au-delà du solo v1)** : les libellés de tags et la structure de la Bibliothèque doivent rester lisibles pour quelqu'un sans connaissance institutionnelle du contenu — pas seulement optimisés pour l'usage mental du seul utilisateur actuel. La page Configuration (gestion des tags, FR14) rend ce principe concret dès la v1 : renommer/fusionner des tags mal nommés devient une action directe, pas un renoncement à tout renommer plus tard à l'ouverture multi-utilisateurs (PRD § Trajectoire post-v1).
 
@@ -61,9 +61,9 @@ Comportemental — les specs visuelles sont dans `DESIGN.md.Components`.
 | Barre de recherche | Recherche | Recherche fulltexte en direct (debounce de 500 ms, Entrée lance la recherche sans attendre, pas de bouton "Rechercher" séparé) sur le titre et le contenu des documents et de leurs pièces jointes (FR6, FR13). `[AMENDED 2026-09-29]` Saisie par mots-clés : au moins un mot par défaut, `+mot` obligatoire, `-mot` exclu, `"expression exacte"`. Un encart au-dessus du champ explique ces opérateurs et l'ordre des résultats (titre d'abord, puis nombre de mots-clés trouvés, puis date). |
 | Indication obligatoire/optionnel | Import, Éditeur | `[NOUVEAU 2026-09-29]` Chaque champ de formulaire porte un « * » s'il est obligatoire (le champ lui-même porte `aria-required`) ou la mention « optionnel ». « Enregistrer » reste désactivé tant qu'un champ obligatoire est vide. |
 | Filtres (chips) | Bibliothèque (tag + type), Recherche (tag uniquement) | Multi-sélection possible. Filtres actifs visibles et retirables en un clic. |
-| Sélecteur de tags | Modale Import, Éditeur (à l'enregistrement), Fiche document | Champ optionnel qui filtre en direct la liste gérée de tags (FR2) ; clic/Entrée ajoute une chip. Aucune création de tag depuis ce champ — la création se fait exclusivement en Configuration (FR14). Présent dans les trois contextes, comme l'ancien sélecteur catégorie ; laissé vide = aucun tag, jamais bloquant. |
-| Zone d'import | Modale "Importer", Panneau pièces jointes (Éditeur) | Glisser-déposer ou sélection fichier. Formats acceptés affichés explicitement (PDF, `.docx`, `.xlsx` — NFR4). Erreur de format claire et immédiate, pas de rejet silencieux. |
-| Panneau de pièces jointes | Éditeur | Panneau latéral rétractable, distinct du corps WYSIWYG (FR13) — ajouter/retirer un fichier n'affecte jamais le contenu rédigé. Chaque pièce jointe reste indexée pour la recherche fulltexte (FR6) au même titre qu'un document importé. |
+| Sélecteur de tags | Page Import, Éditeur (à l'enregistrement), Fiche document | Champ optionnel qui filtre en direct la liste gérée de tags (FR2) ; clic/Entrée ajoute une chip. Aucune création de tag depuis ce champ — la création se fait exclusivement en Configuration (FR14). Présent dans les trois contextes, comme l'ancien sélecteur catégorie ; laissé vide = aucun tag, jamais bloquant. |
+| Zone d'import | Page Import, Panneau pièces jointes (Import, Éditeur) | Glisser-déposer ou sélection fichier. Formats acceptés affichés explicitement (PDF, `.docx`, `.xlsx` — NFR4). Erreur de format claire et immédiate, pas de rejet silencieux. |
+| Panneau de pièces jointes | Éditeur, Import | Panneau latéral rétractable, distinct du corps WYSIWYG (FR13) — ajouter/retirer un fichier n'affecte jamais le contenu rédigé. Chaque pièce jointe reste indexée pour la recherche fulltexte (FR6) au même titre qu'un document importé. |
 | Pièces jointes (consultation) | Fiche document | Liste des pièces jointes d'un document créé, avec prévisualisation/téléchargement individuel — lecture seule ; ajout/retrait reste réservé au panneau de l'Éditeur. |
 | Panneau de prévisualisation | Fiche document | PDF affiché nativement dans le navigateur — perçu comme quasi instantané. Word/Excel affichés via la conversion prévue en FR4, avec état de chargement explicite (voir § State Patterns). |
 | Barre d'outils éditeur | Éditeur | Mise en forme (titres, listes, tableaux) et bouton "Insérer une image" qui insère l'image à l'emplacement du curseur (FR8, FR9). `[ASSUMPTION]` Glisser-déposer une image directement dans le corps du texte est accepté en plus du bouton. |
@@ -85,10 +85,10 @@ Comportemental — les specs visuelles sont dans `DESIGN.md.Components`.
 | Conversion de prévisualisation en cours (Word/Excel) | Fiche document | Indicateur de chargement explicite dans le panneau de prévisualisation ; le reste de la fiche reste utilisable pendant ce temps. |
 | Fichier source introuvable | Fiche document | Fichier déplacé/supprimé du disque local ou illisible → message explicite dans le panneau de prévisualisation, bouton "Télécharger" désactivé plutôt qu'un échec silencieux. |
 | Conversion de prévisualisation échouée | Fiche document | Message clair ("Aperçu indisponible pour ce fichier") dans le panneau ; le bouton "Télécharger" reste actif. |
-| Import/pièce jointe : format non supporté | Modale Import, Panneau pièces jointes | Message d'erreur immédiat nommant les formats acceptés ; le fichier n'est pas envoyé. |
+| Import/pièce jointe : format non supporté | Page Import, Panneau pièces jointes | Message d'erreur immédiat nommant les formats acceptés ; le fichier n'est pas envoyé. |
 | Aucune pièce jointe | Éditeur, Fiche document | `[AMENDED 2026-09-29]` Pas de message dédié : le panneau de l'Éditeur, jamais masqué, affiche seulement sa zone d'ajout (formats, 10 fichiers maximum, 20 Mo par fichier) ; la Fiche document masque la ligne Pièces jointes. |
 | Chargement d'un document existant | Éditeur | Contenu chargé dans le WYSIWYG avant que l'édition soit possible ; indicateur bref si le chargement prend un temps perceptible. |
-| Éditeur : modifications non enregistrées | Éditeur | Indicateur discret (point sur le bouton "Enregistrer") ; confirmation avant de quitter si non enregistré. |
+| Éditeur : modifications non enregistrées | Éditeur | `[AMENDED 2026-09-29]` Aucun indicateur ni confirmation avant de quitter : « Annuler » et la sidebar quittent l'éditeur sans alerte, les modifications non enregistrées sont perdues (décision de `spec-ajustements-consultation-editeur`). |
 | Export réussi / échoué | Éditeur | Toast bref "Export PDF généré." ou message d'erreur explicite si l'export échoue — jamais un échec silencieux (NFR5). |
 | Configuration : aucun tag créé | Configuration | "Aucun tag pour l'instant." et action "Créer un tag" mise en avant. |
 | Suppression de tag confirmée | Configuration | Boîte de dialogue (voir § Interaction Primitives) ; message de retour factuel après suppression (voir § Voice and Tone). |
@@ -114,12 +114,14 @@ Comportemental — le contraste visuel est dans `DESIGN.md` (aucune validation d
 
 ### Flow 1 — Importer un document existant (Camille, lundi matin)
 
-1. Depuis la Bibliothèque, Camille clique "Importer" ; la modale d'import s'ouvre.
-2. Elle glisse le fichier PDF depuis son explorateur de fichiers dans la zone de dépôt (FR1).
-3. Une fois le fichier accepté, le sélecteur de tags apparaît ; elle le laisse vide pour l'instant — elle classera plus tard depuis la Fiche document.
-4. **Climax** : le fichier est importé, la modale se ferme et Camille atterrit directement sur la Fiche document du fichier importé — les métadonnées (FR3) sont déjà renseignées (titre déduit du nom de fichier, type, date d'ajout), prêtes à être affinées.
+`[AMENDED 2026-09-29]` Parcours réécrit pour la page d'import (auparavant une modale).
 
-Échec : format non supporté (ex. `.pptx`) → message d'erreur immédiat nommant les formats acceptés (voir § State Patterns), le fichier n'est pas envoyé, la modale reste ouverte pour réessayer.
+1. Depuis la sidebar, Camille clique « Importer un document » ; la page d'import s'ouvre.
+2. Elle glisse le fichier PDF depuis son explorateur de fichiers dans la zone de dépôt (FR1) ; rien n'est encore envoyé.
+3. Le titre se préremplit avec le nom du fichier sans son extension, modifiable. Elle laisse les tags vides pour l'instant — elle classera plus tard depuis la Fiche document.
+4. **Climax** : elle clique « Enregistrer » ; le document est importé et Camille atterrit directement sur sa Fiche document — les métadonnées (FR3) sont déjà renseignées (titre, type, date d'ajout), prêtes à être affinées.
+
+Échec : format non supporté (ex. `.pptx`) → message d'erreur immédiat nommant les formats acceptés (voir § State Patterns), le fichier n'est pas retenu, la page reste ouverte pour réessayer.
 
 ### Flow 2 — Retrouver et partager un document (Camille, 15h un jeudi)
 

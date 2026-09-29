@@ -12,9 +12,9 @@ import FieldRequirement from '@/Components/FieldRequirement.vue';
 // - `immediate`: the document is already saved. Every add/remove hits the
 //   server right away (AttachDocumentFileAction/DetachDocumentFileAction)
 //   through a standard Inertia visit — `preserveState`/`preserveScroll`
-//   throughout so an in-progress, unsaved edit to the title/editor content
-//   elsewhere on the same page is never disturbed (Boundaries & Constraints:
-//   "ajout/retrait ne touche jamais content_html ni isDirty"). The
+//   throughout so the title/editor content being edited elsewhere on the
+//   same page is never disturbed (ajout/retrait ne touche jamais
+//   content_html). The
 //   `attachments` prop itself is what refreshes after each request — this
 //   component holds no server-authoritative local copy of it.
 // - `draft`: the document doesn't exist yet. A file is uploaded to a
@@ -55,17 +55,7 @@ const props = defineProps({
     },
 });
 
-// `before-request`/`after-request` (retrospective Epic 3, action item 7):
-// fired synchronously around every immediate-mode attach/detach request so
-// the host (Editor.vue) can bracket its own unsaved-changes navigation guard
-// the same way it already does around its own save/image-upload requests
-// (`programmaticNavigation`) — an Inertia visit fired from here is this
-// panel's own doing, not the user trying to leave, even while the title/
-// content elsewhere on the page is genuinely dirty. Draft mode never emits
-// these: its uploads are a local `tmp/{token}` round-trip triggered while
-// the document itself doesn't exist yet, not the scenario the guard was
-// wrongly firing for.
-const emit = defineEmits(['update:attachments', 'update:uploading', 'before-request', 'after-request']);
+const emit = defineEmits(['update:attachments', 'update:uploading']);
 
 const ACCEPTED_LABEL = 'PDF, Word, Excel';
 
@@ -116,7 +106,6 @@ const immediateForm = useForm({ file: null });
 
 function attachImmediateFile(file) {
     immediateForm.file = file;
-    emit('before-request');
     immediateForm.post(`/documents/${props.documentId}/attachments`, {
         forceFormData: true,
         preserveState: true,
@@ -130,7 +119,6 @@ function attachImmediateFile(file) {
         onCancel: () => abandonQueue(file),
         onFinish: uploadNextQueuedFile,
     });
-    emit('after-request');
 }
 
 const detachingAttachmentId = ref(null);
@@ -142,7 +130,6 @@ function detachImmediateAttachment(attachment) {
 
     detachingAttachmentId.value = attachment.id;
 
-    emit('before-request');
     router.delete(`/documents/${props.documentId}/attachments/${attachment.id}`, {
         preserveState: true,
         preserveScroll: true,
@@ -153,7 +140,6 @@ function detachImmediateAttachment(attachment) {
             detachingAttachmentId.value = null;
         },
     });
-    emit('after-request');
 }
 
 // --- Mode draft : upload vers la zone temporaire, liste tenue localement ---

@@ -170,7 +170,7 @@ Inchangé depuis v1 — Inter du titre au corps de texte.
 
 ## Elevation & Depth
 
-Minimaliste, inchangé : la plupart des surfaces sont plates, séparées par des bordures 1px (`{colors.border}`) plutôt que des ombres — y compris la sidebar, qui se distingue du contenu par une bordure droite, jamais une ombre. Une légère élévation reste réservée aux éléments qui flottent au-dessus du contenu : menu déroulant (dont les suggestions du sélecteur de tags), modale d'import, notification toast.
+Minimaliste, inchangé : la plupart des surfaces sont plates, séparées par des bordures 1px (`{colors.border}`) plutôt que des ombres — y compris la sidebar, qui se distingue du contenu par une bordure droite, jamais une ombre. Une légère élévation reste réservée aux éléments qui flottent au-dessus du contenu : menu déroulant (dont les suggestions du sélecteur de tags), notification toast. `[AMENDED 2026-09-29]` L'import n'est plus une modale mais une page.
 
 ## Shapes
 

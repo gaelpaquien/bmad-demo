@@ -385,3 +385,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
   summary: Une recherche contradictoire ou faite uniquement d'exclusions (`speed -speed`, `-speed`) affiche le message ordinaire « Aucun document ne correspond », sans expliquer pourquoi. L'aide le documente, mais la page ne le signale pas au moment où cela arrive.
   evidence: Blind Hunter (seconde revue de code, 2026-09-29), `KeywordDatabaseEngine::addTextSearchConstraints()` (`whereRaw('1 = 0')`). Il faudrait que le contrôleur renvoie un indicateur à la page : amélioration UX à faible impact.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-nettoyage-pint-code-mort-titre-doc.md`
+  summary: EXPERIENCE.md n'a pas de State Patterns pour la page Import (quitter après saisie perd tout sans alerte, « Enregistrer » désactivé pendant l'envoi d'une pièce jointe, échec serveur après « Enregistrer ») ni de ligne dans la table Information Architecture.
+  evidence: Relevé par la revue du nettoyage du 2026-09-29 ; l'Éditeur a sa ligne « modifications non enregistrées », la page Import (spec-refonte-import-formulaire-unique) n'en a aucune.
+- source_spec: `_bmad-output/implementation-artifacts/spec-nettoyage-pint-code-mort-titre-doc.md`
+  summary: DESIGN.md (composant Sidebar, L.183) ne liste que les 3 racines et « 5 surfaces », sans les actions « Importer un document » / « Créer un document » ajoutées à la sidebar.
+  evidence: Dérive antérieure (spec-sidebar-document-actions) relevée par la revue du nettoyage du 2026-09-29 ; EXPERIENCE.md a été réaligné, pas DESIGN.md.
