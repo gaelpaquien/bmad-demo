@@ -555,7 +555,7 @@ onBeforeUnmount(() => {
                  next to its input. -->
             <!-- Section separators fade out at both ends so they read as a pause
                  in the page rather than a hard rule. -->
-            <hr v-if="hasMetadata" class="my-8 h-px border-0 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]">
+            <hr v-if="hasMetadata" class="my-8 h-0.5 border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]">
             <div v-if="hasMetadata" class="space-y-4 text-sm text-foreground">
                 <p v-if="creationLabel">
                     <time :datetime="document.created_at">{{ creationLabel }}</time>
@@ -618,7 +618,7 @@ onBeforeUnmount(() => {
                 </dl>
             </div>
 
-            <hr class="my-8 h-px border-0 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]">
+            <hr class="my-8 h-0.5 border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]">
 
             <div>
                 <!-- A created document flows into the page like an article: no
@@ -806,5 +806,16 @@ onBeforeUnmount(() => {
 
 :global(.dark) :deep(.tiptap-content table th) {
     background-color: #262626;
+}
+
+/* The section separator above already provides the spacing: whatever the
+   content starts with (heading, paragraph, list…) sits flush under it.
+   `text-box` also trims the line-height's half-leading above the first
+   line, so the gap ends at the top of the capitals (ignored where
+   unsupported, e.g. Firefox). */
+:deep(.tiptap-content > :first-child) {
+    margin-top: 0;
+    padding-top: 0;
+    text-box: trim-start cap alphabetic;
 }
 </style>
