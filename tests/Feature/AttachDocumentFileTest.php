@@ -77,8 +77,8 @@ it('becomes searchable through the parent document once its text is extracted, w
     $response = test()->get('/recherche?search=BMAD');
 
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 

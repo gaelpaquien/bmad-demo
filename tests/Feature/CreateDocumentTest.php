@@ -184,8 +184,8 @@ it('is immediately searchable via its derived extracted_text (Story 1.6)', funct
     $response = test()->get('/recherche?search=trimestriel');
 
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 
@@ -219,8 +219,8 @@ it('finds a created document by a word formatted in part', function () {
     $response = test()->get('/recherche?search=cubiscan');
 
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 
@@ -447,8 +447,8 @@ it('is immediately searchable through its relocated draft attachment\'s extracte
 
     $response = test()->get('/recherche?search=BMAD');
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 

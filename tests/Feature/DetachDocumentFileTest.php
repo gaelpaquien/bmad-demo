@@ -52,7 +52,7 @@ it('resyncs the parent document\'s attachments_extracted_text after a detach, dr
     expect($document->attachments_extracted_text)->toBeNull();
 
     $response = test()->get('/recherche?search=BMAD');
-    $response->assertInertia(fn ($page) => $page->has('documents', 0));
+    $response->assertInertia(fn ($page) => $page->has('documents.data', 0));
 });
 
 it('keeps the remaining attachments\' text after detaching only one of several', function () {
