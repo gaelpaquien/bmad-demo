@@ -9,6 +9,18 @@ describe('TagChip', () => {
         expect(wrapper.text()).toBe('Factures');
     });
 
+    it.each([
+        ['small', 'rounded-sm', 'text-xs', false],
+        ['regular', 'rounded-md', 'text-sm', false],
+        ['compact', 'rounded-lg', 'text-xs', true],
+    ])('applies the %s size: %s radius, %s, medium weight %s', (size, radius, textSize, isMedium) => {
+        const classes = mount(TagChip, { props: { name: 'Factures', size } }).classes();
+
+        expect(classes).toContain(radius);
+        expect(classes).toContain(textSize);
+        expect(classes.includes('font-medium')).toBe(isMedium);
+    });
+
     it('renders no interactive element — read-only display, never a filter/remove affordance', () => {
         const wrapper = mount(TagChip, { props: { name: 'Contrats' } });
 

@@ -97,8 +97,8 @@ function formatDate(dateString) {
                 <ul v-if="isListLoading" class="flex flex-col gap-0.5" aria-busy="true" data-testid="documents-skeleton">
                     <li v-for="row in skeletonRowCount" :key="row" class="flex animate-pulse flex-col gap-1.5 rounded-md px-2.5 py-2">
                         <div class="h-3.5 w-3/4 rounded bg-border"></div>
+                        <div class="h-4 w-1/2 rounded-sm bg-border opacity-70"></div>
                         <div class="h-3 w-1/3 rounded bg-border opacity-70"></div>
-                        <div class="h-4 w-1/2 rounded-full bg-border opacity-70"></div>
                     </li>
                 </ul>
 
@@ -108,9 +108,7 @@ function formatDate(dateString) {
 
                 <ul v-else class="flex flex-col gap-0.5">
                     <li v-for="(document, index) in documents.data" :key="document.id">
-                        <!-- Light gradient separator between two rows, plus a
-                             faint alternating tint so consecutive documents
-                             stay distinguishable. -->
+                        <!-- Light gradient separator between two rows. -->
                         <hr
                             v-if="index > 0"
                             class="mx-2.5 my-0.5 h-px border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]"
@@ -120,17 +118,17 @@ function formatDate(dateString) {
                             :href="`/documents/${document.id}${documents.current_page > 1 ? `?page=${documents.current_page}` : ''}`"
                             class="flex flex-col gap-1 rounded-md px-2.5 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                             :class="document.id === activeDocumentId
-                                ? 'bg-primary font-semibold text-primary-foreground'
-                                : ['text-foreground hover:bg-surface-alt', index % 2 === 1 ? 'bg-surface-alt/50' : '']"
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-foreground hover:bg-border/70'"
                             :aria-current="document.id === activeDocumentId ? 'page' : undefined"
                             :title="document.title"
                         >
-                            <span class="truncate leading-tight">{{ document.title }}</span>
-                            <span class="text-xs font-normal" :class="document.id === activeDocumentId ? 'text-primary-foreground' : 'text-muted'" data-testid="documents-row-date">
-                                {{ formatDate(document.created_at) }}
-                            </span>
+                            <span class="truncate font-semibold leading-tight">{{ document.title }}</span>
                             <span v-if="document.tags && document.tags.length > 0" class="flex flex-wrap items-center gap-1" data-testid="documents-row-tags">
-                                <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" />
+                                <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" size="small" />
+                            </span>
+                            <span class="text-xs" :class="document.id === activeDocumentId ? 'text-primary-foreground' : 'text-muted'" data-testid="documents-row-date">
+                                {{ formatDate(document.created_at) }}
                             </span>
                         </Link>
                     </li>

@@ -77,13 +77,16 @@ describe('DocumentsLayout', () => {
         expect(row.text()).toContain('2026');
     });
 
-    it('lays each row out on three lines: title, date, then tags (no tag line without tags)', () => {
+    it('lays each row out on three lines: bold title, tags, then date (no tag line without tags)', () => {
         const wrapper = mountLayout();
         const tagged = wrapper.find('a[href="/documents/42"]');
         const untagged = wrapper.find('a[href="/documents/43"]');
 
         expect(tagged.findAll(':scope > *').map((line) => line.attributes('data-testid') ?? 'title'))
-            .toEqual(['title', 'documents-row-date', 'documents-row-tags']);
+            .toEqual(['title', 'documents-row-tags', 'documents-row-date']);
+        expect(tagged.find(':scope > span').classes()).toContain('font-semibold');
+        expect(tagged.find('[data-testid="documents-row-tags"]').classes()).not.toContain('font-semibold');
+        expect(tagged.classes()).not.toContain('font-semibold');
         expect(tagged.find('[data-testid="documents-row-tags"]').text()).toContain('Finance');
         expect(untagged.find('[data-testid="documents-row-tags"]').exists()).toBe(false);
     });
