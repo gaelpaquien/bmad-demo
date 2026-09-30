@@ -709,7 +709,7 @@ onBeforeUnmount(() => {
                     <button
                         ref="cancelDeleteButtonRef"
                         type="button"
-                        class="rounded-md px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                        class="rounded-md px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                         :disabled="isDeleting"
                         @click="closeDeleteDialog"
                     >
