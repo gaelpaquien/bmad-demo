@@ -75,7 +75,25 @@ describe('Sidebar', () => {
         expect(importLink.text()).toBe('Importer un document');
 
         const items = wrapper.findAll('nav a, nav button').map((item) => item.text());
-        expect(items).toEqual(['Documents', 'Créer un document', 'Importer un document', 'Recherche', 'Configuration']);
+        expect(items).toEqual(['Documents', 'Créer un document', 'Importer un document', 'Recherche', 'Configuration', 'MCP']);
+    });
+
+    // spec-page-mcp-documentation: "MCP" links to its own read-only page and
+    // is active only there.
+    it('renders "MCP" as active only on the Documents/Mcp page', () => {
+        const idleWrapper = mount(Sidebar);
+        const idle = idleWrapper.find('a[href="/mcp"]');
+
+        expect(idle.exists()).toBe(true);
+        expect(idle.attributes('aria-current')).toBeUndefined();
+
+        pageState.component = 'Documents/Mcp';
+        const activeWrapper = mount(Sidebar);
+        const active = activeWrapper.find('a[href="/mcp"]');
+
+        expect(active.attributes('aria-current')).toBe('page');
+        expect(active.classes()).toContain('bg-primary');
+        expect(activeWrapper.find('nav a[href="/"]').attributes('aria-current')).toBeUndefined();
     });
 
     // spec-import-document-page: "Importer un document" is now a plain
@@ -231,11 +249,11 @@ describe('Sidebar', () => {
     // document, Importer un document, Recherche, Configuration, then the
     // theme toggle then footer — the footer itself is static text, not a
     // separate focusable stop.
-    it('exposes the brand, Documents, Créer un document, Importer un document, Recherche, Configuration, the theme toggle then the collapse toggle as focusable items, in that order', () => {
+    it('exposes the brand, Documents, Créer un document, Importer un document, Recherche, Configuration, MCP, the theme toggle then the collapse toggle as focusable items, in that order', () => {
         const wrapper = mount(Sidebar);
         const focusable = wrapper.findAll('a, button');
 
-        expect(focusable).toHaveLength(8);
+        expect(focusable).toHaveLength(9);
         expect(focusable[0].attributes('data-testid')).toBe('sidebar-brand');
         expect(focusable[1].element.tagName).toBe('A');
         expect(focusable[1].text()).toBe('Documents');
@@ -247,8 +265,10 @@ describe('Sidebar', () => {
         expect(focusable[4].text()).toBe('Recherche');
         expect(focusable[5].element.tagName).toBe('A');
         expect(focusable[5].text()).toBe('Configuration');
-        expect(focusable[6].element.tagName).toBe('BUTTON');
-        expect(focusable[7].attributes('data-testid')).toBe('sidebar-collapse-toggle');
+        expect(focusable[6].element.tagName).toBe('A');
+        expect(focusable[6].text()).toBe('MCP');
+        expect(focusable[7].element.tagName).toBe('BUTTON');
+        expect(focusable[8].attributes('data-testid')).toBe('sidebar-collapse-toggle');
     });
 
     it('renders the brand as a link to the homepage with the app logo', () => {

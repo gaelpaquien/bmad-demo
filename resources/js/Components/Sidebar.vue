@@ -66,6 +66,7 @@ const LIBRARY_SURFACES = ['Documents/Index', 'Documents/Editor', 'Documents/Show
 const page = usePage();
 const isSearchActive = computed(() => page.component === 'Documents/Search');
 const isConfigActive = computed(() => page.component === 'Documents/Configuration');
+const isMcpActive = computed(() => page.component === 'Documents/Mcp');
 
 // "Créer un document" gets its own active state: `Documents/Editor` serves
 // both create (`document` prop null/absent) and edit (prop present) — only
@@ -197,6 +198,23 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
                     <circle cx="7" cy="18" r="2" />
                 </svg>
                 <span class="whitespace-nowrap" :class="{ 'sr-only': isCollapsed }">Configuration</span>
+            </Link>
+            <Link
+                href="/mcp"
+                class="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                :class="isMcpActive
+                    ? 'bg-primary font-semibold text-primary-foreground'
+                    : 'text-foreground hover:bg-surface'"
+                :aria-current="isMcpActive ? 'page' : undefined"
+                :title="isCollapsed ? 'MCP' : undefined"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="6" rx="1.5" />
+                    <rect x="3" y="14" width="18" height="6" rx="1.5" />
+                    <line x1="7" y1="7" x2="7.01" y2="7" />
+                    <line x1="7" y1="17" x2="7.01" y2="17" />
+                </svg>
+                <span class="whitespace-nowrap" :class="{ 'sr-only': isCollapsed }">MCP</span>
             </Link>
         </nav>
 
