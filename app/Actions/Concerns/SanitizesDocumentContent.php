@@ -51,6 +51,14 @@ trait SanitizesDocumentContent
     private const ALLOWED_IMG_ATTRIBUTES = ['src', 'alt'];
 
     /**
+     * The inline subset of `ALLOWED_TAGS`: formatting inside a word, never
+     * a word boundary. `deriveExtractedText()` inserts no space around them,
+     * so every other allowed tag separates words. A new inline tag added to
+     * `ALLOWED_TAGS` must be listed here too.
+     */
+    private const INLINE_TAGS = ['strong', 'em', 's', 'code'];
+
+    /**
      * Prefix of the only `src` shape ever produced by the editor's own
      * upload flow while an image's document is still a draft (whether that
      * draft is a brand-new document or an existing one being edited) — see
@@ -301,16 +309,22 @@ trait SanitizesDocumentContent
      * or list with no text) strips down to an empty string via
      * `strip_tags()`/`trim()`, normalized to null rather than persisted as
      * `''` — consistent with how a failed extraction already represents
-     * "no text" as null for imported documents. A space is inserted at
-     * every tag boundary first so adjacent blocks (`</h1><p>`) don't fuse
-     * into one word once the tags themselves are stripped — an `<img>` is
-     * no exception, it strips down to that same single space (it carries
-     * no inner text; its `alt` is not indexed).
+     * "no text" as null for imported documents. A space is inserted before
+     * every tag outside `INLINE_TAGS` (blocks, table cells, `<br>`, `<hr>`,
+     * `<img>`) first, so adjacent blocks (`</h1><p>`) and table cells
+     * don't fuse into one word once the tags are stripped — an `<img>`
+     * strips down to that single space (its `alt` is not indexed). Inline
+     * tags stay glued to the text, so a word formatted in part
+     * (`<strong>Cubi</strong>scan`) is indexed whole.
+     * Entities are decoded only after `strip_tags()`, so a typed
+     * `&lt;script&gt;` stays text instead of being stripped as a tag, and
+     * a non-breaking space collapses into an ordinary one.
      */
     private function deriveExtractedText(string $contentHtml): ?string
     {
-        $spaced = preg_replace('/</', ' <', $contentHtml);
-        $text = trim(preg_replace('/\s+/', ' ', strip_tags($spaced)));
+        $spaced = preg_replace('#<(?!/?(?:'.implode('|', self::INLINE_TAGS).')\b)#i', ' <', $contentHtml);
+        $decoded = html_entity_decode(strip_tags($spaced), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = trim(preg_replace('/[\s\x{00A0}]+/u', ' ', $decoded));
 
         return $text === '' ? null : $text;
     }

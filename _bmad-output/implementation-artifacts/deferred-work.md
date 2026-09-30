@@ -8,16 +8,6 @@
 
 Décisions du 2026-09-29, à traiter avant de poursuivre l'app.
 
-### P1 — Indexation du contenu des documents créés
-
-Décision : corriger `deriveExtractedText()` (espacer seulement les balises de bloc, puis `html_entity_decode`). Pas de commande de réindexation : les données existantes sont des données de test, elles seront purgées.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
-  summary: L'indexation du contenu des documents créés dans l'éditeur a deux défauts, ce qui fausse la recherche :
-    - `deriveExtractedText()` insère une espace avant chaque balise, donc un mot mis en forme en partie (`<strong>Cubi</strong>scan`) est indexé en deux (« Cubi scan ») et `cubiscan` ne le trouve pas ;
-    - `strip_tags()` ne décode pas les entités HTML, donc « R&D » est indexé `R&amp;D`, et un espace insécable `&nbsp;` reste tel quel.
-  evidence: Acceptance Auditor (seconde revue de code, 2026-09-29), `app/Actions/Concerns/SanitizesDocumentContent.php` `deriveExtractedText()`. Défaut préexistant, antérieur à la recherche par mots-clés, qui le rend plus visible. La correction (espacer seulement les balises de bloc, puis `html_entity_decode`) demande de réindexer les documents existants.
-
 ### P2 — Bornes de la recherche
 
 Décision : 20 mots-clés maximum et 255 caractères maximum pour le terme ; page Recherche paginée par 10, sans plafond sur le nombre total de résultats. Borner aussi `tag_id[]`.
@@ -304,6 +294,10 @@ Décision : les fichiers orphelins n'ont aucune utilité, on les évite là où 
 ## Clos
 
 Motif du tri 2026-09-29 pour chaque entrée fermée.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
+  summary: (ex-P1) L'indexation du contenu des documents créés dans l'éditeur a deux défauts, ce qui fausse la recherche : `deriveExtractedText()` insère une espace avant chaque balise (`<strong>Cubi</strong>scan` indexé « Cubi scan ») et `strip_tags()` ne décode pas les entités HTML (`R&amp;D`, `&nbsp;`).
+  motif: Résolu le 2026-09-30 — `deriveExtractedText()` n'espace plus que les balises de bloc/`br`/`img`/`hr`, décode les entités après `strip_tags()` et normalise les blancs, espace insécable comprise (`_bmad-output/implementation-artifacts/spec-indexation-contenu-documents-crees.md`). Pas de réindexation : les documents existants sont des données de test, à purger.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-browse-library.md`
   summary: La logique de dérivation du libellé dans `DocumentTypeBadge.vue` (mapping mime-type, repli `source=created`, repli générique "Document") n'est vérifiée par aucun test automatisé — le dépôt ne contient aucun outil de test JS (pa…

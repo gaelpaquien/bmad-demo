@@ -188,6 +188,41 @@ it('is immediately searchable via its derived extracted_text (Story 1.6)', funct
     );
 });
 
+// --- Dérivation de extracted_text (spec-indexation-contenu-documents-crees) --
+
+it('derives extracted_text from content_html', function (string $contentHtml, ?string $expectedText) {
+    test()->post('/documents/create', createDocumentPayload(['content_html' => $contentHtml]));
+
+    expect(Document::sole()->extracted_text)->toBe($expectedText);
+})->with([
+    'word formatted in part' => ['<p><strong>Cubi</strong>scan</p>', 'Cubiscan'],
+    'word in part in italics' => ['<p><em>Cubi</em>scan</p>', 'Cubiscan'],
+    'word in part struck through' => ['<p><s>Cubi</s>scan</p>', 'Cubiscan'],
+    'word in part as inline code' => ['<p><code>Cubi</code>scan</p>', 'Cubiscan'],
+    'adjacent blocks' => ['<h1>Titre</h1><p>Texte</p>', 'Titre Texte'],
+    'table cells' => ['<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>', 'A B'],
+    'line break' => ['<p>ligne1<br>ligne2</p>', 'ligne1 ligne2'],
+    'ampersand entity' => ['<p>R&amp;D</p>', 'R&D'],
+    'non-breaking space' => ['<p>10&nbsp;kg</p>', '10 kg'],
+    'typed angle brackets' => ['<p>a &lt;b&gt; c</p>', 'a <b> c'],
+    'tags only' => ['<ul><li></li></ul>', null],
+]);
+
+it('finds a created document by a word formatted in part', function () {
+    test()->post('/documents/create', createDocumentPayload([
+        'content_html' => '<p><strong>Cubi</strong>scan</p>',
+    ]));
+
+    $document = Document::sole();
+
+    $response = test()->get('/recherche?search=cubiscan');
+
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 1)
+        ->where('documents.0.id', $document->id)
+    );
+});
+
 // --- Sanitization -------------------------------------------------------------
 
 it('strips disallowed tags and all attributes from content_html before storing it', function () {
