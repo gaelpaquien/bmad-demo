@@ -510,7 +510,7 @@ function onCancelClick() {
                             H{{ level }}
                         </button>
     
-                        <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
+                        <span class="mx-1 h-5 w-px bg-foreground/40" aria-hidden="true"></span>
     
                         <button
                             type="button"
@@ -534,7 +534,7 @@ function onCancelClick() {
                             1. Liste
                         </button>
     
-                        <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
+                        <span class="mx-1 h-5 w-px bg-foreground/40" aria-hidden="true"></span>
     
                         <button
                             type="button"
@@ -569,7 +569,7 @@ function onCancelClick() {
                             </button>
                         </template>
     
-                        <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
+                        <span class="mx-1 h-5 w-px bg-foreground/40" aria-hidden="true"></span>
     
                         <button
                             type="button"
