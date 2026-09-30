@@ -11,6 +11,7 @@ use App\DataTransferObjects\RenameTagData;
 use App\Http\Requests\CreateTagRequest;
 use App\Http\Requests\RenameTagRequest;
 use App\Models\Tag;
+use App\Support\Toast;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -61,6 +62,8 @@ class TagController extends Controller
             name: $request->validated('name'),
         ));
 
+        Toast::success('Tag créé.');
+
         return back();
     }
 
@@ -76,24 +79,28 @@ class TagController extends Controller
             name: $request->validated('name'),
         ));
 
+        Toast::success('Tag renommé.');
+
         return back();
     }
 
     /**
      * Sole entry point for deleting a tag — the document count captured by
      * DeleteTagAction (before the row, and the cascaded pivot rows, are
-     * gone) is flashed alongside the tag's name so Configuration.vue can
-     * render the factual post-deletion message (Boundaries & Constraints:
-     * "Tag supprimé — détaché de N documents."), same
-     * flash-then-redirect pattern as `uploadedImage`/`uploadedAttachment`.
+     * gone) is folded into the success toast so the factual post-deletion
+     * message ("Tag supprimé — détaché de N documents.") still reaches the
+     * user.
      */
     public function destroy(Tag $tag, DeleteTagAction $action): RedirectResponse
     {
-        $name = $tag->name;
         $count = $action(new DeleteTagData(
             tag: $tag,
         ));
 
-        return back()->with('tagDeleted', ['name' => $name, 'count' => $count]);
+        $documents = $count > 1 ? 'documents' : 'document';
+
+        Toast::success("Tag supprimé — détaché de {$count} {$documents}.");
+
+        return back();
     }
 }

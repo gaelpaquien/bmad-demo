@@ -10,7 +10,7 @@ use App\Models\Tag;
 // (DocumentController::index() renders only `documents`,
 // spec-nettoyage-sidebar-et-page-documents), so it's read here through a
 // real Inertia response, same pattern as ManageTagsTest's own
-// flash.tagDeleted assertion.
+// toast flash assertion.
 it('reflects a tag rename in the shared tags Inertia prop', function () {
     $tag = Tag::factory()->create(['name' => 'Fiance']);
 

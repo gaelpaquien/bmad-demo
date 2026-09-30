@@ -96,6 +96,7 @@ it('updates content_html and re-derives extracted_text without changing unchange
     ]));
 
     $response->assertRedirect("/documents/{$document->id}");
+    $response->assertInertiaFlash('toast.message', 'Document modifié.');
     $document->refresh();
     expect($document->content_html)->toBe('<p>Texte modifié</p>');
     expect($document->extracted_text)->toBe('Texte modifié');
@@ -105,11 +106,15 @@ it('updates content_html and re-derives extracted_text without changing unchange
 it('rejects an empty title on update, persisting no change', function () {
     $document = createDocumentThroughEditor();
 
+    // Consumes the creation toast still flashed in the session by the helper.
+    test()->get("/documents/{$document->id}");
+
     $response = test()->patch("/documents/{$document->id}", updateDocumentPayload($document, [
         'title' => '',
     ]));
 
     $response->assertSessionHasErrors('title');
+    $response->assertInertiaFlashMissing('toast');
     expect($document->fresh()->title)->toBe($document->title);
 });
 

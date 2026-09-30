@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Sidebar from '@/Components/Sidebar.vue';
+import ToastContainer from '@/Components/ToastContainer.vue';
 
 // No test covered AppLayout.vue before this story — this is a guard-rail
 // against a future regression where the layout would silently stop
@@ -32,6 +33,16 @@ describe('AppLayout', () => {
         });
 
         expect(wrapper.findComponent(Sidebar).exists()).toBe(true);
+    });
+
+    it('mounts ToastContainer', () => {
+        const wrapper = mount(AppLayout, {
+            global: {
+                stubs: { ExtractionTasksPanel: true },
+            },
+        });
+
+        expect(wrapper.findComponent(ToastContainer).exists()).toBe(true);
     });
 
     it('renders the default slot content inside <main>', () => {

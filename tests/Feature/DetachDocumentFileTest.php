@@ -35,6 +35,7 @@ it('deletes the file and the row, then redirects back', function () {
     $response = test()->delete("/documents/{$document->id}/attachments/{$attachment->id}");
 
     $response->assertRedirect();
+    $response->assertInertiaFlash('toast.message', 'Pièce jointe supprimée.');
     expect(DocumentAttachment::find($attachment->id))->toBeNull();
     Storage::disk('local')->assertMissing($filePath);
 });

@@ -29,6 +29,7 @@ it('imports a valid PDF, extracts its text and redirects to the document page', 
     $document = Document::sole();
 
     $response->assertRedirect("/documents/{$document->id}");
+    $response->assertInertiaFlash('toast.message', 'Document importé.');
     expect($document->source)->toBe(DocumentSource::Imported);
     expect($document->title)->toBe('contract');
     expect($document->file_path)->toBe("documents/{$document->id}/contract.pdf");
@@ -340,6 +341,7 @@ it('rejects a main file PHP itself refused (over upload_max_filesize) with the F
     $response = $this->post('/documents', ['file' => $file]);
 
     $response->assertRedirect();
+    $response->assertInertiaFlashMissing('toast');
     expect(sessionErrorMessage('file'))->toStartWith('Fichier trop volumineux (20 Mo maximum).');
     expect(Document::count())->toBe(0);
 });

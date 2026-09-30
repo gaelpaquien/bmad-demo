@@ -1,6 +1,7 @@
 <script setup>
 import Sidebar from '@/Components/Sidebar.vue';
 import ExtractionTasksPanel from '@/Components/ExtractionTasksPanel.vue';
+import ToastContainer from '@/Components/ToastContainer.vue';
 </script>
 
 <template>
@@ -10,5 +11,6 @@ import ExtractionTasksPanel from '@/Components/ExtractionTasksPanel.vue';
             <slot />
         </main>
         <ExtractionTasksPanel />
+        <ToastContainer />
     </div>
 </template>

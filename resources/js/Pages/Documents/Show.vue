@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import DocumentsLayout from '@/Layouts/DocumentsLayout.vue';
 import TagChip from '@/Components/TagChip.vue';
 import TagSelector from '@/Components/TagSelector.vue';
+import { notifySuccess } from '@/Composables/useToasts';
 
 const props = defineProps({
     document: {
@@ -155,8 +156,6 @@ const isCreated = computed(() => props.document.source === 'created');
 // request (UX-DR11) so a failed export can always be retried immediately.
 const isExportingPdf = ref(false);
 const exportPdfError = ref('');
-const showExportPdfToast = ref(false);
-let exportPdfToastTimer = null;
 
 // Same-origin request — the Content-Disposition header set by
 // DocumentController::exportPdf() is readable from fetch() without any
@@ -210,25 +209,12 @@ async function exportToPdf() {
         link.remove();
         URL.revokeObjectURL(objectUrl);
 
-        triggerExportPdfToast();
+        notifySuccess('Export PDF généré.');
     } catch (error) {
         exportPdfError.value = 'Export PDF impossible pour l\'instant, merci de réessayer.';
     } finally {
         isExportingPdf.value = false;
     }
-}
-
-function triggerExportPdfToast() {
-    showExportPdfToast.value = true;
-
-    if (exportPdfToastTimer) {
-        clearTimeout(exportPdfToastTimer);
-    }
-
-    exportPdfToastTimer = setTimeout(() => {
-        showExportPdfToast.value = false;
-        exportPdfToastTimer = null;
-    }, 3000);
 }
 
 // Deletion always requires explicit confirmation (UX-DR21, AD-15) — no
@@ -410,10 +396,6 @@ watch(() => props.document.id, refreshPreview);
 onBeforeUnmount(() => {
     requestSequence += 1;
     revokeOfficePreviewBlobUrl();
-
-    if (exportPdfToastTimer) {
-        clearTimeout(exportPdfToastTimer);
-    }
 });
 </script>
 
@@ -733,20 +715,6 @@ onBeforeUnmount(() => {
                         {{ isDeleting ? 'Suppression…' : 'Supprimer' }}
                     </button>
                 </div>
-            </div>
-        </div>
-
-        <!-- Minimal, purpose-built toast (spec-2-4 Design Notes: no
-             existing toast component in the project) — auto-dismisses via
-             triggerExportPdfToast()'s timer, never blocks interaction. -->
-        <div class="fixed inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 px-4">
-            <div
-                v-if="showExportPdfToast"
-                role="status"
-                aria-live="polite"
-                class="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg"
-            >
-                Export PDF généré.
             </div>
         </div>
     </DocumentsLayout>

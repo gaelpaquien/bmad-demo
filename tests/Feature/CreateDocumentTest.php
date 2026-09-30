@@ -64,6 +64,7 @@ it('creates a document with the chosen tags, derives extracted_text, and redirec
     $document = Document::sole();
 
     $response->assertRedirect("/documents/{$document->id}");
+    $response->assertInertiaFlash('toast.message', 'Document créé.');
     expect($document->source)->toBe(DocumentSource::Created);
     expect($document->title)->toBe('Compte rendu réunion');
     expect($document->content_html)->toBe('<h1>Compte rendu</h1><p>Décisions prises en réunion.</p>');
@@ -94,6 +95,7 @@ it('rejects an empty title, creates no document, and surfaces the error under th
     $response = test()->post('/documents/create', createDocumentPayload(['title' => '']));
 
     $response->assertSessionHasErrors('title');
+    $response->assertInertiaFlashMissing('toast');
     expect(Document::count())->toBe(0);
 });
 

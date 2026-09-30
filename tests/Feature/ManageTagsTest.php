@@ -74,6 +74,7 @@ it('shows the neutral empty state when no tag exists', function () {
 it('creates a tag with a free name', function () {
     $response = test()->post('/tags', ['name' => 'Finance']);
 
+    $response->assertInertiaFlash('toast.message', 'Tag créé.');
     $response->assertRedirect();
     expect(Tag::where('name', 'Finance')->exists())->toBeTrue();
 });
@@ -81,6 +82,7 @@ it('creates a tag with a free name', function () {
 it('rejects an empty tag name', function () {
     $response = test()->post('/tags', ['name' => '']);
 
+    $response->assertInertiaFlashMissing('toast');
     $response->assertSessionHasErrors('name');
     expect(Tag::count())->toBe(0);
 });
@@ -117,6 +119,7 @@ it('renames a tag, leaving the document_tag pivot untouched', function () {
     $document->tags()->sync([$tag->id]);
 
     $response = test()->patch("/tags/{$tag->id}", ['name' => 'Finance']);
+    $response->assertInertiaFlash('toast.message', 'Tag renommé.');
 
     $response->assertRedirect();
     expect($tag->fresh()->name)->toBe('Finance');
@@ -130,6 +133,7 @@ it('rejects renaming a tag to a name already taken by another tag, case-insensit
     $response = test()->patch("/tags/{$tag->id}", ['name' => 'finance']);
 
     $response->assertSessionHasErrors('name');
+    $response->assertInertiaFlashMissing('toast');
     expect($tag->fresh()->name)->toBe('RH');
 });
 
@@ -166,7 +170,7 @@ it('detaches a tag used by N documents on deletion, deletes the tag row, and nev
     expect(Document::find($documentB->id))->not->toBeNull();
 });
 
-it('flashes the factual post-deletion message naming the detached document count', function () {
+it('toasts the factual post-deletion message naming the detached document count', function () {
     $tag = Tag::factory()->create();
     $documentA = Document::factory()->create();
     $documentB = Document::factory()->create();
@@ -175,23 +179,26 @@ it('flashes the factual post-deletion message naming the detached document count
 
     $response = test()->delete("/tags/{$tag->id}");
 
-    $response->assertSessionHas('tagDeleted', fn ($value) => $value['count'] === 2);
+    $response->assertInertiaFlash('toast.type', 'success');
+    $response->assertInertiaFlash('toast.message', 'Tag supprimé — détaché de 2 documents.');
 
-    // Reads it the same way Configuration.vue actually does — through a
-    // real Inertia response's shared props (same pattern as
-    // UploadEditorImageTest's flash.uploadedImage assertion).
+    // Delivered to the client through the very next Inertia response, then
+    // gone — never replayed on a later visit.
     test()->get('/configuration/tags')->assertInertia(fn ($page) => $page
-        ->where('flash.tagDeleted.count', 2)
+        ->hasFlash('toast.message', 'Tag supprimé — détaché de 2 documents.')
+    );
+    test()->get('/configuration/tags')->assertInertia(fn ($page) => $page
+        ->missingFlash('toast')
     );
 });
 
-it('deletes an unused tag cleanly, flashing a count of zero', function () {
+it('deletes an unused tag cleanly, toasting a count of zero, in the singular', function () {
     $tag = Tag::factory()->create();
 
     $response = test()->delete("/tags/{$tag->id}");
 
     $response->assertRedirect();
-    $response->assertSessionHas('tagDeleted', fn ($value) => $value['count'] === 0);
+    $response->assertInertiaFlash('toast.message', 'Tag supprimé — détaché de 0 document.');
     expect(Tag::find($tag->id))->toBeNull();
 });
 
@@ -214,4 +221,13 @@ it('never assigns tags through SyncDocumentTagsAction when deleting a tag', func
     test()->delete("/tags/{$tagToDelete->id}");
 
     expect($document->fresh()->tags->pluck('id')->all())->toBe([$keptTag->id]);
+});
+
+it('toasts the singular form when exactly one document was detached', function () {
+    $tag = Tag::factory()->create();
+    Document::factory()->create()->tags()->sync([$tag->id]);
+
+    $response = test()->delete("/tags/{$tag->id}");
+
+    $response->assertInertiaFlash('toast.message', 'Tag supprimé — détaché de 1 document.');
 });

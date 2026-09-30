@@ -1,5 +1,5 @@
 <script setup>
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, ref } from 'vue';
 import ConfigurationLayout from '@/Layouts/ConfigurationLayout.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -9,18 +9,6 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
-});
-
-const page = usePage();
-
-// Sole channel back from TagController::destroy() (AD-13 pattern, mirrors
-// `uploadedImage`/`uploadedAttachment`): Laravel's flash bag ages it out
-// automatically after the one request that follows the redirect, so no
-// manual cleanup is needed here.
-const tagDeletedMessage = computed(() => {
-    const flashed = page.props.flash?.tagDeleted;
-
-    return flashed ? `Tag supprimé — détaché de ${flashed.count} documents.` : '';
 });
 
 // --- Création ----------------------------------------------------------
@@ -248,10 +236,6 @@ function trapDeleteDialogFocus(event) {
     <ConfigurationLayout>
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
             <h1 class="sr-only">Tags</h1>
-
-            <p v-if="tagDeletedMessage" role="status" aria-live="polite" class="mb-6 rounded-md border border-border bg-surface-alt px-4 py-2 text-sm text-foreground">
-                {{ tagDeletedMessage }}
-            </p>
 
             <form class="mb-8 flex flex-col gap-2 rounded-lg border border-border bg-surface p-4" @submit.prevent="submitCreate">
                 <label for="create-tag-name" class="text-sm font-medium text-foreground">

@@ -26,6 +26,7 @@ it('attaches a valid PDF to an already-saved document, extracts its text, and re
     $response = test()->post("/documents/{$document->id}/attachments", ['file' => $file]);
 
     $response->assertRedirect();
+    $response->assertInertiaFlash('toast.message', 'Pièce jointe ajoutée.');
     $attachment = DocumentAttachment::sole();
 
     expect($attachment->document_id)->toBe($document->id);
@@ -103,6 +104,7 @@ it('rejects the request when no file is provided', function () {
     $response = test()->post("/documents/{$document->id}/attachments", []);
 
     $response->assertSessionHasErrors('file');
+    $response->assertInertiaFlashMissing('toast');
     expect(DocumentAttachment::count())->toBe(0);
 });
 
@@ -113,6 +115,7 @@ it('rejects a file over the 20MB limit and creates no attachment', function () {
     $response = test()->post("/documents/{$document->id}/attachments", ['file' => $file]);
 
     $response->assertSessionHasErrors('file');
+    $response->assertInertiaFlashMissing('toast');
     expect(DocumentAttachment::count())->toBe(0);
 });
 

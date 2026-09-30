@@ -9,6 +9,7 @@ use App\DataTransferObjects\DetachDocumentFileData;
 use App\Http\Requests\AttachDocumentFileRequest;
 use App\Models\Document;
 use App\Models\DocumentAttachment;
+use App\Support\Toast;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -48,6 +49,8 @@ class DocumentAttachmentController extends Controller
             file: $request->file('file'),
         ));
 
+        Toast::success('Pièce jointe ajoutée.');
+
         return back();
     }
 
@@ -60,6 +63,8 @@ class DocumentAttachmentController extends Controller
         abort_unless($attachment->document_id === $document->id, 404);
 
         $detach(new DetachDocumentFileData(attachment: $attachment));
+
+        Toast::success('Pièce jointe supprimée.');
 
         return back();
     }

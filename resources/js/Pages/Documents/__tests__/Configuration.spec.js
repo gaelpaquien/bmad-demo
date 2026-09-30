@@ -372,26 +372,4 @@ describe('Documents/Configuration', () => {
 
         expect(wrapper.text()).toContain('Impossible de supprimer le tag.');
     });
-
-    // --- Message post-suppression --------------------------------------------
-
-    it('reads the factual post-deletion message from flash.tagDeleted', () => {
-        pageState.props.flash = { tagDeleted: { name: 'Finance', count: 3 } };
-
-        const wrapper = mount(Configuration, {
-            props: { tags: twoTags },
-            global: { stubs: globalStubs },
-        });
-
-        expect(wrapper.text()).toContain('Tag supprimé — détaché de 3 documents.');
-    });
-
-    it('shows no post-deletion message when flash.tagDeleted is absent', () => {
-        const wrapper = mount(Configuration, {
-            props: { tags: twoTags },
-            global: { stubs: globalStubs },
-        });
-
-        expect(wrapper.text()).not.toContain('Tag supprimé');
-    });
 });

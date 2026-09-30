@@ -5,6 +5,7 @@ import { router } from '@inertiajs/vue3';
 import Show from '@/Pages/Documents/Show.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import TagChip from '@/Components/TagChip.vue';
+import { useToasts, dismissToast } from '@/Composables/useToasts';
 
 // `@inertiajs/vue3` is mocked rather than imported for real — same
 // reusable-mock shape as Editor.spec.js/Index.spec.js/TagSelector.spec.js.
@@ -188,6 +189,7 @@ describe('Documents/Show — Télécharger', () => {
         vi.unstubAllGlobals();
         URL.createObjectURL = originalCreateObjectURL;
         URL.revokeObjectURL = originalRevokeObjectURL;
+        useToasts().toasts.map((toast) => toast.id).forEach(dismissToast);
     });
 
     it('keeps Télécharger · Modifier · Supprimer with an enabled "Télécharger" on a created document despite sourceMissing', () => {
@@ -212,7 +214,7 @@ describe('Documents/Show — Télécharger', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(fetchMock.mock.calls[0][0]).toBe('/documents/7/export/pdf');
-        expect(wrapper.find('[role="status"]').text()).toBe('Export PDF généré.');
+        expect(useToasts().toasts.map((toast) => toast.message)).toEqual(['Export PDF généré.']);
     });
 
     it('reads "Téléchargement…" and is disabled while the export is in flight', async () => {

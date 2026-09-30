@@ -36,6 +36,7 @@ use App\Jobs\ExtractDocumentTextJob;
 use App\Models\Document;
 use App\Support\DocumentMimeTypes;
 use App\Support\KeywordDatabaseEngine;
+use App\Support\Toast;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -240,6 +241,8 @@ class DocumentController extends Controller
             ExtractDocumentTextJob::dispatch($attachment);
         }
 
+        Toast::success('Document importé.');
+
         return to_route('documents.show', $document);
     }
 
@@ -315,6 +318,8 @@ class DocumentController extends Controller
         foreach ($document->attachments as $attachment) {
             ExtractDocumentTextJob::dispatch($attachment);
         }
+
+        Toast::success('Document créé.');
 
         return to_route('documents.show', $document);
     }
@@ -476,6 +481,8 @@ class DocumentController extends Controller
             draftToken: $request->validated('draft_token'),
         ));
 
+        Toast::success('Document modifié.');
+
         return to_route('documents.show', $document);
     }
 
@@ -492,6 +499,8 @@ class DocumentController extends Controller
             tagIds: $request->validated('tag_ids', []),
         ));
 
+        Toast::success('Tags du document mis à jour.');
+
         return back();
     }
 
@@ -506,6 +515,8 @@ class DocumentController extends Controller
         $action(new DeleteDocumentData(
             document: $document,
         ));
+
+        Toast::success('Document supprimé.');
 
         return to_route('documents.index');
     }
