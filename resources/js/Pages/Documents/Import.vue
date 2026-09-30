@@ -255,7 +255,7 @@ function submit() {
                         </span>
                         <button
                             type="button"
-                            class="shrink-0 rounded-sm px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-500 dark:hover:bg-red-950/30"
+                            class="shrink-0 rounded-sm px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-600 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-500 dark:hover:bg-red-500 dark:hover:text-white"
                             :disabled="form.processing"
                             :aria-label="`Retirer le document principal ${form.file.name}`"
                             @click="removeFile"
@@ -292,10 +292,13 @@ function submit() {
             <div class="mt-6 flex items-center gap-3">
                 <button
                     type="button"
-                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground not-disabled:hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                    class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground not-disabled:hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                     :disabled="!canSave"
                     @click="submit"
                 >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                        <path d="M20 6 9 17l-5-5" />
+                    </svg>
                     {{ form.processing ? 'Enregistrement…' : (isAttachmentUploading ? 'Envoi de la pièce jointe…' : 'Enregistrer') }}
                 </button>
                 <!-- Swapped for an inert, disabled button while a save or an
@@ -307,8 +310,12 @@ function submit() {
                     v-if="isBusy"
                     type="button"
                     disabled
-                    class="cursor-not-allowed rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground opacity-50"
+                    class="inline-flex cursor-not-allowed items-center gap-2 rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground opacity-50"
                 >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                        <path d="M18 6 6 18" />
+                        <path d="m6 6 12 12" />
+                    </svg>
                     Annuler
                 </button>
                 <!-- A plain <a>, not Inertia's <Link> or a <button> — its
@@ -319,9 +326,13 @@ function submit() {
                 <a
                     v-else
                     :href="cancelUrl"
-                    class="rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                    class="inline-flex items-center gap-2 rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                     @click.prevent="onCancelClick"
                 >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                        <path d="M18 6 6 18" />
+                        <path d="m6 6 12 12" />
+                    </svg>
                     Annuler
                 </a>
             </div>

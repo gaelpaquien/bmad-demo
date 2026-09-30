@@ -439,7 +439,7 @@ const attachmentCountLabel = computed(() => (props.attachments.length > 0 ? ` ($
                         </template>
                         <button
                             type="button"
-                            class="rounded-sm px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-500 dark:hover:bg-red-950/30"
+                            class="rounded-sm px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-600 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-500 dark:hover:bg-red-500 dark:hover:text-white"
                             :disabled="isRemoveDisabled(attachment)"
                             :aria-label="`Retirer la pièce jointe ${attachment.original_filename}`"
                             @click="removeAttachment(attachment)"
