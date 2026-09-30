@@ -45,7 +45,7 @@ const { isCollapsed } = useSidebarCollapsed();
                     <span class="whitespace-nowrap" :class="{ 'sr-only': isCollapsed }">Configuration</span>
                 </div>
 
-                <hr class="mb-3 h-0.5 border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]" />
+                <hr class="mb-3 h-0.5 border-0 opacity-70 bg-[linear-gradient(to_right,var(--color-border)_60%,transparent)]" />
 
                 <div class="flex flex-col gap-0.5">
                     <Link

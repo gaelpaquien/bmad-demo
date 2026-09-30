@@ -92,7 +92,7 @@ function formatDate(dateString) {
                     <span class="whitespace-nowrap">Documents</span>
                 </div>
 
-                <hr class="mb-3 h-0.5 border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]" />
+                <hr class="mb-3 h-0.5 border-0 opacity-70 bg-[linear-gradient(to_right,var(--color-border)_60%,transparent)]" />
 
                 <ul v-if="isListLoading" class="flex flex-col gap-0.5" aria-busy="true" data-testid="documents-skeleton">
                     <li v-for="row in skeletonRowCount" :key="row" class="flex animate-pulse flex-col gap-1.5 rounded-md px-2.5 py-2">

@@ -79,7 +79,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             <span class="whitespace-nowrap" :class="{ 'sr-only': isCollapsed }">BMAD Démo</span>
         </Link>
 
-        <hr class="mb-3 h-0.5 border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]" />
+        <hr class="mb-3 h-0.5 border-0 opacity-70 bg-[linear-gradient(to_right,var(--color-border)_60%,transparent)]" />
 
         <div class="flex flex-col gap-0.5">
         <nav class="contents" aria-label="Navigation principale">
