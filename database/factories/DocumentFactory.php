@@ -37,6 +37,28 @@ class DocumentFactory extends Factory
         ];
     }
 
+    /**
+     * A document authored in the editor: HTML content and derived text, no
+     * original file (mirrors CreateDocumentAction).
+     */
+    public function created(): static
+    {
+        return $this->state(function (): array {
+            $heading = ucfirst(fake()->words(3, true));
+            $paragraphs = fake()->paragraphs(fake()->numberBetween(2, 6));
+
+            return [
+                'title' => $heading,
+                'source' => DocumentSource::Created,
+                'file_path' => null,
+                'mime_type' => null,
+                'content_html' => "<h2>{$heading}</h2>".implode('', array_map(fn (string $paragraph): string => "<p>{$paragraph}</p>", $paragraphs)),
+                'extracted_text' => $heading.' '.implode(' ', $paragraphs),
+                'extraction_status' => ExtractionStatus::Completed,
+            ];
+        });
+    }
+
     private function extensionFor(string $mimeType): string
     {
         return match ($mimeType) {
