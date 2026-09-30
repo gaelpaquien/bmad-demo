@@ -31,6 +31,15 @@ use Normalizer;
  */
 class KeywordDatabaseEngine extends DatabaseEngine
 {
+    /**
+     * Upper bound on distinct keywords applied to one search: each keyword
+     * adds a `LIKE` per indexed column to the filter and to both ranking
+     * clauses, so an unbounded pasted term could produce a very slow query or
+     * exceed the bound-parameter limit. Keywords beyond it are ignored, never
+     * refused (spec-recherche-bornes-pagination).
+     */
+    public const MAX_KEYWORDS = 20;
+
     private const OPTIONAL = 'optional';
 
     private const REQUIRED = 'required';
@@ -147,11 +156,33 @@ class KeywordDatabaseEngine extends DatabaseEngine
      * marks it required, a leading `-` excluded. Duplicates are merged
      * ignoring case and accents so a repeated word never counts twice in the
      * ranking; the merged keyword keeps its strictest operator
-     * (`speed -speed` excludes "speed", `speed +speed` requires it).
+     * (`speed -speed` excludes "speed", `speed +speed` requires it). Only
+     * the first MAX_KEYWORDS distinct keywords, in order of first appearance,
+     * are kept.
      *
      * @return array<int, array{text: string, operator: string}>
      */
     private static function keywordsFrom(string $term): array
+    {
+        return array_slice(self::distinctKeywordsFrom($term), 0, self::MAX_KEYWORDS);
+    }
+
+    /**
+     * Whether the term holds more distinct keywords (after merging
+     * duplicates) than MAX_KEYWORDS, i.e. whether some of them are ignored.
+     */
+    public static function exceedsKeywordLimit(string $term): bool
+    {
+        return count(self::distinctKeywordsFrom($term)) > self::MAX_KEYWORDS;
+    }
+
+    /**
+     * Every distinct keyword of the term, merged as described in
+     * keywordsFrom(), in order of first appearance and without any limit.
+     *
+     * @return array<int, array{text: string, operator: string}>
+     */
+    private static function distinctKeywordsFrom(string $term): array
     {
         preg_match_all('/([+-]?)(?:"([^"]*)"?|(\S+))/u', $term, $matches, PREG_SET_ORDER);
 

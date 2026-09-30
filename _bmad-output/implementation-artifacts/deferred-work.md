@@ -8,18 +8,6 @@
 
 Décisions du 2026-09-29, à traiter avant de poursuivre l'app.
 
-### P2 — Bornes de la recherche
-
-Décision : 20 mots-clés maximum et 255 caractères maximum pour le terme ; page Recherche paginée par 10, sans plafond sur le nombre total de résultats. Borner aussi `tag_id[]`.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
-  summary: Aucun plafond sur le nombre de mots-clés ni sur la longueur du terme de recherche. Chaque mot-clé ajoute un `LIKE '%…%'` par colonne dans le filtre et dans les deux tris. Un paragraphe collé produit une requête énorme, lente, et peut dépasser la limite de paramètres liés.
-  evidence: Blind Hunter + Edge Case Hunter (code review f6456b3..9b2497d, 2026-09-29), `KeywordDatabaseEngine::addTextSearchConstraints()` et `DocumentController::search()` (pas de validation `max`). Usage mono-utilisateur, lié à l'écart NFR2 déjà noté dans la spec. Corriger suppose de choisir un plafond (par exemple 20 mots-clés ou 255 caractères) et le comportement au-delà (tronquer ou refuser).
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-aide-et-filtre-tag-seul.md`
-  summary: La page Recherche n'est ni paginée ni bornée ; un tag porté par la plupart des documents renvoie désormais presque toute la bibliothèque en un seul payload Inertia.
-  evidence: le parcours par tag seul (sans mot-clé) rend ce cas courant ; un mot-clé très fréquent le permettait déjà (revues Blind Hunter et Edge Case Hunter).
-
 ### P3 — Fichiers orphelins sur disque
 
 Décision : les fichiers orphelins n'ont aucune utilité, on les évite là où c'est possible et on purge le reste.
@@ -217,6 +205,10 @@ Décision : les fichiers orphelins n'ont aucune utilité, on les évite là où 
   summary: Sur la page Recherche, la sélection de tags n'est plus exposée dans le `<fieldset>` « Filtrer par tag » ; la rangée « Filtres par tag actifs » est hors du fieldset et n'est reliée au combobox ni par `aria-describedby` ni par une annonce live.
   evidence: relevé par Blind Hunter ; les chips grises masquées étaient jusqu'ici dans le fieldset.
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-bornes-pagination.md`
+  summary: Le serveur ne garde que les 20 premiers tags filtrés, mais `TagSelector.vue` n'empêche pas d'en sélectionner un 21ᵉ sur la page Recherche : sa chip s'affiche alors que le filtre l'ignore silencieusement.
+  evidence: Blind Hunter (revue de spec-recherche-bornes-pagination) — `DocumentController::tagIdsFromQuery()` (`array_slice(..., MAX_TAG_FILTERS)`) sans borne côté client ; improbable tant que la bibliothèque compte peu de tags.
+
 ### UX — à reprendre si l'usage réel s'en plaint
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-import-document.md`
@@ -294,6 +286,14 @@ Décision : les fichiers orphelins n'ont aucune utilité, on les évite là où 
 ## Clos
 
 Motif du tri 2026-09-29 pour chaque entrée fermée.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-mots-cles.md`
+  summary: (ex-P2) Aucun plafond sur le nombre de mots-clés ni sur la longueur du terme de recherche. Chaque mot-clé ajoute un `LIKE '%…%'` par colonne dans le filtre et dans les deux tris.
+  motif: Résolu le 2026-09-30 — terme tronqué à 255 caractères, 20 premiers mots-clés distincts appliqués avec un message sur la page, `tag_id[]` borné à 20 (`_bmad-output/implementation-artifacts/spec-recherche-bornes-pagination.md`).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-aide-et-filtre-tag-seul.md`
+  summary: (ex-P2) La page Recherche n'est ni paginée ni bornée ; un tag porté par la plupart des documents renvoie presque toute la bibliothèque en un seul payload Inertia.
+  motif: Résolu le 2026-09-30 — page Recherche paginée par 10 avec le nombre total de résultats (`_bmad-output/implementation-artifacts/spec-recherche-bornes-pagination.md`).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
   summary: (ex-P1) L'indexation du contenu des documents créés dans l'éditeur a deux défauts, ce qui fausse la recherche : `deriveExtractedText()` insère une espace avant chaque balise (`<strong>Cubi</strong>scan` indexé « Cubi scan ») et `strip_tags()` ne décode pas les entités HTML (`R&amp;D`, `&nbsp;`).

@@ -13,8 +13,8 @@ it('filters documents whose extracted text contains the search term', function (
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
         ->where('search', 'facture')
-        ->has('documents', 1)
-        ->where('documents.0.id', $matching->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $matching->id)
     );
 
     expect($response)->not->toBeNull();
@@ -32,7 +32,7 @@ it('returns an empty result set, never the whole library, when the search term i
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
         ->where('search', '')
-        ->has('documents', 0)
+        ->has('documents.data', 0)
     );
 });
 
@@ -46,7 +46,7 @@ it('returns an empty result set, never the whole library, when the search term i
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
         ->where('search', '')
-        ->has('documents', 0)
+        ->has('documents.data', 0)
     );
 });
 
@@ -67,9 +67,9 @@ it('lists the documents carrying the selected tag, newest first, when the search
         ->component('Documents/Search')
         ->where('search', '')
         ->where('tagFilters', [$tag->id])
-        ->has('documents', 2)
-        ->where('documents.0.id', $newer->id)
-        ->where('documents.1.id', $older->id)
+        ->has('documents.data', 2)
+        ->where('documents.data.0.id', $newer->id)
+        ->where('documents.data.1.id', $older->id)
     );
 });
 
@@ -86,8 +86,8 @@ it('breaks a created_at tie by id so tag-only listing order is stable', function
     $response = $this->get("/recherche?tag_id[]={$tag->id}");
 
     $response->assertInertia(fn ($page) => $page
-        ->where('documents.0.id', $second->id)
-        ->where('documents.1.id', $first->id)
+        ->where('documents.data.0.id', $second->id)
+        ->where('documents.data.1.id', $first->id)
     );
 });
 
@@ -105,9 +105,9 @@ it('lists documents carrying any of several selected tags only once when the sea
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 2)
-        ->where('documents.0.id', $inBoth->id)
-        ->where('documents.1.id', $inB->id)
+        ->has('documents.data', 2)
+        ->where('documents.data.0.id', $inBoth->id)
+        ->where('documents.data.1.id', $inB->id)
     );
 });
 
@@ -123,8 +123,8 @@ it('treats a whitespace-only term with a tag like a tag-only search', function (
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->where('search', '')
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 
@@ -140,7 +140,7 @@ it('returns nothing for an exclusion-only term even with a tag selected', functi
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->where('search', '-speed')
-        ->has('documents', 0)
+        ->has('documents.data', 0)
     );
 });
 
@@ -153,7 +153,7 @@ it('returns an empty list without failing when no document matches the search te
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
         ->where('search', 'zzz-introuvable-zzz')
-        ->has('documents', 0)
+        ->has('documents.data', 0)
     );
 });
 
@@ -168,8 +168,8 @@ it('matches a document by its title even when its extracted text does not contai
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 
@@ -194,10 +194,10 @@ it('ranks title matches before content matches, even over documents matching mor
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 3)
-        ->where('documents.0.id', $titleWithBothKeywords->id)
-        ->where('documents.1.id', $titleWithOneKeyword->id)
-        ->where('documents.2.id', $contentWithBothKeywords->id)
+        ->has('documents.data', 3)
+        ->where('documents.data.0.id', $titleWithBothKeywords->id)
+        ->where('documents.data.1.id', $titleWithOneKeyword->id)
+        ->where('documents.data.2.id', $contentWithBothKeywords->id)
     );
 });
 
@@ -213,7 +213,7 @@ it('never matches a document by its tag name, only by extracted text (tags are a
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
-        ->has('documents', 0)
+        ->has('documents.data', 0)
     );
 });
 
@@ -228,8 +228,8 @@ it('finds a document even when the search term only matches its extracted text, 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 
@@ -242,8 +242,8 @@ it('trims leading and trailing whitespace from the search term before matching a
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
         ->where('search', 'facture')
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 
@@ -263,9 +263,9 @@ it('orders search results most-recent-first, same as the unfiltered list', funct
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
         ->where('search', 'facture')
-        ->has('documents', 2)
-        ->where('documents.0.id', $newest->id)
-        ->where('documents.1.id', $oldest->id)
+        ->has('documents.data', 2)
+        ->where('documents.data.0.id', $newest->id)
+        ->where('documents.data.1.id', $oldest->id)
     );
 });
 
@@ -289,8 +289,8 @@ it('combines a tag filter with an active search term through the same query entr
         ->component('Documents/Search')
         ->where('search', 'facture')
         ->where('tagFilters', [$tag->id])
-        ->has('documents', 1)
-        ->where('documents.0.id', $matching->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $matching->id)
     );
 
     expect($wrongTag)->not->toBeNull();
@@ -320,8 +320,8 @@ it('ORs multiple selected tags within the tag group', function () {
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
-        ->has('documents', 2)
-        ->where('documents', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
+        ->has('documents.data', 2)
+        ->where('documents.data', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
             === collect([$inA->id, $inB->id])->sort()->values()->all())
     );
 
@@ -340,8 +340,8 @@ it('matches a document tagged with several of the selected tags only once', func
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 
@@ -354,8 +354,8 @@ it('drops a malformed tag_id value instead of erroring', function () {
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
         ->where('tagFilters', [])
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 
@@ -371,8 +371,8 @@ it('matches a document containing any one of several keywords, in any order', fu
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
         ->where('search', 'cubiscan speed')
-        ->has('documents', 3)
-        ->where('documents', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
+        ->has('documents.data', 3)
+        ->where('documents.data', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
             === collect([$withBoth->id, $withFirstOnly->id, $withSecondOnly->id])->sort()->values()->all())
     );
 
@@ -397,10 +397,10 @@ it('ranks documents matching more keywords first, most-recent-first among equals
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 3)
-        ->where('documents.0.id', $bothKeywordsOldest->id)
-        ->where('documents.1.id', $oneKeywordNewest->id)
-        ->where('documents.2.id', $oneKeywordOlder->id)
+        ->has('documents.data', 3)
+        ->where('documents.data.0.id', $bothKeywordsOldest->id)
+        ->where('documents.data.1.id', $oneKeywordNewest->id)
+        ->where('documents.data.2.id', $oneKeywordOlder->id)
     );
 });
 
@@ -419,9 +419,9 @@ it('counts a keyword found only in an attachment towards the ranking', function 
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 2)
-        ->where('documents.0.id', $splitAcrossDocumentAndAttachment->id)
-        ->where('documents.1.id', $singleKeyword->id)
+        ->has('documents.data', 2)
+        ->where('documents.data.0.id', $splitAcrossDocumentAndAttachment->id)
+        ->where('documents.data.1.id', $singleKeyword->id)
     );
 });
 
@@ -433,8 +433,8 @@ it('treats a quoted phrase as a single exact keyword', function () {
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $exactPhrase->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $exactPhrase->id)
     );
 
     expect($wordsApart)->not->toBeNull();
@@ -448,8 +448,8 @@ it('matches LIKE wildcard characters in a keyword literally', function () {
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $literal->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $literal->id)
     );
 
     expect($wildcardOnly)->not->toBeNull();
@@ -463,8 +463,8 @@ it('matches the _ wildcard and the ! escape character in a keyword literally', f
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $literal->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $literal->id)
     );
 })->with([
     'underscore is not a single-character wildcard' => ['a_b', 'Code a_b du lot.', 'Code axb du lot.'],
@@ -480,7 +480,7 @@ it('merges keywords that only differ by accents or case into a single keyword', 
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 0)
+        ->has('documents.data', 0)
     );
 });
 
@@ -492,8 +492,8 @@ it('reads only the first sign of a keyword as an operator', function () {
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $withSign->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $withSign->id)
     );
 });
 
@@ -505,8 +505,8 @@ it('searches a quoted term starting with an operator literally instead of exclud
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $matching->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $matching->id)
     );
 });
 
@@ -524,8 +524,8 @@ it('applies the tag filter to every document of a multi-keyword OR search', func
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $matching->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $matching->id)
     );
 });
 
@@ -540,7 +540,7 @@ it('keeps the strictest operator when the same keyword is repeated, whatever the
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->where('documents', fn ($results) => collect($results)->pluck('id')->all()
+        ->where('documents.data', fn ($results) => collect($results)->pluck('id')->all()
             === collect($expectedTexts)->map(fn (string $text) => $documents[$text]->id)->all())
     );
 })->with([
@@ -561,8 +561,8 @@ it('requires every keyword prefixed with + to be present', function () {
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->where('search', '+cubiscan +speed')
-        ->has('documents', 1)
-        ->where('documents.0.id', $withBoth->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $withBoth->id)
     );
 
     expect($withFirstOnly)->not->toBeNull();
@@ -583,9 +583,9 @@ it('uses unprefixed keywords only to rank results once a + keyword is present', 
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 2)
-        ->where('documents.0.id', $requiredAndOptional->id)
-        ->where('documents.1.id', $requiredOnly->id)
+        ->has('documents.data', 2)
+        ->where('documents.data.0.id', $requiredAndOptional->id)
+        ->where('documents.data.1.id', $requiredOnly->id)
     );
 
     expect($optionalOnly)->not->toBeNull();
@@ -603,8 +603,8 @@ it('excludes documents containing a keyword prefixed with -, including in their 
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.id', $kept->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $kept->id)
     );
 
     expect($excludedByContent)->not->toBeNull();
@@ -621,6 +621,138 @@ it('returns an empty result set when the search term only contains excluded keyw
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 0)
+        ->has('documents.data', 0)
     );
 })->with(['-speed', '+', '- +']);
+
+// I/O matrix "Page 1" (spec-recherche-bornes-pagination): 10 per page, the
+// total counting every match.
+it('paginates search results 10 per page with the total count of matches', function () {
+    Document::factory()->count(25)->create(['extracted_text' => 'Facture du mois.']);
+
+    $response = $this->get('/recherche?search=facture');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Search')
+        ->has('documents.data', 10)
+        ->where('documents.total', 25)
+        ->where('documents.current_page', 1)
+        ->where('documents.last_page', 3)
+    );
+});
+
+// I/O matrix "Page 2": results 11–20, page links keep `search` and
+// `tag_id[]`, never Scout's own `query` parameter.
+it('serves the second page of results with page links keeping the search criteria', function () {
+    $tag = Tag::factory()->create();
+    $documents = Document::factory()->count(25)->sequence(
+        fn ($sequence) => ['created_at' => now()->subMinutes(25 - $sequence->index)],
+    )->create(['extracted_text' => 'Facture du mois.']);
+    $documents->each(fn (Document $document) => $document->tags()->sync([$tag->id]));
+
+    $response = $this->get("/recherche?search=facture&tag_id[]={$tag->id}&page=2");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents.data', 10)
+        ->where('documents.current_page', 2)
+        // Newest first: page 2 holds positions 11–20, i.e. indexes 14 down to 5.
+        ->where('documents.data.0.id', $documents->get(14)->id)
+        ->where('documents.data.9.id', $documents->get(5)->id)
+        ->where('documents.links', function ($links) use ($tag) {
+            $urls = collect($links)->pluck('url')->filter();
+
+            return $urls->isNotEmpty() && $urls->every(fn (string $url) => str_contains($url, 'search=facture')
+                && str_contains(urldecode($url), "tag_id[0]={$tag->id}")
+                && ! str_contains($url, 'query='));
+        })
+    );
+});
+
+// I/O matrix "Terme trop long": cut to 255 characters (not bytes), then
+// re-trimmed, searched and echoed back cut.
+it('truncates a search term longer than 255 characters instead of refusing it', function () {
+    $kept = str_repeat('é', 254);
+    $term = $kept.' facture '.str_repeat('z', 37);
+    $withKeptTerm = Document::factory()->create(['extracted_text' => "Texte {$kept} fin."]);
+    Document::factory()->create(['extracted_text' => 'Facture du mois.']);
+
+    expect(mb_strlen($term))->toBe(300);
+
+    $response = $this->get('/recherche?search='.urlencode($term));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('search', $kept)
+        ->where('keywordLimitReached', false)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $withKeptTerm->id)
+    );
+});
+
+// I/O matrix "21 mots-clés": only the first 20 distinct keywords apply.
+it('ignores keywords beyond the first 20 distinct ones and flags it', function () {
+    $keywords = collect(range(1, 21))->map(fn (int $index) => sprintf('mot%02d', $index));
+    $withFirstKeyword = Document::factory()->create(['extracted_text' => 'Contient mot01.']);
+    Document::factory()->create(['extracted_text' => 'Contient mot21.']);
+
+    $response = $this->get('/recherche?search='.urlencode($keywords->implode(' ')));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('keywordLimitReached', true)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $withFirstKeyword->id)
+    );
+});
+
+// I/O matrix "Doublons": repeated keywords are merged before the limit.
+it('counts repeated keywords once towards the 20-keyword limit', function () {
+    $keywords = collect(range(1, 20))->map(fn (int $index) => sprintf('mot%02d', $index));
+    $term = $keywords->implode(' ').' MOT01 +mot02 Mot20';
+    $withLastKeyword = Document::factory()->create(['extracted_text' => 'Contient mot20 et mot02.']);
+
+    $response = $this->get('/recherche?search='.urlencode($term));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('keywordLimitReached', false)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $withLastKeyword->id)
+    );
+});
+
+// I/O matrix "Tags en trop": only the first 20 valid tags filter, silently.
+it('keeps only the first 20 tag filters', function () {
+    $tags = Tag::factory()->count(25)->create();
+    $inFirstTag = Document::factory()->create();
+    $inFirstTag->tags()->sync([$tags->first()->id]);
+    $inLastTag = Document::factory()->create();
+    $inLastTag->tags()->sync([$tags->last()->id]);
+
+    $query = $tags->map(fn (Tag $tag) => "tag_id[]={$tag->id}")->implode('&');
+
+    $response = $this->get("/recherche?{$query}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('tagFilters', $tags->take(20)->pluck('id')->all())
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $inFirstTag->id)
+    );
+});
+
+// I/O matrix "Critères vides": same paginator shape, nothing in it.
+it('returns an empty paginator when neither a term nor a tag is given', function () {
+    Document::factory()->count(2)->create();
+
+    $response = $this->get('/recherche');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents.data', 0)
+        ->where('documents.total', 0)
+        ->where('keywordLimitReached', false)
+    );
+});

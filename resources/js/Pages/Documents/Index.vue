@@ -1,6 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Pagination from '@/Components/Pagination.vue';
 import TagChip from '@/Components/TagChip.vue';
 
 defineProps({
@@ -56,30 +57,7 @@ function formatDate(dateString) {
                         </li>
                     </ul>
 
-                    <nav
-                        v-if="documents.links && documents.links.length > 3"
-                        class="mt-4 flex flex-wrap items-center justify-center gap-1"
-                        aria-label="Pagination"
-                    >
-                        <template v-for="(link, index) in documents.links" :key="index">
-                            <span
-                                v-if="!link.url"
-                                class="rounded-md px-3 py-1.5 text-sm text-muted opacity-50"
-                                v-html="link.label"
-                            />
-                            <Link
-                                v-else
-                                :href="link.url"
-                                preserve-scroll
-                                class="rounded-md px-3 py-1.5 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                                :class="link.active
-                                    ? 'bg-primary font-semibold text-primary-foreground'
-                                    : 'text-foreground hover:bg-surface'"
-                                :aria-current="link.active ? 'page' : undefined"
-                                v-html="link.label"
-                            />
-                        </template>
-                    </nav>
+                    <Pagination :links="documents.links" />
                 </template>
             </div>
         </div>

@@ -30,10 +30,12 @@ use App\Http\Requests\UploadEditorImageRequest;
 use App\Jobs\ExtractDocumentTextJob;
 use App\Models\Document;
 use App\Support\DocumentMimeTypes;
+use App\Support\KeywordDatabaseEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -45,6 +47,17 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class DocumentController extends Controller
 {
     private const PREVIEW_DIRECTORY = 'previews';
+
+    /**
+     * Recherche bounds (spec-recherche-bornes-pagination): the term is cut
+     * to this many characters, the tag filter to this many tags, and results
+     * come this many per page.
+     */
+    private const MAX_SEARCH_LENGTH = 255;
+
+    private const MAX_TAG_FILTERS = 20;
+
+    private const SEARCH_PER_PAGE = 10;
 
     /**
      * User-uploaded content is streamed inline — into a preview iframe, or
@@ -82,11 +95,20 @@ class DocumentController extends Controller
      * (documents + pièces jointes, via Scout's `database` driver, indexed on
      * `extracted_text`/`attachments_extracted_text`) narrowed by the active
      * tag filter, never a type filter (Boundaries & Constraints — type stays
-     * specific to the Bibliothèque) and never paginated (single live-
-     * filtered result set).
+     * specific to the Bibliothèque), paginated SEARCH_PER_PAGE per page with
+     * no cap on the total (spec-recherche-bornes-pagination). The page links
+     * keep `search` and `tag_id[]`; Scout's own `query` parameter, which its
+     * paginate() appends, is dropped again (null is skipped when the links
+     * are built).
      *
-     * A blank (post-trim) term with no tag selected short-circuits to
-     * `documents => []` — Recherche never falls back to showing the whole
+     * Every bound truncates, never refuses: the term is cut to
+     * MAX_SEARCH_LENGTH characters (and echoed back cut), only the first
+     * KeywordDatabaseEngine::MAX_KEYWORDS distinct keywords are applied
+     * (`keywordLimitReached` tells the page some were ignored), and only the
+     * first MAX_TAG_FILTERS tags are kept (tagIdsFromQuery()).
+     *
+     * A blank (post-trim) term with no tag selected short-circuits to an
+     * empty paginator — Recherche never falls back to showing the whole
      * library (Boundaries & Constraints, AC2). A blank term with at least one
      * tag lists that tag's documents, newest first, through the same
      * `Document::search()` path (AD-8, 2026-09-29). Reuses applyFilters()/
@@ -97,25 +119,28 @@ class DocumentController extends Controller
     public function search(Request $request): Response
     {
         $rawSearch = $request->query('search', '');
-        $search = trim(is_scalar($rawSearch) ? (string) $rawSearch : '');
+        $search = trim(mb_substr(trim(is_scalar($rawSearch) ? (string) $rawSearch : ''), 0, self::MAX_SEARCH_LENGTH));
 
         $tagIds = $this->tagIdsFromQuery($request);
 
         $columns = ['id', 'title', 'source', 'mime_type', 'created_at'];
 
         $documents = $search === '' && $tagIds === []
-            ? []
+            ? new LengthAwarePaginator([], 0, self::SEARCH_PER_PAGE, options: ['path' => $request->url()])
             // Keyword splitting, LIKE escaping and relevance ranking all live in
             // KeywordDatabaseEngine (Document::searchableUsing()).
             : Document::search($search)
                 ->query(fn ($query) => $this->applyFilters($query, $tagIds, [])
                     ->select($columns)->with('tags:id,name')->latest()->orderByDesc('id'))
-                ->get();
+                ->paginate(self::SEARCH_PER_PAGE)
+                ->withQueryString()
+                ->appends('query', null);
 
         return Inertia::render('Documents/Search', [
             'documents' => $documents,
             'search' => $search,
             'tagFilters' => $tagIds,
+            'keywordLimitReached' => KeywordDatabaseEngine::exceedsKeywordLimit($search),
         ]);
     }
 
@@ -168,6 +193,9 @@ class DocumentController extends Controller
      * like `"2.5"` outright instead of silently truncating it to `2` via
      * `(int) "2.5"` — that truncation could otherwise match a real tag the
      * client never actually selected.
+     *
+     * Only the first MAX_TAG_FILTERS distinct valid ids are kept, silently:
+     * the tag selector never exceeds it, only a forged URL does.
      */
     private function tagIdsFromQuery(Request $request): array
     {
@@ -182,7 +210,11 @@ class DocumentController extends Controller
             $raw,
         );
 
-        return array_values(array_unique(array_filter($ids, static fn ($value) => $value !== false)));
+        return array_slice(
+            array_values(array_unique(array_filter($ids, static fn ($value) => $value !== false))),
+            0,
+            self::MAX_TAG_FILTERS,
+        );
     }
 
     /**

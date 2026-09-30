@@ -30,6 +30,19 @@ const globalStubs = {
     AppLayout: { template: '<div><slot /></div>' },
 };
 
+// `documents` is a Laravel paginator (spec-recherche-bornes-pagination).
+function pageOf(data, { total = data.length, links = [] } = {}) {
+    return { data, links, total };
+}
+
+function emptyPage() {
+    return pageOf([]);
+}
+
+function documentRow(id) {
+    return { id, title: `Doc ${id}`, mime_type: 'application/pdf', source: 'imported', created_at: '2026-01-15T10:30:00Z', tags: [] };
+}
+
 describe('Documents/Search', () => {
     afterEach(() => {
         vi.useRealTimers();
@@ -40,7 +53,7 @@ describe('Documents/Search', () => {
     // library) — only an invitation to type a keyword or pick a tag.
     it('shows the idle invitation, no rows and no no-results message when search is empty', () => {
         const wrapper = mount(Search, {
-            props: { documents: [], search: '', tagFilters: [] },
+            props: { documents: emptyPage(), search: '', tagFilters: [] },
             global: { stubs: globalStubs },
         });
 
@@ -52,7 +65,7 @@ describe('Documents/Search', () => {
     // I/O matrix "Terme sans résultat".
     it('shows the no-results message when a search term is active but matches nothing', () => {
         const wrapper = mount(Search, {
-            props: { documents: [], search: 'xyz123', tagFilters: [] },
+            props: { documents: emptyPage(), search: 'xyz123', tagFilters: [] },
             global: { stubs: globalStubs },
         });
 
@@ -64,7 +77,7 @@ describe('Documents/Search', () => {
     it('renders a document-row with the type badge, title, its tags and the date, the whole row linking to the document', () => {
         const wrapper = mount(Search, {
             props: {
-                documents: [
+                documents: pageOf([
                     {
                         id: 42,
                         title: 'Contrat prestataire',
@@ -73,7 +86,7 @@ describe('Documents/Search', () => {
                         created_at: '2026-01-15T10:30:00Z',
                         tags: [{ id: 1, name: 'Finance' }, { id: 2, name: 'RH' }],
                     },
-                ],
+                ]),
                 search: 'contrat',
                 tagFilters: [],
             },
@@ -93,7 +106,7 @@ describe('Documents/Search', () => {
     // AC2: focus lands on the search field as soon as the surface loads.
     it('focuses the search input on mount', () => {
         const wrapper = mount(Search, {
-            props: { documents: [], search: '', tagFilters: [] },
+            props: { documents: emptyPage(), search: '', tagFilters: [] },
             attachTo: document.body,
             global: { stubs: globalStubs },
         });
@@ -108,7 +121,7 @@ describe('Documents/Search', () => {
     // shows the no-results message rather than the neutral state.
     it('shows the no-results message when only a tag filter is active and it matches nothing', () => {
         const wrapper = mount(Search, {
-            props: { documents: [], search: '', tagFilters: [1] },
+            props: { documents: emptyPage(), search: '', tagFilters: [1] },
             global: { stubs: globalStubs },
         });
 
@@ -121,7 +134,7 @@ describe('Documents/Search', () => {
     // TagSelector's own grey chip is hidden on this page.
     it('shows each selected tag once, as an active-filter chip under the field', () => {
         const wrapper = mount(Search, {
-            props: { documents: [], search: '', tagFilters: [1, 2] },
+            props: { documents: emptyPage(), search: '', tagFilters: [1, 2] },
             global: { stubs: globalStubs },
         });
 
@@ -133,7 +146,7 @@ describe('Documents/Search', () => {
 
     it('removes the tag and searches again right away when its active-filter chip is clicked', async () => {
         const wrapper = mount(Search, {
-            props: { documents: [], search: '', tagFilters: [1, 2] },
+            props: { documents: emptyPage(), search: '', tagFilters: [1, 2] },
             global: { stubs: globalStubs },
         });
 
@@ -146,7 +159,7 @@ describe('Documents/Search', () => {
     // I/O matrix "Aucun tag": neither the label nor any chip.
     it('shows no active-filter row when no tag is selected', () => {
         const wrapper = mount(Search, {
-            props: { documents: [], search: '', tagFilters: [] },
+            props: { documents: emptyPage(), search: '', tagFilters: [] },
             global: { stubs: globalStubs },
         });
 
@@ -161,7 +174,7 @@ describe('Documents/Search', () => {
         vi.useFakeTimers();
 
         const wrapper = mount(Search, {
-            props: { documents: [], search: '', tagFilters: [] },
+            props: { documents: emptyPage(), search: '', tagFilters: [] },
             global: { stubs: globalStubs },
         });
 
@@ -170,6 +183,138 @@ describe('Documents/Search', () => {
 
         expect(router.get).toHaveBeenCalledTimes(1);
         expect(router.get.mock.calls[0][2].only).toContain('tags');
+    });
+
+    // The keyword-limit notice must follow each live search, not only a full load.
+    it('includes keywordLimitReached in the partial reload', async () => {
+        vi.useFakeTimers();
+        router.get.mockClear();
+
+        const wrapper = mount(Search, {
+            props: { documents: emptyPage(), search: '', tagFilters: [] },
+            global: { stubs: globalStubs },
+        });
+
+        await wrapper.find('input[type="search"]').setValue('contrat');
+        vi.advanceTimersByTime(500);
+
+        expect(router.get.mock.calls.at(-1)[2].only).toContain('keywordLimitReached');
+    });
+});
+
+// Bounds and pagination (spec-recherche-bornes-pagination).
+describe('Documents/Search bounds and pagination', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('shows the total number of documents found, singular or plural', () => {
+        const single = mount(Search, {
+            props: { documents: pageOf([documentRow(1)]), search: 'contrat', tagFilters: [] },
+            global: { stubs: globalStubs },
+        });
+        const several = mount(Search, {
+            props: { documents: pageOf([documentRow(1), documentRow(2)], { total: 25 }), search: 'contrat', tagFilters: [] },
+            global: { stubs: globalStubs },
+        });
+
+        expect(single.find('[data-testid="search-count"]').text()).toBe('1 document trouvé');
+        expect(several.find('[data-testid="search-count"]').text()).toBe('25 documents trouvés');
+    });
+
+    it('renders the page links under the results', () => {
+        const wrapper = mount(Search, {
+            props: {
+                documents: pageOf([documentRow(1)], {
+                    total: 25,
+                    links: [
+                        { url: null, label: '&laquo; Précédent', active: false },
+                        { url: '/recherche?search=contrat&page=1', label: '1', active: true },
+                        { url: '/recherche?search=contrat&page=2', label: '2', active: false },
+                        { url: '/recherche?search=contrat&page=3', label: '3', active: false },
+                        { url: '/recherche?search=contrat&page=2', label: 'Suivant &raquo;', active: false },
+                    ],
+                }),
+                search: 'contrat',
+                tagFilters: [],
+            },
+            global: { stubs: globalStubs },
+        });
+
+        const nav = wrapper.find('nav[aria-label="Pagination"]');
+
+        expect(nav.exists()).toBe(true);
+        expect(nav.find('a[href="/recherche?search=contrat&page=3"]').exists()).toBe(true);
+    });
+
+    // AC: a new search from page 2 never sends `page`, so it shows page 1.
+    it('starts a new search from page 1 even when a later page is displayed', async () => {
+        vi.useFakeTimers();
+        router.get.mockClear();
+
+        const wrapper = mount(Search, {
+            props: { documents: pageOf([documentRow(11)], { total: 25 }), search: 'contrat', tagFilters: [1] },
+            global: { stubs: globalStubs },
+        });
+
+        await wrapper.find('input[type="search"]').setValue('facture');
+        vi.advanceTimersByTime(500);
+
+        expect(router.get).toHaveBeenLastCalledWith('/recherche', { search: 'facture', tag_id: [1] }, expect.any(Object));
+    });
+
+    it('offers the page links instead of "no document" on a page beyond the last one', () => {
+        const wrapper = mount(Search, {
+            props: {
+                documents: pageOf([], {
+                    total: 25,
+                    links: [
+                        { url: '/recherche?search=contrat&page=98', label: '&laquo; Précédent', active: false },
+                        { url: '/recherche?search=contrat&page=1', label: '1', active: false },
+                        { url: '/recherche?search=contrat&page=2', label: '2', active: false },
+                        { url: null, label: 'Suivant &raquo;', active: false },
+                    ],
+                }),
+                search: 'contrat',
+                tagFilters: [],
+            },
+            global: { stubs: globalStubs },
+        });
+
+        expect(wrapper.text()).not.toContain('Aucun document ne correspond');
+        expect(wrapper.find('[data-testid="search-page-out-of-range"]').text()).toContain('25 documents trouvés');
+        expect(wrapper.find('a[href="/recherche?search=contrat&page=1"]').exists()).toBe(true);
+    });
+
+    it('limits the search field to 255 characters', () => {
+        const wrapper = mount(Search, {
+            props: { documents: emptyPage(), search: '', tagFilters: [] },
+            global: { stubs: globalStubs },
+        });
+
+        expect(wrapper.find('input[type="search"]').attributes('maxlength')).toBe('255');
+    });
+
+    it('explains under the field, linked to it, that only the first 20 keywords are used', () => {
+        const wrapper = mount(Search, {
+            props: { documents: emptyPage(), search: 'm1 m2', tagFilters: [], keywordLimitReached: true },
+            global: { stubs: globalStubs },
+        });
+
+        const message = wrapper.find('[data-testid="search-keyword-limit"]');
+
+        expect(message.text()).toBe('Seuls les 20 premiers mots-clés sont pris en compte.');
+        expect(wrapper.find('input[type="search"]').attributes('aria-describedby')).toBe(message.attributes('id'));
+    });
+
+    it('shows no keyword-limit message when every keyword is used', () => {
+        const wrapper = mount(Search, {
+            props: { documents: emptyPage(), search: 'm1 m2', tagFilters: [] },
+            global: { stubs: globalStubs },
+        });
+
+        expect(wrapper.find('[data-testid="search-keyword-limit"]').exists()).toBe(false);
+        expect(wrapper.find('input[type="search"]').attributes('aria-describedby')).toBeUndefined();
     });
 });
 
@@ -183,7 +328,7 @@ describe('Documents/Search typing delay and spinner', () => {
 
     function mountSearch() {
         wrapper = mount(Search, {
-            props: { documents: [], search: '', tagFilters: [] },
+            props: { documents: emptyPage(), search: '', tagFilters: [] },
             attachTo: document.body,
             global: { stubs: globalStubs },
         });
@@ -274,7 +419,7 @@ describe('Documents/Search typing delay and spinner', () => {
     it('replaces the previous results with the in-progress message while the search is pending', async () => {
         wrapper = mount(Search, {
             props: {
-                documents: [{ id: 42, title: 'Contrat prestataire', mime_type: 'application/pdf', source: 'imported', created_at: '2026-01-15T10:30:00Z', tags: [] }],
+                documents: pageOf([{ id: 42, title: 'Contrat prestataire', mime_type: 'application/pdf', source: 'imported', created_at: '2026-01-15T10:30:00Z', tags: [] }]),
                 search: 'contrat',
                 tagFilters: [],
             },
@@ -338,7 +483,7 @@ describe('Documents/Search help box', () => {
 
     function mountSearch() {
         return mount(Search, {
-            props: { documents: [], search: '', tagFilters: [] },
+            props: { documents: emptyPage(), search: '', tagFilters: [] },
             global: { stubs: globalStubs },
         });
     }

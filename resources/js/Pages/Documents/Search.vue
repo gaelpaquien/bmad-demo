@@ -3,14 +3,16 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
+import Pagination from '@/Components/Pagination.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import TagChip from '@/Components/TagChip.vue';
 import TextInput from '@/Components/TextInput.vue';
 
 const props = defineProps({
+    // Laravel paginator, 10 results per page (spec-recherche-bornes-pagination).
     documents: {
-        type: Array,
-        default: () => [],
+        type: Object,
+        default: () => ({ data: [], links: [], total: 0 }),
     },
     search: {
         type: String,
@@ -20,7 +22,15 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    // True when the term holds more distinct keywords than the server
+    // applies (only the first 20 are).
+    keywordLimitReached: {
+        type: Boolean,
+        default: false,
+    },
 });
+
+const MAX_SEARCH_LENGTH = 255;
 
 const page = usePage();
 const allTags = computed(() => page.props.tags ?? []);
@@ -76,8 +86,10 @@ watch(
     },
 );
 
-// One shared navigation call for search + tag filter, no pagination on this
-// surface (Boundaries & Constraints, spec-3-4). Clearing any pending
+// One shared navigation call for search + tag filter. It never sends `page`,
+// so every new search (typing, Enter, tag) starts again from page 1; only
+// the pagination links move between pages (spec-recherche-bornes-
+// pagination). Clearing any pending
 // debounced search navigation here avoids a redundant duplicate request
 // when the tag selection (immediate, no debounce) changes while a
 // search-term debounce is still pending.
@@ -106,7 +118,7 @@ function navigate() {
         {
             preserveState: true,
             replace: true,
-            only: ['documents', 'search', 'tagFilters', 'tags'],
+            only: ['documents', 'search', 'tagFilters', 'keywordLimitReached', 'tags'],
             onStart: () => {
                 spinnerTimer = setTimeout(() => {
                     if (visitId === latestVisitId) {
@@ -230,6 +242,10 @@ watch(selectedTagIds, () => {
 // local input: a whitespace-only term stays neutral (AC2), and a tag just
 // picked never flashes "no results" before its documents arrive.
 const hasServerCriteria = computed(() => props.search !== '' || props.tagFilters.length > 0);
+
+const resultCountLabel = computed(() => (props.documents.total === 1
+    ? '1 document trouvé'
+    : `${props.documents.total} documents trouvés`));
 
 function removeTagFilter(tagId) {
     selectedTagIds.value = selectedTagIds.value.filter((id) => id !== tagId);
@@ -389,6 +405,10 @@ function formatDate(dateString) {
                                     (<code :class="codeClass">"-5"</code>).
                                 </li>
                                 <li>Un guillemet non fermé court jusqu'à la fin de la saisie.</li>
+                                <li>
+                                    La saisie est limitée à 255 caractères, et seuls les 20 premiers mots-clés différents
+                                    sont pris en compte (un mot répété ne compte qu'une fois) : les suivants sont ignorés.
+                                </li>
                             </ul>
 
                             <h3 class="mb-1 text-sm font-medium text-foreground">
@@ -414,6 +434,10 @@ function formatDate(dateString) {
                                     présent plusieurs fois dans un document ne compte qu'une fois. À égalité, les documents
                                     créés ou importés le plus récemment viennent en premier.
                                 </li>
+                                <li>
+                                    Les résultats s'affichent par pages de 10, avec le nombre total de documents trouvés.
+                                    Une nouvelle recherche repart de la première page.
+                                </li>
                                 <li>La recherche part une demi-seconde après la dernière frappe, ou tout de suite avec Entrée.</li>
                             </ul>
                         </div>
@@ -431,9 +455,23 @@ function formatDate(dateString) {
                         ref="searchInputRef"
                         v-model="searchTerm"
                         type="search"
+                        :maxlength="MAX_SEARCH_LENGTH"
                         placeholder="Rechercher dans les titres, contenus et pièces jointes… (ex. : cubiscan +speed)"
+                        :aria-describedby="keywordLimitReached ? 'search-keyword-limit' : undefined"
                         @keydown.enter="searchNowUnlessComposing"
                     />
+                    <!-- Always mounted so the message is announced when a
+                         search brings it in. -->
+                    <div aria-live="polite">
+                        <p
+                            v-if="keywordLimitReached"
+                            id="search-keyword-limit"
+                            data-testid="search-keyword-limit"
+                            class="mt-1 text-sm text-muted"
+                        >
+                            Seuls les 20 premiers mots-clés sont pris en compte.
+                        </p>
+                    </div>
                 </div>
 
                 <fieldset>
@@ -475,29 +513,46 @@ function formatDate(dateString) {
                     <p>Recherche en cours…</p>
                 </div>
 
-                <div v-else-if="documents.length === 0 && hasServerCriteria" class="flex flex-col items-center gap-4 py-16 text-center">
+                <!-- A page beyond the last one (stale bookmark, results
+                     shrunk since) still has matches: say so and offer the
+                     page links instead of "no document". -->
+                <div v-else-if="documents.data.length === 0 && documents.total > 0" data-testid="search-page-out-of-range" class="py-16 text-center">
+                    <p class="text-muted">
+                        Cette page n'existe pas : {{ resultCountLabel }}.
+                    </p>
+                    <Pagination :links="documents.links" />
+                </div>
+
+                <div v-else-if="documents.data.length === 0 && hasServerCriteria" class="flex flex-col items-center gap-4 py-16 text-center">
                     <p class="text-muted">
                         Aucun document ne correspond à votre recherche.
                     </p>
                 </div>
 
-                <ul v-else-if="documents.length > 0" data-testid="search-results" class="border-t border-border">
-                    <li v-for="document in documents" :key="document.id">
-                        <Link
-                            :href="`/documents/${document.id}`"
-                            class="flex items-center gap-3 border-b border-border px-2 py-3 transition hover:rounded-sm hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        >
-                            <DocumentTypeBadge class="shrink-0" :mime-type="document.mime_type" :source="document.source" />
-                            <span class="min-w-0 flex-1 truncate font-medium text-foreground">
-                                {{ document.title }}
-                            </span>
-                            <div v-if="document.tags && document.tags.length > 0" class="flex shrink-0 flex-wrap gap-1">
-                                <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" />
-                            </div>
-                            <span class="w-24 shrink-0 text-right text-xs text-muted">{{ formatDate(document.created_at) }}</span>
-                        </Link>
-                    </li>
-                </ul>
+                <div v-else-if="documents.data.length > 0">
+                    <p data-testid="search-count" class="mb-2 text-sm text-muted">
+                        {{ resultCountLabel }}
+                    </p>
+                    <ul data-testid="search-results" class="border-t border-border">
+                        <li v-for="document in documents.data" :key="document.id">
+                            <Link
+                                :href="`/documents/${document.id}`"
+                                class="flex items-center gap-3 border-b border-border px-2 py-3 transition hover:rounded-sm hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                            >
+                                <DocumentTypeBadge class="shrink-0" :mime-type="document.mime_type" :source="document.source" />
+                                <span class="min-w-0 flex-1 truncate font-medium text-foreground">
+                                    {{ document.title }}
+                                </span>
+                                <div v-if="document.tags && document.tags.length > 0" class="flex shrink-0 flex-wrap gap-1">
+                                    <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" />
+                                </div>
+                                <span class="w-24 shrink-0 text-right text-xs text-muted">{{ formatDate(document.created_at) }}</span>
+                            </Link>
+                        </li>
+                    </ul>
+
+                    <Pagination :links="documents.links" />
+                </div>
 
                 <div
                     v-else-if="!hasServerCriteria"
