@@ -190,28 +190,12 @@ function searchNowUnlessComposing(event) {
     navigate();
 }
 
-// The help box is folded by default so the search field stays near the
-// top; the reader's choice is remembered like the sidebar's.
-const SEARCH_HELP_OPEN_STORAGE_KEY = 'bmad-demo-search-help-open';
-
-function readStoredHelpOpen() {
-    try {
-        return localStorage.getItem(SEARCH_HELP_OPEN_STORAGE_KEY) === 'true';
-    } catch (e) {
-        return false;
-    }
-}
-
-const isHelpOpen = ref(readStoredHelpOpen());
+// The help box is folded on every visit so the search field stays near the
+// top; unfolding it lasts only until the page is left.
+const isHelpOpen = ref(false);
 
 function toggleHelp() {
     isHelpOpen.value = !isHelpOpen.value;
-
-    try {
-        localStorage.setItem(SEARCH_HELP_OPEN_STORAGE_KEY, isHelpOpen.value ? 'true' : 'false');
-    } catch (e) {
-        // Private browsing or storage disabled: the state just won't persist across reloads.
-    }
 }
 
 const codeClass = 'rounded bg-background px-1.5 py-0.5 font-mono text-xs text-foreground';

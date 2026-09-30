@@ -96,7 +96,7 @@ describe('Documents/Themes', () => {
         expect(lexicon.findAll('[data-testid="lexicon-sample"]').every((sample) => sample.text() === 'Exemple')).toBe(true);
     });
 
-    it('folds the lexicon by default and toggles it, remembering the choice', async () => {
+    it('folds the lexicon by default, toggles it, and folds it again on the next visit', async () => {
         const wrapper = mount(Themes, { global: { stubs: globalStubs } });
         const toggle = wrapper.find('button[aria-controls="theme-lexicon"]');
         const panel = wrapper.find('#theme-lexicon');
@@ -109,8 +109,7 @@ describe('Documents/Themes', () => {
 
         expect(toggle.attributes('aria-expanded')).toBe('true');
         expect(panel.attributes('inert')).toBeUndefined();
-        expect(localStorage.getItem('bmad-demo-theme-lexicon-open')).toBe('true');
-        expect(mount(Themes, { global: { stubs: globalStubs } }).find('button[aria-controls="theme-lexicon"]').attributes('aria-expanded')).toBe('true');
+        expect(mount(Themes, { global: { stubs: globalStubs } }).find('button[aria-controls="theme-lexicon"]').attributes('aria-expanded')).toBe('false');
     });
 
     it('changes the custom colours and the dark class when the base is switched', async () => {

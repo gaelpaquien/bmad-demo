@@ -36,28 +36,12 @@ const presetThemes = [
     { value: 'dark', label: 'Sombre', palette: PALETTES.dark },
 ];
 
-// The lexicon is folded by default, like the search help (Search.vue); the
-// reader's choice is remembered.
-const LEXICON_OPEN_STORAGE_KEY = 'bmad-demo-theme-lexicon-open';
-
-function readStoredLexiconOpen() {
-    try {
-        return localStorage.getItem(LEXICON_OPEN_STORAGE_KEY) === 'true';
-    } catch (e) {
-        return false;
-    }
-}
-
-const isLexiconOpen = ref(readStoredLexiconOpen());
+// The lexicon is folded on every visit, like the search help (Search.vue);
+// unfolding it lasts only until the page is left.
+const isLexiconOpen = ref(false);
 
 function toggleLexicon() {
     isLexiconOpen.value = !isLexiconOpen.value;
-
-    try {
-        localStorage.setItem(LEXICON_OPEN_STORAGE_KEY, isLexiconOpen.value ? 'true' : 'false');
-    } catch (e) {
-        // Private browsing or storage disabled: the state just won't persist across reloads.
-    }
 }
 
 const baseOptions = [

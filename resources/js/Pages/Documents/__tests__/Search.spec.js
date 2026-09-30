@@ -538,8 +538,8 @@ describe('Documents/Search typing delay and spinner', () => {
     });
 });
 
-// The help box starts folded so the search field stays near the top; the
-// reader's choice is remembered across visits, like the sidebar's.
+// The help box starts folded on every visit so the search field stays near
+// the top; unfolding it lasts only until the page is left.
 describe('Documents/Search help box', () => {
     beforeEach(() => {
         localStorage.clear();
@@ -571,12 +571,12 @@ describe('Documents/Search help box', () => {
         expect(wrapper.find('#search-help').text()).toContain('Opérateurs');
     });
 
-    it('remembers an unfolded help box on the next visit', async () => {
+    it('is folded again on the next visit, whatever the previous one left', async () => {
         await helpToggle(mountSearch()).trigger('click');
 
         const nextVisit = mountSearch();
 
-        expect(helpToggle(nextVisit).attributes('aria-expanded')).toBe('true');
-        expect(nextVisit.find('#search-help').attributes('inert')).toBeUndefined();
+        expect(helpToggle(nextVisit).attributes('aria-expanded')).toBe('false');
+        expect(nextVisit.find('#search-help').attributes('inert')).toBeDefined();
     });
 });

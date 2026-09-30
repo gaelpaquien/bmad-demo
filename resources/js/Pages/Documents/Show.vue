@@ -639,7 +639,7 @@ onBeforeUnmount(() => {
 
                 <div
                     v-else-if="sourceMissing"
-                    class="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                    class="rounded-md border border-border bg-surface-alt p-4 text-sm text-foreground"
                 >
                     Fichier source introuvable ou illisible. La prévisualisation n'est pas disponible.
                 </div>
