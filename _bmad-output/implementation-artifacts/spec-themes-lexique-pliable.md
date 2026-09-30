@@ -20,6 +20,6 @@ context: []
 
 ## Implementation Notes
 
-- `Themes.vue` : section « Lexique des couleurs » reprend le motif de l'aide de Recherche (bouton dans le `h2`, `aria-expanded`/`aria-controls`, chevron, animation `grid-rows`, `inert` replié). État persisté dans `localStorage` (`bmad-demo-theme-lexicon-open`), lecture/écriture protégées. Le `data-testid="theme-lexicon"` est conservé.
+- `Themes.vue` : section (titre « Découvrez le lexique des couleurs », placée en haut de page, avant les thèmes) reprend le motif de l'aide de Recherche (bouton dans le `h2`, `aria-expanded`/`aria-controls`, chevron, animation `grid-rows`, `inert` replié). État persisté dans `localStorage` (`bmad-demo-theme-lexicon-open`), lecture/écriture protégées. Le `data-testid="theme-lexicon"` est conservé.
 - Le motif est dupliqué (pas de composant partagé) pour ne pas toucher Search.vue ; à extraire si un 3e usage apparaît.
 - `Themes.spec.js` : test du repli par défaut, de la bascule et de la mémorisation. Suite JS 277/277. Revue sous-agent sautée.

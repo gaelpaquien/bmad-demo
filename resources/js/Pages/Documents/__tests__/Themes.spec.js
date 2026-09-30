@@ -101,7 +101,7 @@ describe('Documents/Themes', () => {
         const toggle = wrapper.find('button[aria-controls="theme-lexicon"]');
         const panel = wrapper.find('#theme-lexicon');
 
-        expect(toggle.text()).toContain('Lexique des couleurs');
+        expect(toggle.text()).toContain('Découvrez le lexique des couleurs');
         expect(toggle.attributes('aria-expanded')).toBe('false');
         expect(panel.attributes('inert')).toBeDefined();
 
