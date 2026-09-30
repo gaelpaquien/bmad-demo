@@ -6,17 +6,18 @@ import { ref } from 'vue';
 export const THEME_STORAGE_KEY = 'bmad-demo-theme';
 export const CUSTOM_THEME_STORAGE_KEY = 'bmad-demo-theme-custom';
 
-// The nine `--color-*` tokens of resources/css/app.css, in display order.
+// The nine `--color-*` tokens of resources/css/app.css, in display order,
+// each with what it is used for and a concrete example (the lexicon on the Thèmes page).
 export const COLOR_TOKENS = [
-    { key: 'background', label: 'Fond' },
-    { key: 'surface', label: 'Surface' },
-    { key: 'surface-alt', label: 'Surface alternative' },
-    { key: 'border', label: 'Bordure' },
-    { key: 'foreground', label: 'Texte' },
-    { key: 'muted', label: 'Texte atténué' },
-    { key: 'primary', label: 'Couleur primaire' },
-    { key: 'primary-hover', label: 'Primaire au survol' },
-    { key: 'primary-foreground', label: 'Texte sur primaire' },
+    { key: 'background', label: 'Fond', description: "Fond général de l'application, derrière tout le contenu.", example: "la page sur laquelle s'affichent la liste des documents ou un formulaire." },
+    { key: 'surface', label: 'Surface', description: 'Fond des zones en retrait, et des éléments de menu au survol.', example: "le fond d'une entrée de menu quand la souris passe dessus." },
+    { key: 'surface-alt', label: 'Surface alternative', description: 'Fond des menus latéraux, des encarts et des blocs de code.', example: "le fond du menu latéral principal ou d'un bloc de code." },
+    { key: 'border', label: 'Bordure', description: 'Traits de séparation et contours des cartes et des champs.', example: "le contour d'une carte de document ou d'un champ de saisie." },
+    { key: 'foreground', label: 'Texte', description: 'Couleur du texte principal et des icônes.', example: "le titre d'une page ou le nom d'un document." },
+    { key: 'muted', label: 'Texte atténué', description: 'Texte secondaire : aides, légendes, informations discrètes.', example: "la date d'un document ou un texte d'aide sous un champ." },
+    { key: 'primary', label: 'Couleur primaire', description: "Couleur d'accent : boutons d'action, entrée de menu active, mise en évidence.", example: "le bouton « Enregistrer » ou l'entrée active du menu." },
+    { key: 'primary-hover', label: 'Primaire au survol', description: "Variante de la couleur primaire quand la souris survole un bouton d'action.", example: "le bouton « Enregistrer » quand la souris passe dessus." },
+    { key: 'primary-foreground', label: 'Texte sur primaire', description: 'Texte et icônes affichés sur un fond de couleur primaire.', example: "le mot « Enregistrer » écrit sur le bouton." },
 ];
 
 // Must mirror the `@theme` / `.dark` values of resources/css/app.css.
@@ -142,10 +143,20 @@ export function useTheme() {
         apply();
     }
 
-    // The base only drives the `.dark` class (Tailwind `dark:` variants);
-    // the colours stay whatever the user set.
+    // Switching the base drives the `.dark` class (Tailwind `dark:` variants)
+    // and moves every colour still at its default to the new base's default;
+    // colours the user changed are kept.
     function setCustomBase(base) {
+        const previousBase = customBase.value;
+        const next = {};
+
+        COLOR_TOKENS.forEach(({ key }) => {
+            const isDefault = customColors.value[key] === PALETTES[previousBase][key];
+            next[key] = isDefault ? PALETTES[base][key] : customColors.value[key];
+        });
+
         customBase.value = base;
+        customColors.value = next;
         persistCustom();
         apply();
     }
@@ -160,11 +171,17 @@ export function useTheme() {
         apply();
     }
 
+    function resetCustomColor(key) {
+        customColors.value = { ...customColors.value, [key]: PALETTES[customBase.value][key] };
+        persistCustom();
+        apply();
+    }
+
     function resetCustom() {
         customColors.value = { ...PALETTES[customBase.value] };
         persistCustom();
         apply();
     }
 
-    return { mode, customBase, customColors, setMode, setCustomBase, setCustomColor, resetCustom };
+    return { mode, customBase, customColors, setMode, setCustomBase, setCustomColor, resetCustomColor, resetCustom };
 }

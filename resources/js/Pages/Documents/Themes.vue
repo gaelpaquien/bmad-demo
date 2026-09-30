@@ -2,7 +2,33 @@
 import ConfigurationLayout from '@/Layouts/ConfigurationLayout.vue';
 import { COLOR_TOKENS, PALETTES, useTheme } from '@/Composables/useTheme';
 
-const { mode, customBase, customColors, setMode, setCustomBase, setCustomColor, resetCustom } = useTheme();
+const { mode, customBase, customColors, setMode, setCustomBase, setCustomColor, resetCustomColor, resetCustom } = useTheme();
+
+// Live samples for the lexicon: they use the CSS variables in effect, so
+// they follow the theme being applied (including custom colours).
+const samples = {
+    background: { backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)', borderColor: 'var(--color-border)' },
+    surface: { backgroundColor: 'var(--color-surface)', color: 'var(--color-foreground)', borderColor: 'var(--color-border)' },
+    'surface-alt': { backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-foreground)', borderColor: 'var(--color-border)' },
+    border: { backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)', borderColor: 'var(--color-border)', borderWidth: '3px' },
+    foreground: { backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)', borderColor: 'transparent' },
+    muted: { backgroundColor: 'var(--color-background)', color: 'var(--color-muted)', borderColor: 'transparent' },
+    primary: { backgroundColor: 'var(--color-primary)', color: 'var(--color-primary-foreground)', borderColor: 'transparent' },
+    'primary-hover': { backgroundColor: 'var(--color-primary-hover)', color: 'var(--color-primary-foreground)', borderColor: 'transparent' },
+    'primary-foreground': { backgroundColor: 'var(--color-primary)', color: 'var(--color-primary-foreground)', borderColor: 'transparent' },
+};
+
+const sampleTexts = {
+    background: 'Exemple',
+    surface: 'Exemple',
+    'surface-alt': 'Exemple',
+    border: 'Exemple',
+    foreground: 'Exemple',
+    muted: 'Exemple',
+    primary: 'Exemple',
+    'primary-hover': 'Exemple',
+    'primary-foreground': 'Exemple',
+};
 
 const presetThemes = [
     { value: 'light', label: 'Clair', palette: PALETTES.light },
@@ -31,8 +57,8 @@ const baseOptions = [
                 <label
                     v-for="theme in presetThemes"
                     :key="theme.value"
-                    class="flex cursor-pointer flex-col gap-3 rounded-lg border p-4"
-                    :class="mode === theme.value ? 'border-primary ring-2 ring-primary' : 'border-border'"
+                    class="flex cursor-pointer flex-col gap-3 rounded-lg border-2 p-4"
+                    :class="mode === theme.value ? 'border-foreground' : 'border-border'"
                 >
                     <span class="flex items-center gap-2 text-sm font-semibold text-foreground">
                         <input
@@ -53,26 +79,41 @@ const baseOptions = [
                                 aria-hidden="true"
                             ></span>
                             <span>{{ token.label }}</span>
-                            <code class="ml-auto text-muted">{{ theme.palette[token.key] }}</code>
+                            <code class="text-muted">{{ theme.palette[token.key] }}</code>
                         </li>
                     </ul>
                 </label>
 
                 <div
-                    class="flex flex-col gap-3 rounded-lg border p-4"
-                    :class="mode === 'custom' ? 'border-primary ring-2 ring-primary' : 'border-border'"
+                    class="flex flex-col gap-3 rounded-lg border-2 p-4"
+                    :class="mode === 'custom' ? 'border-foreground' : 'border-border'"
                 >
-                    <label class="flex cursor-pointer items-center gap-2 text-sm font-semibold text-foreground">
-                        <input
-                            type="radio"
-                            name="theme"
-                            value="custom"
-                            :checked="mode === 'custom'"
-                            data-testid="theme-custom"
-                            @change="setMode('custom')"
-                        />
-                        Personnalisé
-                    </label>
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="flex cursor-pointer items-center gap-2 text-sm font-semibold text-foreground">
+                            <input
+                                type="radio"
+                                name="theme"
+                                value="custom"
+                                :checked="mode === 'custom'"
+                                data-testid="theme-custom"
+                                @change="setMode('custom')"
+                            />
+                            Personnalisé
+                        </label>
+                        <button
+                            v-if="mode === 'custom'"
+                            type="button"
+                            class="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-foreground transition hover:bg-surface-alt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            data-testid="custom-reset"
+                            @click="resetCustom"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                                <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                                <path d="M3 3v5h5" />
+                            </svg>
+                            Réinitialiser
+                        </button>
+                    </div>
 
                     <template v-if="mode === 'custom'">
                         <div class="flex flex-wrap items-center gap-4 text-sm text-foreground">
@@ -90,14 +131,6 @@ const baseOptions = [
                                     {{ option.label }}
                                 </label>
                             </div>
-                            <button
-                                type="button"
-                                class="ml-auto rounded-md border border-border px-3 py-1.5 text-sm text-foreground transition hover:bg-surface-alt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                                data-testid="custom-reset"
-                                @click="resetCustom"
-                            >
-                                Réinitialiser
-                            </button>
                         </div>
 
                         <ul class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -111,7 +144,20 @@ const baseOptions = [
                                     @input="setCustomColor(token.key, $event.target.value)"
                                 />
                                 <span>{{ token.label }}</span>
-                                <code class="ml-auto text-muted">{{ customColors[token.key] }}</code>
+                                <code class="text-muted">{{ customColors[token.key] }}</code>
+                                <button
+                                    type="button"
+                                    class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-foreground transition hover:bg-surface-alt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+                                    :aria-label="`Réinitialiser « ${token.label} »`"
+                                    :title="`Réinitialiser « ${token.label} »`"
+                                    :data-testid="`custom-reset-${token.key}`"
+                                    @click="resetCustomColor(token.key)"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
+                                        <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                                        <path d="M3 3v5h5" />
+                                    </svg>
+                                </button>
                             </li>
                         </ul>
                     </template>
@@ -120,6 +166,27 @@ const baseOptions = [
                     </p>
                 </div>
             </fieldset>
+
+            <section class="mt-8 flex flex-col gap-3" aria-labelledby="theme-lexicon">
+                <h2 id="theme-lexicon" class="text-lg font-semibold text-foreground">Lexique des couleurs</h2>
+                <dl class="flex flex-col gap-2" data-testid="theme-lexicon">
+                    <div v-for="token in COLOR_TOKENS" :key="token.key" class="flex items-center gap-4 rounded-lg border border-border px-4 py-2">
+                        <div class="min-w-0 flex-1">
+                            <dt class="text-sm font-semibold text-foreground">{{ token.label }}</dt>
+                            <dd class="text-sm text-foreground">{{ token.description }}</dd>
+                            <dd class="text-sm text-muted" data-testid="lexicon-example">Exemple : {{ token.example }}</dd>
+                        </div>
+                        <span
+                            class="inline-flex min-w-24 shrink-0 items-center justify-center rounded-md border px-3 py-2 text-xs"
+                            :style="samples[token.key]"
+                            aria-hidden="true"
+                            data-testid="lexicon-sample"
+                        >
+                            {{ sampleTexts[token.key] }}
+                        </span>
+                    </div>
+                </dl>
+            </section>
         </div>
     </ConfigurationLayout>
 </template>

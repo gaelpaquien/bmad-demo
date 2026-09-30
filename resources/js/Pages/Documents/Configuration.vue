@@ -255,7 +255,7 @@ function trapDeleteDialogFocus(event) {
                 {{ tagDeletedMessage }}
             </p>
 
-            <form class="mb-8 flex flex-col gap-2 rounded-lg border border-border p-4" @submit.prevent="submitCreate">
+            <form class="mb-8 flex flex-col gap-2 rounded-lg border border-border bg-surface p-4" @submit.prevent="submitCreate">
                 <label for="create-tag-name" class="text-sm font-medium text-foreground">
                     Créer un tag
                 </label>

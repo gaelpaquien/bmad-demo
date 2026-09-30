@@ -48,11 +48,11 @@ describe('Documents/Mcp', () => {
             .toBe('claude mcp add bmad-demo -- php "C:/Sites/bmad-demo/artisan" mcp:start bmad-demo');
     });
 
-    it('states ChatGPT is unavailable and announces remote access as coming soon, without any form', () => {
+    it('offers no ChatGPT or remote-access section and no form', () => {
         const wrapper = mountPage();
 
-        expect(wrapper.find('[data-testid="mcp-chatgpt"]').text()).toContain('serveur distant');
-        expect(wrapper.find('[data-testid="mcp-remote-soon"]').text()).toContain('Bientôt');
+        expect(wrapper.text()).not.toContain('ChatGPT');
+        expect(wrapper.text()).not.toContain('Accès distant');
         expect(wrapper.find('form').exists()).toBe(false);
         expect(wrapper.find('input').exists()).toBe(false);
     });

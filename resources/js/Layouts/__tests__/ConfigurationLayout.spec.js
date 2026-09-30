@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import ConfigurationLayout from '@/Layouts/ConfigurationLayout.vue';
+import { useSidebarCollapsed } from '@/Composables/useSidebarCollapsed';
 
 const pageState = vi.hoisted(() => ({ component: 'Documents/Configuration', props: {} }));
 
@@ -48,5 +49,35 @@ describe('ConfigurationLayout', () => {
             expect(link.attributes('aria-current')).toBe(index === activeIndex ? 'page' : undefined);
             expect(link.classes().includes('bg-primary')).toBe(index === activeIndex);
         });
+    });
+
+    it('renders an icon on the title and on every entry, and a separator between them', () => {
+        const wrapper = mount(ConfigurationLayout, { global: { stubs: globalStubs } });
+        const menu = wrapper.find('[data-testid="configuration-menu"]');
+
+        expect(menu.find('[data-testid="configuration-menu-title"] svg').exists()).toBe(true);
+        expect(menu.find('[data-testid="configuration-menu-title"]').text()).toBe('Configuration');
+        menu.findAll('a').forEach((link) => expect(link.find('svg').exists()).toBe(true));
+        expect(menu.findAll('hr')).toHaveLength(1);
+    });
+
+    it('has the main menu width and collapses to icons only with it (shared state)', async () => {
+        const wrapper = mount(ConfigurationLayout, { global: { stubs: globalStubs } });
+        const menu = wrapper.find('[data-testid="configuration-menu"]');
+        const { toggleCollapsed } = useSidebarCollapsed();
+
+        expect(menu.classes()).toContain('w-sidebar-width');
+
+        toggleCollapsed();
+        await wrapper.vm.$nextTick();
+
+        expect(menu.classes()).toContain('w-16');
+        expect(menu.findAll('a')[0].find('span').classes()).toContain('sr-only');
+        expect(menu.findAll('a')[0].attributes('title')).toBe('Tags');
+
+        toggleCollapsed();
+        await wrapper.vm.$nextTick();
+
+        expect(menu.classes()).toContain('w-sidebar-width');
     });
 });

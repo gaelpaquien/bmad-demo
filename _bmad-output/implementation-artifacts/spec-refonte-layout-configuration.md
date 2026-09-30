@@ -98,7 +98,7 @@ context: []
 
 ## Design Notes
 
-Le thème personnalisé garde une base (clair ou sombre) qui pilote la classe `.dark` (variantes `dark:` de Tailwind) ; ses couleurs surchargent les 9 tokens en variables CSS sur `<html>`. Clé `localStorage` existante `bmad-demo-theme` (`light`/`dark`/`custom`) ; les couleurs personnalisées sous une clé dédiée.
+Le thème personnalisé garde une base (clair ou sombre) qui pilote la classe `.dark` (variantes `dark:` de Tailwind) ; changer de base bascule les couleurs encore à leur valeur par défaut vers la palette de la nouvelle base (les couleurs modifiées sont conservées) ; ses couleurs surchargent les 9 tokens en variables CSS sur `<html>`. Clé `localStorage` existante `bmad-demo-theme` (`light`/`dark`/`custom`) ; les couleurs personnalisées sous une clé dédiée.
 
 ## Verification
 

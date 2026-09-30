@@ -1,31 +1,12 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
+import { useSidebarCollapsed } from '@/Composables/useSidebarCollapsed';
 
-// Collapsed (icons-only) mode, persisted like the theme choice under its
-// own localStorage key. Labels stay in the DOM as `sr-only` so every item
+// Collapsed (icons-only) mode, shared with the Configuration secondary menu
+// (useSidebarCollapsed). Labels stay in the DOM as `sr-only` so every item
 // keeps its accessible name, with a `title` tooltip while collapsed.
-const SIDEBAR_COLLAPSED_STORAGE_KEY = 'bmad-demo-sidebar-collapsed';
-
-function readStoredCollapsed() {
-    try {
-        return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
-    } catch (e) {
-        return false;
-    }
-}
-
-const isCollapsed = ref(readStoredCollapsed());
-
-function toggleCollapsed() {
-    isCollapsed.value = !isCollapsed.value;
-
-    try {
-        localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, isCollapsed.value ? 'true' : 'false');
-    } catch (e) {
-        // Private browsing or storage disabled: the state just won't persist across reloads.
-    }
-}
+const { isCollapsed, toggleCollapsed } = useSidebarCollapsed();
 
 // Active state is route-aware via `usePage().component` (Boundaries &
 // Constraints, spec-3-4) rather than a fixed constant: "Recherche" is

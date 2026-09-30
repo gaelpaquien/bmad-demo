@@ -109,4 +109,38 @@ describe('useTheme', () => {
         expect(customColors.value).toEqual(PALETTES.dark);
         expect(JSON.parse(localStorage.getItem('bmad-demo-theme-custom')).base).toBe('dark');
     });
+
+    it('resets a single custom colour to the palette of its base, leaving the others untouched', () => {
+        const { setMode, setCustomColor, resetCustomColor, customColors } = useTheme();
+
+        setMode('custom');
+        setCustomColor('primary', '#ff0000');
+        setCustomColor('background', '#123456');
+        resetCustomColor('primary');
+
+        expect(customColors.value.primary).toBe(PALETTES.light.primary);
+        expect(customColors.value.background).toBe('#123456');
+        expect(root.style.getPropertyValue('--color-primary')).toBe(PALETTES.light.primary);
+        expect(JSON.parse(localStorage.getItem('bmad-demo-theme-custom')).colors.background).toBe('#123456');
+    });
+
+    it('moves default colours to the new base palette when the base changes, keeping customised ones', () => {
+        const { setMode, setCustomColor, setCustomBase, customColors } = useTheme();
+
+        setMode('custom');
+        setCustomColor('primary', '#ff0000');
+        setCustomBase('dark');
+
+        expect(root.classList.contains('dark')).toBe(true);
+        expect(customColors.value.background).toBe(PALETTES.dark.background);
+        expect(customColors.value.foreground).toBe(PALETTES.dark.foreground);
+        expect(customColors.value.primary).toBe('#ff0000');
+        expect(root.style.getPropertyValue('--color-background')).toBe(PALETTES.dark.background);
+
+        setCustomBase('light');
+
+        expect(root.classList.contains('dark')).toBe(false);
+        expect(customColors.value.background).toBe(PALETTES.light.background);
+        expect(customColors.value.primary).toBe('#ff0000');
+    });
 });

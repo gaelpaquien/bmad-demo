@@ -95,7 +95,7 @@ onBeforeUnmount(() => clearTimeout(copiedTimer));
                 </ul>
             </section>
 
-            <section class="mb-8 flex flex-col gap-3" aria-labelledby="mcp-claude">
+            <section class="flex flex-col gap-3" aria-labelledby="mcp-claude">
                 <h2 id="mcp-claude" class="text-lg font-semibold text-foreground">Utiliser avec Claude</h2>
                 <p class="text-sm text-foreground">
                     <strong>Claude Desktop :</strong> ajoutez ce bloc au fichier de configuration
@@ -132,21 +132,6 @@ onBeforeUnmount(() => clearTimeout(copiedTimer));
                 <p class="text-sm text-foreground">
                     Une fois branché, posez une question dont la réponse se trouve dans vos documents :
                     l'assistant appelle lui-même les outils ci-dessus.
-                </p>
-            </section>
-
-            <section class="mb-8 flex flex-col gap-2" aria-labelledby="mcp-chatgpt">
-                <h2 id="mcp-chatgpt" class="text-lg font-semibold text-foreground">ChatGPT</h2>
-                <p class="text-sm text-foreground" data-testid="mcp-chatgpt">
-                    ChatGPT ne peut pas lancer un serveur local : il exige un serveur distant, accessible par une URL HTTPS.
-                    Il n'est donc pas utilisable pour le moment.
-                </p>
-            </section>
-
-            <section class="flex flex-col gap-2" aria-labelledby="mcp-remote">
-                <h2 id="mcp-remote" class="text-lg font-semibold text-foreground">Accès distant</h2>
-                <p class="rounded-md border border-dashed border-border px-4 py-2 text-sm text-foreground" data-testid="mcp-remote-soon">
-                    Bientôt : c'est depuis cette page que l'on pourra configurer un jeton ou une URL pour rendre le serveur MCP accessible à distance.
                 </p>
             </section>
         </div>
