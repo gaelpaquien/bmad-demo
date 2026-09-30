@@ -23,3 +23,4 @@ context: []
 - `TagChip.vue` : prop `size` supprimée (style unique `rounded-md px-2.5 py-1 text-sm`) ; ajout de `active` (couleurs primaires), `removeLabel` (bouton × + emit `remove`), `disabled`.
 - Utilisé désormais par `Show.vue`, `Search.vue` (résultats + filtres actifs), `DocumentsLayout.vue`, `TagSelector.vue` (chips retirables). Labels aria inchangés.
 - Tests `TagChip.spec.js` réécrits. Suite JS 276/276. Revue sous-agent sautée. Les lignes de la page Configuration > Tags (liste de gestion) ne sont pas des chips et sont inchangées.
+- Correctif (retour utilisateur) : les chips de filtre actif de Recherche étaient restées lime (`active`) → prop `active` supprimée, tous les tags sont neutres (`bg-surface-alt`). La liste Documents est l'unique exception : prop `size="small"` (`rounded-sm px-1.5 py-px text-xs`) réintroduite dans `TagChip` plutôt qu'une surcharge CSS (conflits d'ordre Tailwind). Suite JS 276/276.

@@ -36,10 +36,10 @@ describe('TagChip', () => {
         expect(wrapper.find('button').attributes('disabled')).toBeDefined();
     });
 
-    it('uses the primary colours when active, keeping the same shape', () => {
-        const classes = mount(TagChip, { props: { name: 'Finance', active: true } }).classes();
+    it('offers a smaller variant for dense lists, with the same neutral colours', () => {
+        const classes = mount(TagChip, { props: { name: 'Finance', size: 'small' } }).classes();
 
-        expect(classes).toEqual(expect.arrayContaining(['rounded-md', 'text-sm', 'bg-primary', 'text-primary-foreground']));
-        expect(classes).not.toContain('bg-surface-alt');
+        expect(classes).toEqual(expect.arrayContaining(['rounded-sm', 'text-xs', 'bg-surface-alt', 'text-foreground']));
+        expect(classes).not.toContain('text-sm');
     });
 });

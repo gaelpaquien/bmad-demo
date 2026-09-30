@@ -485,7 +485,6 @@ function formatDate(dateString) {
                         v-for="tagId in selectedTagIds"
                         :key="`tag-${tagId}`"
                         :name="tagName(tagId)"
-                        active
                         :remove-label="`Retirer le filtre tag ${tagName(tagId)}`"
                         @remove="removeTagFilter(tagId)"
                     />

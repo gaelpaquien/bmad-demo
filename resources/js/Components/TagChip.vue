@@ -5,16 +5,18 @@
 // Document Detail (Show.vue).
 //
 // Read-only by default. Giving `removeLabel` adds a × button (emits `remove`)
-// for editable contexts; `active` switches to the primary colour to signal a
-// currently applied filter.
+// for editable contexts. `size="small"` is the one exception, reserved for the
+// dense Documents list rows (smaller text, tighter radius: `rounded-md` would
+// turn a chip this small into a pill).
 defineProps({
     name: {
         type: String,
         required: true,
     },
-    active: {
-        type: Boolean,
-        default: false,
+    size: {
+        type: String,
+        default: 'regular',
+        validator: (value) => ['regular', 'small'].includes(value),
     },
     removeLabel: {
         type: String,
@@ -27,15 +29,17 @@ defineProps({
 });
 
 defineEmits(['remove']);
+
+const SIZE_CLASSES = {
+    regular: 'rounded-md px-2.5 py-1 text-sm',
+    small: 'rounded-sm px-1.5 py-px text-xs',
+};
 </script>
 
 <template>
     <span
-        class="inline-flex w-fit items-center gap-1 rounded-md px-2.5 py-1 text-sm"
-        :class="[
-            active ? 'bg-primary text-primary-foreground' : 'bg-surface-alt text-foreground',
-            removeLabel ? 'pr-1.5' : '',
-        ]"
+        class="inline-flex w-fit items-center gap-1 bg-surface-alt text-foreground"
+        :class="[SIZE_CLASSES[size], removeLabel ? 'pr-1.5' : '']"
     >
         {{ name }}
         <button
