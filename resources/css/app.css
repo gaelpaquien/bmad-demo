@@ -36,11 +36,11 @@
    app.blade.php, which itself already accounts for `prefers-color-scheme`)
    so no separate `@media (prefers-color-scheme)` block is needed here. */
 .dark {
-    --color-background: #1B1815;
-    --color-surface: #211D19;
-    --color-surface-alt: #24201B;
-    --color-border: #362F27;
-    --color-foreground: #ECE7E0;
-    --color-muted: #A69C8D;
+    --color-background: #2A2621;
+    --color-surface: #332E28;
+    --color-surface-alt: #3B352E;
+    --color-border: #504839;
+    --color-foreground: #F2EDE6;
+    --color-muted: #B9AFA0;
     --color-primary-hover: #A8DA00;
 }

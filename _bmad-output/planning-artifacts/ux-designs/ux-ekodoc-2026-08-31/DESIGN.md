@@ -2,23 +2,23 @@
 title: DESIGN.md bmad-demo
 status: final
 created: 2026-08-31
-updated: 2026-09-29
+updated: 2026-09-30
 name: bmad-demo
 description: Base de connaissance interne, usage solo/local (Laravel Herd). Fondation Tailwind CSS from scratch, pas de librairie de composants tierce.
 colors:
   # Palette v2 (2026-09-09) : gris chaud (beige/brun) + accent lime neon, choisie parmi 4 variations rendues en atelier (voir mockups/color-themes.html). Remplace la palette bleu sobre v1 — decision produit du sprint-change-proposal-2026-09-09.
   background: '#F5F3F0'
-  background-dark: '#1B1815'
+  background-dark: '#2A2621'
   surface: '#EFEBE6'
-  surface-dark: '#211D19'
+  surface-dark: '#332E28'
   surface-alt: '#EAE6E1'
-  surface-alt-dark: '#24201B'
+  surface-alt-dark: '#3B352E'
   border: '#DBD5CD'
-  border-dark: '#362F27'
+  border-dark: '#504839'
   foreground: '#221F1A'
-  foreground-dark: '#ECE7E0'
+  foreground-dark: '#F2EDE6'
   muted: '#7A7266'
-  muted-dark: '#A69C8D'
+  muted-dark: '#B9AFA0'
   primary: '#C6FF00'
   primary-foreground: '#12130A'
   # Survol des boutons lime (2026-09-29) : lime assombri, un lime eclairci par transparence restait quasi invisible sur fond clair.
