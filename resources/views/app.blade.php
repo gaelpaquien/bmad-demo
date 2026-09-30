@@ -19,13 +19,12 @@
                             localStorage.setItem('bmad-demo-theme', legacy);
                         }
                     }
-                    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                     var root = document.documentElement;
                     var customTheme = null;
                     var tokens = ['background', 'surface', 'surface-alt', 'border', 'foreground', 'muted', 'primary', 'primary-hover', 'primary-foreground'];
                     if (stored === 'custom') {
                         // Thème personnalisé : même validation stricte que useTheme.js (base connue
-                        // et les 9 couleurs en hex valide). Sinon, retombe sur la préférence système.
+                        // et les 9 couleurs en hex valide). Sinon, retombe sur le thème clair par défaut.
                         try {
                             var custom = JSON.parse(localStorage.getItem('bmad-demo-theme-custom'));
                             var isValid = (custom.base === 'light' || custom.base === 'dark') && tokens.every(function (key) {
@@ -43,7 +42,7 @@
                         tokens.forEach(function (key) {
                             root.style.setProperty('--color-' + key, customTheme.colors[key]);
                         });
-                    } else if (stored === 'dark' || (stored !== 'light' && prefersDark)) {
+                    } else if (stored === 'dark') {
                         root.classList.add('dark');
                     }
                 } catch (e) {}

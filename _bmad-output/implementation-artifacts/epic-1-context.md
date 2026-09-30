@@ -44,7 +44,7 @@ This epic delivers the core document library: import existing PDF/Word/Excel fil
 ## UX & Interaction Patterns
 
 - Neutral palette + a single accent color for primary actions/active states; file types distinguished by icon + label, never by color.
-- Light/dark mode from v1: manual toggle, defaults to system preference.
+- Light/dark mode from v1: manual toggle, defaults to light (system preference is not followed).
 - Document card: entire card clickable to Document Detail (no context menu); shows type badge, title, category, date added.
 - Search bar: live fulltext filtering with debounce, no separate "Search" button; `/` focuses it from the Library.
 - Filter chips: multi-select combining category and type; active filters visible and removable in one click; search and filters are one continuous flow.

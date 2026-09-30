@@ -43,10 +43,10 @@ describe('pre-paint theme script (app.blade.php)', () => {
         expect(root.classList.contains('dark')).toBe(false);
     });
 
-    it('follows the system preference when nothing is stored', () => {
+    it('defaults to the light theme when nothing is stored, even on a dark system', () => {
         runScript({ prefersDark: true });
 
-        expect(root.classList.contains('dark')).toBe(true);
+        expect(root.classList.contains('dark')).toBe(false);
     });
 
     it.each(['light', 'dark'])('applies a custom theme with a %s base and its nine colours', (base) => {
@@ -65,10 +65,10 @@ describe('pre-paint theme script (app.blade.php)', () => {
         ['a null colours object', { base: 'dark', colors: null }],
         ['a missing colour', { base: 'dark', colors: { ...PALETTES.dark, muted: undefined } }],
         ['a non-hex colour', { base: 'dark', colors: { ...PALETTES.dark, primary: 'rouge' } }],
-    ])('falls back to the system preference for %s', (label, custom) => {
+    ])('falls back to the light theme for %s, even on a dark system', (label, custom) => {
         runScript({ theme: 'custom', custom, prefersDark: true });
 
-        expect(root.classList.contains('dark')).toBe(true);
+        expect(root.classList.contains('dark')).toBe(false);
         expect(root.style.getPropertyValue('--color-primary')).toBe('');
     });
 });

@@ -71,7 +71,7 @@ NFR5: La fidélité d'export (WYSIWYG → PDF) doit rester raisonnable sans vise
 ### UX Design Requirements
 
 UX-DR1: Système de tokens de design (couleurs, typographie, arrondis, espacements) implémenté selon `DESIGN.md` — palette v2 `[AMENDED 2026-09-09]` (neutres chauds beige/brun, jamais blanc/noir pur ; accent unique lime néon `#C6FF00`) ; chaque couleur a une paire clair/sombre ; discipline "un seul accent". Aucune validation de contraste WCAG requise sur cette palette (décision produit explicite, projet interne).
-UX-DR2: Mode clair/sombre disponible dès la v1, bascule manuelle via toggle en pied de sidebar, respect de la préférence système par défaut.
+UX-DR2: Mode clair/sombre disponible dès la v1, bascule manuelle via toggle en pied de sidebar, thème clair par défaut (la préférence système n'est pas suivie).
 UX-DR3: Composant Sidebar de navigation `[NOUVEAU 2026-09-09]` `[AMENDED 2026-09-29]` — fixe, toujours visible sur les 5 surfaces, jamais masquée ; réductible en mode icônes seules par un bouton « Réduire le menu » (libellés conservés pour les lecteurs d'écran, info-bulle en mode réduit, choix mémorisé dans le navigateur) ; titre « BMAD Démo » cliquable vers l'accueil ; 3 racines (Bibliothèque, Recherche, Configuration), item actif en fond lime/texte quasi-noir.
 UX-DR4: Composant Footer `[NOUVEAU 2026-09-09]` — texte littéral "Made with 💔 Claude", en pied de sidebar sur toutes les surfaces (exception assumée au ton direct sans emoji).
 UX-DR5: Composant Ligne de document *(remplace la Carte document v1)* — toute la ligne cliquable vers la Fiche document (pas de menu contextuel en v1), affiche badge de type, titre, chips de tags, date d'ajout ; listing paginé 20/page sur la Bibliothèque.
@@ -190,7 +190,7 @@ So that je retrouve visuellement ce que j'ai déjà importé.
 **Given** aucun document n'existe encore
 **When** j'ouvre bmad-demo
 **Then** le message "Aucun document pour l'instant." s'affiche avec un bouton primaire "Importer un document" ou "Créer un document" (UX-DR12)
-**And** un bouton de bascule clair/sombre est disponible dans l'interface, respectant la préférence système par défaut (UX-DR2)
+**And** un bouton de bascule clair/sombre est disponible dans l'interface, clair par défaut, sans suivre la préférence système (UX-DR2)
 **And** les tokens de design (`DESIGN.md`) sont appliqués : neutres + accent unique, pas de couleur par type de fichier (UX-DR1)
 
 ### Story 1.3: Prévisualiser un document dans le navigateur

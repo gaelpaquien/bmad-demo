@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PALETTES, useTheme } from '@/Composables/useTheme';
 
 const root = document.documentElement;
@@ -82,11 +82,19 @@ describe('useTheme', () => {
         expect(root.style.getPropertyValue('--color-background')).toBe('');
     });
 
-    it('falls back to the system preference when the stored custom theme is corrupted', () => {
+    it('falls back to the light theme when the stored custom theme is corrupted', () => {
         localStorage.setItem('bmad-demo-theme', 'custom');
         localStorage.setItem('bmad-demo-theme-custom', '{not json');
 
-        expect(useTheme().mode.value).not.toBe('custom');
+        expect(useTheme().mode.value).toBe('light');
+    });
+
+    it('defaults to the light theme when nothing is stored, even on a dark system', () => {
+        vi.stubGlobal('matchMedia', () => ({ matches: true }));
+
+        expect(useTheme().mode.value).toBe('light');
+
+        vi.unstubAllGlobals();
     });
 
     it('treats a stored custom theme with a missing colour as unusable', () => {

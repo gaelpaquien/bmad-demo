@@ -19,7 +19,7 @@ updated: 2026-09-29
 - **Runtime** : application web mono-surface, exécutée en local via Laravel Herd (PRD NFR1), pas de multi-tenant.
 - **Périmètre d'appareil** : `[ASSUMPTION]` usage prioritairement desktop/navigateur — le layout reste fluide pour ne pas casser sur tablette, mais aucune optimisation mobile n'est prévue en v1. La sidebar fixe (voir § Information Architecture) renforce cette hypothèse desktop : elle n'a pas de pattern de repli mobile défini.
 - **Langue** : `[ASSUMPTION]` interface en français, cohérente avec la langue du PRD/brief et le contexte interne francophone.
-- **Thème** : mode clair/sombre disponible, bascule manuelle via le toggle en pied de sidebar (`DESIGN.md.Components.theme-toggle`) et respect de la préférence système par défaut.
+- **Thème** : mode clair/sombre disponible, bascule manuelle via le toggle en pied de sidebar (`DESIGN.md.Components.theme-toggle`) et thème clair par défaut (la préférence système n'est pas suivie).
 - **Fondation CSS** : Tailwind CSS, sans librairie de composants tierce (voir `DESIGN.md` pour les tokens visuels).
 
 ## Information Architecture

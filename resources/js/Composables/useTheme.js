@@ -64,14 +64,6 @@ function writeStorage(key, value) {
     }
 }
 
-function systemMode() {
-    try {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    } catch (e) {
-        return 'light';
-    }
-}
-
 /**
  * Reads the stored custom theme. `isUsable` requires a known base and all
  * nine colours as valid hex values — anything else (corrupted JSON, unknown
@@ -103,7 +95,7 @@ export function useTheme() {
     const storedMode = readStorage(THEME_STORAGE_KEY);
     const custom = readCustomTheme();
     const isStoredModeUsable = ['light', 'dark'].includes(storedMode) || (storedMode === 'custom' && custom.isUsable);
-    const mode = ref(isStoredModeUsable ? storedMode : systemMode());
+    const mode = ref(isStoredModeUsable ? storedMode : 'light');
     const customBase = ref(custom.base);
     const customColors = ref(custom.colors);
 
