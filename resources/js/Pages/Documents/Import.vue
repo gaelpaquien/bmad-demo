@@ -194,10 +194,14 @@ function submit() {
                     id="document-title"
                     v-model="form.title"
                     aria-required="true"
+                    aria-describedby="document-title-hint"
                     :maxlength="MAX_TITLE_LENGTH"
                     placeholder="Titre du document"
                     :disabled="!form.file || form.processing"
                 />
+                <p id="document-title-hint" class="mt-1 text-xs text-muted">
+                    Rempli automatiquement à partir du nom du fichier une fois le document principal ajouté, puis modifiable.
+                </p>
                 <p v-if="form.errors.title" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                     {{ form.errors.title }}
                 </p>
