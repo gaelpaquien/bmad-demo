@@ -146,3 +146,50 @@ it('paginates the library at 20 documents per page, page 2 holding the remaining
         ->where('documents.data.4.id', $documents->first()->id)
     );
 });
+
+// spec-refonte-layout-documents — the active document's page shows the same
+// paginated list as the library, positioned on the page that contains it.
+it('exposes the paginated library list on the document page, on the page holding the active document', function () {
+    $documents = Document::factory()->count(25)->sequence(
+        fn ($sequence) => ['created_at' => now()->subMinutes(25 - $sequence->index)],
+    )->create();
+
+    $oldest = $documents->first();
+    $newest = $documents->last();
+
+    $this->get("/documents/{$oldest->id}")->assertInertia(fn ($page) => $page
+        ->component('Documents/Show')
+        ->where('documents.current_page', 2)
+        ->has('documents.data', 5)
+        ->where('documents.data', fn ($list) => collect($list)->pluck('id')->contains($oldest->id))
+    );
+
+    $this->get("/documents/{$newest->id}")->assertInertia(fn ($page) => $page
+        ->where('documents.current_page', 1)
+        ->has('documents.data', 20)
+        ->where('documents.data.0.id', $newest->id)
+    );
+});
+
+it('keeps an explicit page of the list on the document page', function () {
+    $documents = Document::factory()->count(25)->sequence(
+        fn ($sequence) => ['created_at' => now()->subMinutes(25 - $sequence->index)],
+    )->create();
+    $newest = $documents->last();
+
+    $this->get("/documents/{$newest->id}?page=2")->assertInertia(fn ($page) => $page
+        ->where('documents.current_page', 2)
+        ->has('documents.data', 5)
+        ->where('documents.links.1.url', fn ($url) => str_contains($url, "/documents/{$newest->id}"))
+    );
+});
+
+it('places documents created at the same instant deterministically across list pages', function () {
+    $documents = Document::factory()->count(21)->create(['created_at' => now()]);
+    $lowestId = $documents->min('id');
+
+    $this->get("/documents/{$lowestId}")->assertInertia(fn ($page) => $page
+        ->where('documents.current_page', 2)
+        ->where('documents.data.0.id', $lowestId)
+    );
+});

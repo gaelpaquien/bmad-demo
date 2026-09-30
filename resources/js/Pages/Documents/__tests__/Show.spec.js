@@ -39,7 +39,7 @@ vi.mock('@inertiajs/vue3', async () => {
 });
 
 const globalStubs = {
-    AppLayout: { template: '<div><slot /></div>' },
+    DocumentsLayout: { template: '<div><slot /></div>' },
 };
 
 async function settle() {
@@ -235,6 +235,20 @@ describe('Documents/Show — Télécharger', () => {
 
         expect(wrapper.find('[role="alert"]').text()).toBe('Export PDF impossible pour l\'instant, merci de réessayer.');
         expect(findButton(wrapper, 'Télécharger').attributes('disabled')).toBeUndefined();
+    });
+
+    it('clears a failed export message when navigating to another document', async () => {
+        vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false })));
+        const wrapper = mountCreated();
+
+        await findButton(wrapper, 'Télécharger').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[role="alert"]').exists()).toBe(true);
+
+        await wrapper.setProps({ document: { ...wrapper.props('document'), id: 99, title: 'Autre document' } });
+        await settle();
+
+        expect(wrapper.find('[role="alert"]').exists()).toBe(false);
     });
 
     it('renders a disabled "Télécharger" button and no download link for an imported document whose source is missing', () => {

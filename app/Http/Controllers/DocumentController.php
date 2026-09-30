@@ -36,6 +36,7 @@ use App\Jobs\ExtractDocumentTextJob;
 use App\Models\Document;
 use App\Support\DocumentMimeTypes;
 use App\Support\KeywordDatabaseEngine;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -53,6 +54,8 @@ class DocumentController extends Controller
     use CleansUpDocumentDirectoryOnFailure;
 
     private const PREVIEW_DIRECTORY = 'previews';
+
+    private const LIBRARY_PER_PAGE = 20;
 
     /**
      * User-uploaded content is streamed inline — into a preview iframe, or
@@ -74,14 +77,39 @@ class DocumentController extends Controller
      */
     public function index(): Response
     {
-        $columns = ['id', 'title', 'source', 'mime_type', 'created_at'];
-
-        $documents = Document::query()
-            ->with('tags:id,name')->latest()->paginate(20, $columns);
-
         return Inertia::render('Documents/Index', [
-            'documents' => $documents,
+            'documents' => $this->libraryPage(),
         ]);
+    }
+
+    /**
+     * Paginated list shown in the Documents secondary menu
+     * (spec-refonte-layout-documents), shared by index() and show() — most
+     * recent first, `id` as tie-breaker so the order (and therefore the page
+     * an active document sits on) is deterministic. `$activeDocument`, when
+     * given and no explicit `page` is requested, lands the list on the page
+     * that contains it.
+     */
+    private function libraryPage(?Document $activeDocument = null): LengthAwarePaginator
+    {
+        $page = null;
+
+        if ($activeDocument !== null && ! request()->has('page')) {
+            $newerDocuments = Document::query()
+                ->where('created_at', '>', $activeDocument->created_at)
+                ->orWhere(fn ($query) => $query
+                    ->where('created_at', $activeDocument->created_at)
+                    ->where('id', '>', $activeDocument->id))
+                ->count();
+
+            $page = intdiv($newerDocuments, self::LIBRARY_PER_PAGE) + 1;
+        }
+
+        return Document::query()
+            ->with('tags:id,name')
+            ->latest()
+            ->latest('id')
+            ->paginate(self::LIBRARY_PER_PAGE, ['id', 'title', 'source', 'mime_type', 'created_at'], 'page', $page);
     }
 
     /**
@@ -393,6 +421,7 @@ class DocumentController extends Controller
                 'created_at' => $document->created_at,
             ],
             'sourceMissing' => $this->sourceMissing($document),
+            'documents' => $this->libraryPage($document),
         ]);
     }
 

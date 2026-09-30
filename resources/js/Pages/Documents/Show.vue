@@ -1,7 +1,7 @@
 <script setup>
 import { Link, router } from '@inertiajs/vue3';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import DocumentsLayout from '@/Layouts/DocumentsLayout.vue';
 import TagChip from '@/Components/TagChip.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 
@@ -96,6 +96,12 @@ watch(() => props.document.id, () => {
     isEditing.value = false;
     draftTagIds.value = [];
     tagsError.value = '';
+    // Now that the document list sits next to the content, this reuse is the
+    // normal way to switch document (spec-refonte-layout-documents): another
+    // document's failed export/delete message must not linger.
+    exportPdfError.value = '';
+    deleteError.value = '';
+    isDeleteDialogOpen.value = false;
 });
 
 const formattedDate = computed(() => {
@@ -412,7 +418,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <AppLayout>
+    <DocumentsLayout>
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
             <!-- Title and actions share one line: the title truncates
                  (full text in `title`), the actions never shrink. Full width
@@ -734,7 +740,7 @@ onBeforeUnmount(() => {
                 Export PDF généré.
             </div>
         </div>
-    </AppLayout>
+    </DocumentsLayout>
 </template>
 
 <style scoped>
