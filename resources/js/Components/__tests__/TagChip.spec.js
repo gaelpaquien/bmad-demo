@@ -9,22 +9,37 @@ describe('TagChip', () => {
         expect(wrapper.text()).toBe('Factures');
     });
 
-    it.each([
-        ['small', 'rounded-sm', 'text-xs', false],
-        ['regular', 'rounded-md', 'text-sm', false],
-        ['compact', 'rounded-lg', 'text-xs', true],
-    ])('applies the %s size: %s radius, %s, medium weight %s', (size, radius, textSize, isMedium) => {
-        const classes = mount(TagChip, { props: { name: 'Factures', size } }).classes();
+    it('has a single design: the Document Detail chip (rounded-md, text-sm, neutral colours)', () => {
+        const classes = mount(TagChip, { props: { name: 'Factures' } }).classes();
 
-        expect(classes).toContain(radius);
-        expect(classes).toContain(textSize);
-        expect(classes.includes('font-medium')).toBe(isMedium);
+        expect(classes).toEqual(expect.arrayContaining(['rounded-md', 'px-2.5', 'py-1', 'text-sm', 'bg-surface-alt', 'text-foreground']));
     });
 
-    it('renders no interactive element — read-only display, never a filter/remove affordance', () => {
+    it('renders no interactive element by default — read-only display', () => {
         const wrapper = mount(TagChip, { props: { name: 'Contrats' } });
 
         expect(wrapper.find('button').exists()).toBe(false);
         expect(wrapper.findAll('input, select, textarea, a')).toHaveLength(0);
+    });
+
+    it('adds a labelled × button emitting `remove` when a removeLabel is given', async () => {
+        const wrapper = mount(TagChip, { props: { name: 'Contrats', removeLabel: 'Retirer le tag Contrats' } });
+
+        await wrapper.find('button[aria-label="Retirer le tag Contrats"]').trigger('click');
+
+        expect(wrapper.emitted('remove')).toHaveLength(1);
+    });
+
+    it('disables the × button when disabled', () => {
+        const wrapper = mount(TagChip, { props: { name: 'Contrats', removeLabel: 'Retirer', disabled: true } });
+
+        expect(wrapper.find('button').attributes('disabled')).toBeDefined();
+    });
+
+    it('uses the primary colours when active, keeping the same shape', () => {
+        const classes = mount(TagChip, { props: { name: 'Finance', active: true } }).classes();
+
+        expect(classes).toEqual(expect.arrayContaining(['rounded-md', 'text-sm', 'bg-primary', 'text-primary-foreground']));
+        expect(classes).not.toContain('bg-surface-alt');
     });
 });

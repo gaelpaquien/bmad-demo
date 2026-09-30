@@ -583,7 +583,7 @@ onBeforeUnmount(() => {
                             </p>
                         </dd>
                         <dd v-else class="flex min-w-0 flex-1 flex-wrap items-baseline gap-2">
-                            <TagChip v-for="tag in documentTags" :key="tag.id" :name="tag.name" size="regular" />
+                            <TagChip v-for="tag in documentTags" :key="tag.id" :name="tag.name" />
                         </dd>
                     </div>
                     <div v-if="attachments.length > 0" class="flex items-baseline gap-2">

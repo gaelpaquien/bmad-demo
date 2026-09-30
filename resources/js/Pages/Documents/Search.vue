@@ -481,17 +481,14 @@ function formatDate(dateString) {
 
                 <div v-if="selectedTagIds.length > 0" class="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     <span class="text-sm text-muted">Filtres par tag actifs :</span>
-                    <button
+                    <TagChip
                         v-for="tagId in selectedTagIds"
                         :key="`tag-${tagId}`"
-                        type="button"
-                        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        :aria-label="`Retirer le filtre tag ${tagName(tagId)}`"
-                        @click="removeTagFilter(tagId)"
-                    >
-                        {{ tagName(tagId) }}
-                        <span aria-hidden="true" class="text-lg leading-none transition-opacity hover:opacity-60">×</span>
-                    </button>
+                        :name="tagName(tagId)"
+                        active
+                        :remove-label="`Retirer le filtre tag ${tagName(tagId)}`"
+                        @remove="removeTagFilter(tagId)"
+                    />
                 </div>
             </div>
 

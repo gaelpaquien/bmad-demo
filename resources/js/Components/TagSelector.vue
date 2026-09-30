@@ -3,6 +3,7 @@ import { usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import TextInput from '@/Components/TextInput.vue';
 import FieldRequirement from '@/Components/FieldRequirement.vue';
+import TagChip from '@/Components/TagChip.vue';
 
 // Reusable multi-tag selector — mounted identically everywhere a document's
 // tags are assigned or filtered on (Import modal, editor create/edit,
@@ -183,22 +184,14 @@ function onKeydown(event) {
         </label>
 
         <div v-if="showSelected && selectedTags.length > 0" class="mb-2 flex flex-wrap gap-2">
-            <span
+            <TagChip
                 v-for="tag in selectedTags"
                 :key="tag.id"
-                class="inline-flex items-center gap-1 rounded-lg bg-surface-alt py-0.5 pl-2.5 pr-1 text-xs font-medium text-foreground"
-            >
-                {{ tag.name }}
-                <button
-                    type="button"
-                    class="rounded-full p-0.5 text-muted hover:text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed dark:hover:text-red-400 dark:focus-visible:ring-background"
-                    :disabled="disabled"
-                    :aria-label="`Retirer le tag ${tag.name}`"
-                    @click="removeTag(tag.id)"
-                >
-                    <span aria-hidden="true">×</span>
-                </button>
-            </span>
+                :name="tag.name"
+                :remove-label="`Retirer le tag ${tag.name}`"
+                :disabled="disabled"
+                @remove="removeTag(tag.id)"
+            />
         </div>
 
         <div class="relative">

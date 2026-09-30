@@ -125,7 +125,7 @@ function formatDate(dateString) {
                         >
                             <span class="truncate font-semibold leading-tight">{{ document.title }}</span>
                             <span v-if="document.tags && document.tags.length > 0" class="flex flex-wrap items-center gap-1" data-testid="documents-row-tags">
-                                <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" size="small" />
+                                <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" />
                             </span>
                             <span class="text-xs" :class="document.id === activeDocumentId ? 'text-primary-foreground' : 'text-muted'" data-testid="documents-row-date">
                                 {{ formatDate(document.created_at) }}
