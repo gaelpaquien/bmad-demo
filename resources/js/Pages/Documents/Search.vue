@@ -37,7 +37,6 @@ const props = defineProps({
 const MAX_SEARCH_LENGTH = 255;
 
 const SOURCE_OPTIONS = [
-    { value: null, label: 'Tous' },
     { value: 'imported', label: 'Importé' },
     { value: 'created', label: 'Créé' },
 ];
@@ -48,6 +47,7 @@ const allTags = computed(() => page.props.tags ?? []);
 const searchTerm = ref(props.search);
 const selectedTagIds = ref([...props.tagFilters]);
 const selectedSource = ref(props.sourceFilter);
+const sourceLabel = computed(() => SOURCE_OPTIONS.find((option) => option.value === selectedSource.value)?.label ?? '');
 const searchInputRef = ref(null);
 
 // 500ms rather than the initial 300ms: a slower typist pausing mid-word
@@ -478,12 +478,14 @@ function formatDate(dateString) {
                             <ul class="mb-4 list-disc space-y-1 pl-5">
                                 <li>
                                     « Importé » ne garde que les documents importés depuis un fichier, « Créé » que ceux
-                                    rédigés dans l'éditeur, « Tous » ne filtre rien.
+                                    rédigés dans l'éditeur. Un seul type à la fois ; sans filtre, tous les documents sont
+                                    concernés.
                                 </li>
                                 <li>
                                     Le filtre s'ajoute aux mots-clés et aux tags (ET). Seul, il affiche les documents de ce
                                     type, du plus récent au plus ancien.
                                 </li>
+                                <li>Choisir un type l'affiche sous les champs ; le retirer (×) relance la recherche aussitôt.</li>
                             </ul>
 
                             <h3 class="mb-1 text-sm font-medium text-foreground">
@@ -543,27 +545,24 @@ function formatDate(dateString) {
                     <TagSelector v-model="selectedTagIds" :show-label="false" :show-selected="false" />
                 </fieldset>
 
-                <fieldset>
-                    <legend class="mb-1 text-sm font-medium text-foreground">
+                <div>
+                    <label for="search-source" class="mb-1 block text-sm font-medium text-foreground">
                         Filtrer par type de document
-                    </legend>
-                    <div class="flex flex-wrap gap-x-5 gap-y-2">
-                        <label
-                            v-for="option in SOURCE_OPTIONS"
-                            :key="option.label"
-                            class="inline-flex cursor-pointer items-center gap-2 text-sm text-foreground"
-                        >
-                            <input
-                                v-model="selectedSource"
-                                type="radio"
-                                name="search-source"
-                                :value="option.value"
-                                class="h-4 w-4 cursor-pointer accent-primary"
-                            >
+                    </label>
+                    <select
+                        id="search-source"
+                        :value="selectedSource ?? ''"
+                        class="h-10 w-full rounded-md border-2 border-border bg-background px-3 text-sm text-foreground focus:border-foreground focus:outline-none"
+                        @change="selectedSource = $event.target.value || null"
+                    >
+                        <option value="">
+                            Tous les types
+                        </option>
+                        <option v-for="option in SOURCE_OPTIONS" :key="option.value" :value="option.value">
                             {{ option.label }}
-                        </label>
-                    </div>
-                </fieldset>
+                        </option>
+                    </select>
+                </div>
 
                 <div v-if="selectedTagIds.length > 0" class="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     <span class="text-sm text-muted">Filtres par tag actifs :</span>
@@ -573,6 +572,20 @@ function formatDate(dateString) {
                         :name="tagName(tagId)"
                         :remove-label="`Retirer le filtre tag ${tagName(tagId)}`"
                         @remove="removeTagFilter(tagId)"
+                    />
+                </div>
+
+                <div
+                    v-if="selectedSource"
+                    data-testid="search-source-filter"
+                    class="flex flex-wrap items-center gap-2 pt-3"
+                    :class="selectedTagIds.length === 0 ? 'border-t border-border' : ''"
+                >
+                    <span class="text-sm text-muted">Filtre par type actif :</span>
+                    <TagChip
+                        :name="sourceLabel"
+                        :remove-label="`Retirer le filtre type ${sourceLabel}`"
+                        @remove="selectedSource = null"
                     />
                 </div>
             </div>

@@ -167,7 +167,7 @@ describe('Documents/Search', () => {
         expect(wrapper.findAll('button[aria-label^="Retirer le filtre tag"]')).toHaveLength(0);
     });
 
-    it('searches again right away with the chosen source, and drops it when "Tous" is picked', async () => {
+    it('adds a chip under the fields and searches again right away when a type is chosen in the select', async () => {
         router.get.mockClear();
 
         const wrapper = mount(Search, {
@@ -175,28 +175,39 @@ describe('Documents/Search', () => {
             global: { stubs: globalStubs },
         });
 
-        const radios = wrapper.findAll('input[name="search-source"]');
+        expect(wrapper.find('[data-testid="search-source-filter"]').exists()).toBe(false);
 
-        expect(radios).toHaveLength(3);
-        expect(radios[0].element.checked).toBe(true);
-
-        await radios[2].setValue();
+        await wrapper.find('select#search-source').setValue('created');
 
         expect(router.get).toHaveBeenLastCalledWith('/recherche', { search: 'contrat', source: 'created' }, expect.any(Object));
         expect(router.get.mock.calls.at(-1)[2].only).toContain('sourceFilter');
-
-        await radios[0].setValue();
-
-        expect(router.get).toHaveBeenLastCalledWith('/recherche', { search: 'contrat' }, expect.any(Object));
+        expect(wrapper.find('[data-testid="search-source-filter"]').text()).toContain('Créé');
     });
 
-    it('checks the source received from the server and treats it as an active criterion', () => {
+    it('removes the type filter and searches again when its chip is removed, or when the empty option is chosen', async () => {
+        router.get.mockClear();
+
+        const wrapper = mount(Search, {
+            props: { documents: emptyPage(), search: 'contrat', tagFilters: [], sourceFilter: 'imported' },
+            global: { stubs: globalStubs },
+        });
+
+        expect(wrapper.find('select#search-source').element.value).toBe('imported');
+        expect(wrapper.find('[data-testid="search-source-filter"]').text()).toContain('Importé');
+
+        await wrapper.find('button[aria-label="Retirer le filtre type Importé"]').trigger('click');
+
+        expect(router.get).toHaveBeenLastCalledWith('/recherche', { search: 'contrat' }, expect.any(Object));
+        expect(wrapper.find('[data-testid="search-source-filter"]').exists()).toBe(false);
+        expect(wrapper.find('select#search-source').element.value).toBe('');
+    });
+
+    it('treats a source received from the server as an active criterion', () => {
         const wrapper = mount(Search, {
             props: { documents: emptyPage(), search: '', tagFilters: [], sourceFilter: 'imported' },
             global: { stubs: globalStubs },
         });
 
-        expect(wrapper.findAll('input[name="search-source"]')[1].element.checked).toBe(true);
         expect(wrapper.text()).toContain('Aucun document ne correspond à votre recherche.');
         expect(wrapper.find('[data-testid="search-idle"]').exists()).toBe(false);
     });

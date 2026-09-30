@@ -11,6 +11,10 @@ import TagChip from '@/Components/TagChip.vue';
 // `document` prop of `Documents/Show`; its own width is fixed and does not
 // follow the main menu's collapsed mode. Page links keep the active document
 // (the paginator path is the current URL).
+// Beyond this many tags a row shows a "+X" chip (X = the hidden tags), its
+// tooltip naming them, so a heavily tagged document stays compact.
+const MAX_VISIBLE_TAGS = 2;
+
 const page = usePage();
 const documents = computed(() => page.props.documents ?? { data: [], links: [] });
 const activeDocumentId = computed(() => page.props.document?.id ?? null);
@@ -125,7 +129,14 @@ function formatDate(dateString) {
                         >
                             <span class="truncate font-semibold leading-tight">{{ document.title }}</span>
                             <span v-if="document.tags && document.tags.length > 0" class="flex flex-wrap items-center gap-1" data-testid="documents-row-tags">
-                                <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" size="small" />
+                                <TagChip v-for="tag in document.tags.slice(0, MAX_VISIBLE_TAGS)" :key="tag.id" :name="tag.name" size="small" />
+                                <TagChip
+                                    v-if="document.tags.length > MAX_VISIBLE_TAGS"
+                                    :name="`+${document.tags.length - MAX_VISIBLE_TAGS}`"
+                                    size="small"
+                                    :title="document.tags.slice(MAX_VISIBLE_TAGS).map((tag) => tag.name).join(', ')"
+                                    data-testid="documents-row-tags-more"
+                                />
                             </span>
                             <span class="text-xs" :class="document.id === activeDocumentId ? 'text-primary-foreground' : 'text-muted'" data-testid="documents-row-date">
                                 {{ formatDate(document.created_at) }}

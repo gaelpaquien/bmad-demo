@@ -29,3 +29,8 @@ context: []
 - `DocumentController::search()` lit `source` via `DocumentSource::tryFrom` (valeur invalide ignorée) et renvoie la prop `sourceFilter`.
 - Aide de la page : ajout d'une puce sur le filtre par type ; le texte « Filtrer par tag » reste inchangé.
 - Le compteur du haut (« N documents trouvés ») est conservé.
+
+## Ajustement 2026-09-30
+
+- Filtre par type : remplacé le groupe de boutons radio par un `<select>` (« Tous les types », Importé, Créé) qui affiche un badge « Filtre par type actif : [Importé ×] » sous les champs, comme le filtre par tag ; choix unique, retirer le badge ou choisir « Tous les types » retire le filtre.
+- Liste des documents (menu `DocumentsLayout`) : 2 tags maximum par ligne, puis un badge « +X » (X = tags masqués, infobulle avec leurs noms). Les lignes de résultat de la recherche gardent tous leurs tags.

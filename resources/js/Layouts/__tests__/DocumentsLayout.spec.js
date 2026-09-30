@@ -91,6 +91,32 @@ describe('DocumentsLayout', () => {
         expect(untagged.find('[data-testid="documents-row-tags"]').exists()).toBe(false);
     });
 
+    it('shows at most two tags per row, then a "+X" chip counting the others and naming them in its tooltip', () => {
+        pageState.props = {
+            documents: makeDocuments({
+                data: [
+                    {
+                        id: 44,
+                        title: 'Très étiqueté',
+                        created_at: '2026-01-13T10:30:00Z',
+                        tags: [{ id: 1, name: 'Finance' }, { id: 2, name: 'RH' }, { id: 3, name: 'Juridique' }, { id: 4, name: 'Qualité' }],
+                    },
+                    { id: 45, title: 'Deux tags', created_at: '2026-01-12T10:30:00Z', tags: [{ id: 1, name: 'Finance' }, { id: 2, name: 'RH' }] },
+                ],
+            }),
+        };
+        const wrapper = mountLayout();
+        const many = wrapper.find('a[href="/documents/44"]').find('[data-testid="documents-row-tags"]');
+        const two = wrapper.find('a[href="/documents/45"]').find('[data-testid="documents-row-tags"]');
+
+        expect(many.text()).toContain('Finance');
+        expect(many.text()).toContain('RH');
+        expect(many.text()).not.toContain('Juridique');
+        expect(many.find('[data-testid="documents-row-tags-more"]').text()).toBe('+2');
+        expect(many.find('[data-testid="documents-row-tags-more"]').attributes('title')).toBe('Juridique, Qualité');
+        expect(two.find('[data-testid="documents-row-tags-more"]').exists()).toBe(false);
+    });
+
     it('marks only the active document row', () => {
         pageState.props = { documents: makeDocuments(), document: { id: 43 } };
         const links = mountLayout().findAll('[data-testid="documents-menu"] li a');
