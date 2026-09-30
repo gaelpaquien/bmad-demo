@@ -68,9 +68,7 @@ onBeforeUnmount(() => clearTimeout(copiedTimer));
 <template>
     <ConfigurationLayout>
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
-            <h1 class="mb-6 text-2xl font-semibold text-foreground">
-                MCP
-            </h1>
+            <h1 class="sr-only">MCP</h1>
 
             <section class="mb-8 flex flex-col gap-2" aria-labelledby="mcp-role">
                 <h2 id="mcp-role" class="text-lg font-semibold text-foreground">À quoi ça sert ?</h2>

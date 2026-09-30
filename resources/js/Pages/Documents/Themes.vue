@@ -44,12 +44,7 @@ const baseOptions = [
 <template>
     <ConfigurationLayout>
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
-            <h1 class="mb-2 text-2xl font-semibold text-foreground">
-                Thèmes
-            </h1>
-            <p class="mb-6 text-sm text-muted">
-                Le thème choisi est conservé dans ce navigateur.
-            </p>
+            <h1 class="sr-only">Thèmes</h1>
 
             <fieldset class="flex flex-col gap-4">
                 <legend class="sr-only">Thème de l'application</legend>

@@ -282,9 +282,7 @@ function formatDate(dateString) {
 <template>
     <AppLayout>
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
-            <h1 class="mb-6 text-2xl font-semibold text-foreground">
-                Recherche
-            </h1>
+            <h1 class="sr-only">Recherche</h1>
 
             <section class="mb-4 rounded-lg border border-border bg-surface text-sm text-muted">
                 <h2 class="text-base font-semibold text-foreground">

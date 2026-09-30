@@ -182,9 +182,7 @@ function submit() {
 <template>
     <AppLayout>
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
-            <h1 class="mb-4 text-lg font-semibold text-foreground">
-                Importer un document
-            </h1>
+            <h1 class="sr-only">Importer un document</h1>
 
             <div class="mb-6">
                 <label for="document-title" class="mb-1 block text-sm font-medium text-foreground">
