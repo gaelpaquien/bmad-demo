@@ -74,7 +74,7 @@ describe('Documents/Search', () => {
 
     // I/O matrix "Ligne de document" — badge + title + tags + date, whole
     // row clickable to the Document Detail — same shape as Index.vue's row.
-    it('renders a document-row with the type badge, title, its tags and the date, the whole row linking to the document', () => {
+    it('renders a document-row with the title, its tags and the date but no type badge, the whole row linking to the document', () => {
         const wrapper = mount(Search, {
             props: {
                 documents: pageOf([
@@ -96,7 +96,7 @@ describe('Documents/Search', () => {
         const row = wrapper.find('a[href="/documents/42"]');
 
         expect(row.exists()).toBe(true);
-        expect(row.text()).toContain('PDF');
+        expect(row.text()).not.toContain('PDF');
         expect(row.text()).toContain('Contrat prestataire');
         expect(row.text()).toContain('Finance');
         expect(row.text()).toContain('RH');
@@ -165,6 +165,40 @@ describe('Documents/Search', () => {
 
         expect(wrapper.text()).not.toContain('Filtres par tag actifs');
         expect(wrapper.findAll('button[aria-label^="Retirer le filtre tag"]')).toHaveLength(0);
+    });
+
+    it('searches again right away with the chosen source, and drops it when "Tous" is picked', async () => {
+        router.get.mockClear();
+
+        const wrapper = mount(Search, {
+            props: { documents: emptyPage(), search: 'contrat', tagFilters: [], sourceFilter: null },
+            global: { stubs: globalStubs },
+        });
+
+        const radios = wrapper.findAll('input[name="search-source"]');
+
+        expect(radios).toHaveLength(3);
+        expect(radios[0].element.checked).toBe(true);
+
+        await radios[2].setValue();
+
+        expect(router.get).toHaveBeenLastCalledWith('/recherche', { search: 'contrat', source: 'created' }, expect.any(Object));
+        expect(router.get.mock.calls.at(-1)[2].only).toContain('sourceFilter');
+
+        await radios[0].setValue();
+
+        expect(router.get).toHaveBeenLastCalledWith('/recherche', { search: 'contrat' }, expect.any(Object));
+    });
+
+    it('checks the source received from the server and treats it as an active criterion', () => {
+        const wrapper = mount(Search, {
+            props: { documents: emptyPage(), search: '', tagFilters: [], sourceFilter: 'imported' },
+            global: { stubs: globalStubs },
+        });
+
+        expect(wrapper.findAll('input[name="search-source"]')[1].element.checked).toBe(true);
+        expect(wrapper.text()).toContain('Aucun document ne correspond à votre recherche.');
+        expect(wrapper.find('[data-testid="search-idle"]').exists()).toBe(false);
     });
 
     // Retro Epic 3, item 9: a filter-triggered partial reload must also
@@ -245,6 +279,31 @@ describe('Documents/Search bounds and pagination', () => {
 
         expect(nav.exists()).toBe(true);
         expect(nav.find('a[href="/recherche?search=contrat&page=3"]').exists()).toBe(true);
+    });
+
+    it('shows the shown range and the total under the page links', () => {
+        const wrapper = mount(Search, {
+            props: {
+                documents: {
+                    ...pageOf([documentRow(11)], {
+                        total: 25,
+                        links: [
+                            { url: '/recherche?search=contrat&page=1', label: '&laquo; Précédent', active: false },
+                            { url: '/recherche?search=contrat&page=1', label: '1', active: false },
+                            { url: null, label: '2', active: true },
+                            { url: null, label: 'Suivant &raquo;', active: false },
+                        ],
+                    }),
+                    from: 11,
+                    to: 20,
+                },
+                search: 'contrat',
+                tagFilters: [],
+            },
+            global: { stubs: globalStubs },
+        });
+
+        expect(wrapper.find('[data-testid="pagination-count"]').text()).toBe('11–20 sur 25 documents');
     });
 
     // AC: a new search from page 2 never sends `page`, so it shows page 1.
@@ -397,21 +456,36 @@ describe('Documents/Search typing delay and spinner', () => {
         expect(router.get).not.toHaveBeenCalled();
     });
 
-    it('shows the spinner only once a search has been pending for 300ms, and hides it when it finishes', async () => {
+    it('shows the spinner as soon as a search starts, and hides it once it finished and 400ms elapsed', async () => {
         mountSearch();
 
         await searchNow('cubiscan');
         lastVisitOptions().onStart();
-
-        vi.advanceTimersByTime(299);
-        await wrapper.vm.$nextTick();
-        expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(false);
-
-        vi.advanceTimersByTime(1);
         await wrapper.vm.$nextTick();
         expect(wrapper.find('[data-testid="search-loading"]').text()).toContain('Recherche en cours');
 
+        vi.advanceTimersByTime(400);
         lastVisitOptions().onFinish();
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(false);
+    });
+
+    it('keeps the spinner visible for at least 400ms even when the search answers instantly', async () => {
+        mountSearch();
+
+        await searchNow('cubiscan');
+        lastVisitOptions().onStart();
+        vi.advanceTimersByTime(100);
+        lastVisitOptions().onFinish();
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(true);
+
+        vi.advanceTimersByTime(299);
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(true);
+
+        vi.advanceTimersByTime(1);
         await wrapper.vm.$nextTick();
         expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(false);
     });
@@ -429,25 +503,10 @@ describe('Documents/Search typing delay and spinner', () => {
 
         await searchNow('cubiscan');
         lastVisitOptions().onStart();
-        vi.advanceTimersByTime(300);
         await wrapper.vm.$nextTick();
 
         expect(wrapper.find('a[href="/documents/42"]').exists()).toBe(false);
         expect(wrapper.find('[data-testid="search-loading"]').text()).toBe('Recherche en cours…');
-    });
-
-    it('never shows the spinner for a search answered in under 300ms', async () => {
-        mountSearch();
-
-        await searchNow('cubiscan');
-        lastVisitOptions().onStart();
-        vi.advanceTimersByTime(200);
-        lastVisitOptions().onFinish();
-
-        vi.advanceTimersByTime(500);
-        await wrapper.vm.$nextTick();
-
-        expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(false);
     });
 
     it('keeps the spinner while a newer search is pending, when the older cancelled one finishes', async () => {
@@ -461,8 +520,8 @@ describe('Documents/Search typing delay and spinner', () => {
         const newerVisit = lastVisitOptions();
         newerVisit.onStart();
 
+        vi.advanceTimersByTime(500);
         olderVisit.onFinish();
-        vi.advanceTimersByTime(300);
         await wrapper.vm.$nextTick();
 
         expect(wrapper.find('[data-testid="search-loading"]').exists()).toBe(true);

@@ -2,7 +2,6 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
 import Pagination from '@/Components/Pagination.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import TagChip from '@/Components/TagChip.vue';
@@ -22,6 +21,11 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    // 'imported' | 'created' | null (every source).
+    sourceFilter: {
+        type: String,
+        default: null,
+    },
     // True when the term holds more distinct keywords than the server
     // applies (only the first 20 are).
     keywordLimitReached: {
@@ -32,23 +36,32 @@ const props = defineProps({
 
 const MAX_SEARCH_LENGTH = 255;
 
+const SOURCE_OPTIONS = [
+    { value: null, label: 'Tous' },
+    { value: 'imported', label: 'Importé' },
+    { value: 'created', label: 'Créé' },
+];
+
 const page = usePage();
 const allTags = computed(() => page.props.tags ?? []);
 
 const searchTerm = ref(props.search);
 const selectedTagIds = ref([...props.tagFilters]);
+const selectedSource = ref(props.sourceFilter);
 const searchInputRef = ref(null);
 
 // 500ms rather than the initial 300ms: a slower typist pausing mid-word
 // otherwise fired a search on almost every letter. Enter skips the wait.
 const SEARCH_DEBOUNCE_MS = 500;
-// The spinner only shows once a search has been pending this long, so a
-// fast response never flashes it.
-const SPINNER_DELAY_MS = 300;
+// The spinner shows as soon as a search starts and stays at least this long,
+// so even an instant response visibly confirms that a search ran.
+const SPINNER_MIN_VISIBLE_MS = 400;
 
 const isSearching = ref(false);
 
 let debounceTimer = null;
+let spinnerHideTimer = null;
+let spinnerShownAt = 0;
 // Identifies the most recent navigation: Inertia cancels a still-pending
 // visit when a newer one starts, and the cancelled visit's `onFinish` must
 // not hide the spinner the newer one is still waiting on.
@@ -63,6 +76,7 @@ let latestVisitId = 0;
 // must consume only its own signal.
 let isSyncingSearchFromProps = false;
 let isSyncingFiltersFromProps = false;
+let isSyncingSourceFromProps = false;
 
 // Keeps the local input in sync when the server-provided `search` prop
 // changes from outside this component's own typing (e.g. browser
@@ -86,7 +100,18 @@ watch(
     },
 );
 
-// One shared navigation call for search + tag filter. It never sends `page`,
+// Same back/forward sync as `search`, for the source filter.
+watch(
+    () => props.sourceFilter,
+    (value) => {
+        if (value !== selectedSource.value) {
+            isSyncingSourceFromProps = true;
+            selectedSource.value = value;
+        }
+    },
+);
+
+// One shared navigation call for search + tag and source filters. It never sends `page`,
 // so every new search (typing, Enter, tag) starts again from page 1; only
 // the pagination links move between pages (spec-recherche-bornes-
 // pagination). Clearing any pending
@@ -109,8 +134,11 @@ function navigate() {
         params.tag_id = selectedTagIds.value;
     }
 
+    if (selectedSource.value) {
+        params.source = selectedSource.value;
+    }
+
     const visitId = ++latestVisitId;
-    let spinnerTimer = null;
 
     router.get(
         '/recherche',
@@ -118,20 +146,31 @@ function navigate() {
         {
             preserveState: true,
             replace: true,
-            only: ['documents', 'search', 'tagFilters', 'keywordLimitReached', 'tags'],
+            only: ['documents', 'search', 'tagFilters', 'sourceFilter', 'keywordLimitReached', 'tags'],
             onStart: () => {
-                spinnerTimer = setTimeout(() => {
-                    if (visitId === latestVisitId) {
-                        isSearching.value = true;
-                    }
-                }, SPINNER_DELAY_MS);
+                clearTimeout(spinnerHideTimer);
+
+                if (!isSearching.value) {
+                    spinnerShownAt = Date.now();
+                    isSearching.value = true;
+                }
             },
             onFinish: () => {
-                clearTimeout(spinnerTimer);
-
-                if (visitId === latestVisitId) {
-                    isSearching.value = false;
+                if (visitId !== latestVisitId) {
+                    return;
                 }
+
+                const remaining = SPINNER_MIN_VISIBLE_MS - (Date.now() - spinnerShownAt);
+
+                if (remaining <= 0) {
+                    isSearching.value = false;
+
+                    return;
+                }
+
+                spinnerHideTimer = setTimeout(() => {
+                    isSearching.value = false;
+                }, remaining);
             },
         },
     );
@@ -237,11 +276,20 @@ watch(selectedTagIds, () => {
     navigate();
 });
 
+watch(selectedSource, () => {
+    if (isSyncingSourceFromProps) {
+        isSyncingSourceFromProps = false;
+        return;
+    }
+
+    navigate();
+});
+
 // The empty-results message follows what the server actually searched
 // (`search` comes back trimmed, `tagFilters` validated) rather than the
 // local input: a whitespace-only term stays neutral (AC2), and a tag just
 // picked never flashes "no results" before its documents arrive.
-const hasServerCriteria = computed(() => props.search !== '' || props.tagFilters.length > 0);
+const hasServerCriteria = computed(() => props.search !== '' || props.tagFilters.length > 0 || props.sourceFilter !== null);
 
 const resultCountLabel = computed(() => (props.documents.total === 1
     ? '1 document trouvé'
@@ -265,6 +313,8 @@ onUnmounted(() => {
     if (debounceTimer) {
         clearTimeout(debounceTimer);
     }
+
+    clearTimeout(spinnerHideTimer);
 });
 
 function formatDate(dateString) {
@@ -423,6 +473,20 @@ function formatDate(dateString) {
                             </ul>
 
                             <h3 class="mb-1 text-sm font-medium text-foreground">
+                                Comment filtrer par type de document ?
+                            </h3>
+                            <ul class="mb-4 list-disc space-y-1 pl-5">
+                                <li>
+                                    « Importé » ne garde que les documents importés depuis un fichier, « Créé » que ceux
+                                    rédigés dans l'éditeur, « Tous » ne filtre rien.
+                                </li>
+                                <li>
+                                    Le filtre s'ajoute aux mots-clés et aux tags (ET). Seul, il affiche les documents de ce
+                                    type, du plus récent au plus ancien.
+                                </li>
+                            </ul>
+
+                            <h3 class="mb-1 text-sm font-medium text-foreground">
                                 Classement et lancement
                             </h3>
                             <ul class="list-disc space-y-1 pl-5">
@@ -479,6 +543,28 @@ function formatDate(dateString) {
                     <TagSelector v-model="selectedTagIds" :show-label="false" :show-selected="false" />
                 </fieldset>
 
+                <fieldset>
+                    <legend class="mb-1 text-sm font-medium text-foreground">
+                        Filtrer par type de document
+                    </legend>
+                    <div class="flex flex-wrap gap-x-5 gap-y-2">
+                        <label
+                            v-for="option in SOURCE_OPTIONS"
+                            :key="option.label"
+                            class="inline-flex cursor-pointer items-center gap-2 text-sm text-foreground"
+                        >
+                            <input
+                                v-model="selectedSource"
+                                type="radio"
+                                name="search-source"
+                                :value="option.value"
+                                class="h-4 w-4 cursor-pointer accent-primary"
+                            >
+                            {{ option.label }}
+                        </label>
+                    </div>
+                </fieldset>
+
                 <div v-if="selectedTagIds.length > 0" class="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     <span class="text-sm text-muted">Filtres par tag actifs :</span>
                     <TagChip
@@ -533,7 +619,6 @@ function formatDate(dateString) {
                                 :href="`/documents/${document.id}`"
                                 class="flex items-center gap-3 border-b border-border px-2 py-3 transition hover:rounded-sm hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                             >
-                                <DocumentTypeBadge class="shrink-0" :mime-type="document.mime_type" :source="document.source" />
                                 <span class="min-w-0 flex-1 truncate font-medium text-foreground">
                                     {{ document.title }}
                                 </span>
@@ -545,7 +630,12 @@ function formatDate(dateString) {
                         </li>
                     </ul>
 
-                    <Pagination :links="documents.links" />
+                    <Pagination
+                        :links="documents.links"
+                        :total="documents.total"
+                        :from="documents.from"
+                        :to="documents.to"
+                    />
                 </div>
 
                 <div

@@ -114,12 +114,12 @@ class DocumentController extends Controller
 
     /**
      * Dedicated Recherche surface entry point (spec-3-4): fulltext search
-     * (documents + pièces jointes) narrowed by the active tag filter, never a
-     * type filter (Boundaries & Constraints — type stays specific to the
+     * (documents + pièces jointes) narrowed by the active tag and source
+     * filters (never a mime-type filter — that stays specific to the
      * Bibliothèque). Bounds, blank-term handling and the query itself live in
      * SearchDocumentsAction, shared with the MCP tools (AD-8); this method
      * only parses the request and builds the page. The page links keep
-     * `search` and `tag_id[]`; Scout's own `query` parameter, which its
+     * `search`, `tag_id[]` and `source`; Scout's own `query` parameter, which its
      * paginate() appends, is dropped again (null is skipped when the links
      * are built).
      *
@@ -127,6 +127,8 @@ class DocumentController extends Controller
      * `keywordLimitReached` tells the page that keywords beyond
      * KeywordDatabaseEngine::MAX_KEYWORDS were ignored, and only the first
      * SearchDocumentsAction::MAX_TAG_FILTERS tags are kept (tagIdsFromQuery()).
+     * `source` (imported/created) narrows by how the document came to exist;
+     * an unknown value is ignored.
      */
     public function search(Request $request, SearchDocumentsAction $searchDocuments): Response
     {
@@ -135,16 +137,21 @@ class DocumentController extends Controller
 
         $tagIds = $this->tagIdsFromQuery($request);
 
+        $rawSource = $request->query('source');
+        $source = is_string($rawSource) ? DocumentSource::tryFrom($rawSource) : null;
+
         $documents = $searchDocuments(new SearchDocumentsData(
             term: $search,
             tagIds: $tagIds,
             path: $request->url(),
+            source: $source,
         ));
 
         return Inertia::render('Documents/Search', [
             'documents' => $documents->withQueryString()->appends('query', null),
             'search' => $search,
             'tagFilters' => $tagIds,
+            'sourceFilter' => $source?->value,
             'keywordLimitReached' => KeywordDatabaseEngine::exceedsKeywordLimit($search),
         ]);
     }

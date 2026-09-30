@@ -2,6 +2,8 @@
 
 namespace App\DataTransferObjects;
 
+use App\Enums\DocumentSource;
+
 final readonly class SearchDocumentsData
 {
     /**
@@ -12,5 +14,6 @@ final readonly class SearchDocumentsData
         public array $tagIds = [],
         public ?int $page = null,
         public ?string $path = null,
+        public ?DocumentSource $source = null,
     ) {}
 }

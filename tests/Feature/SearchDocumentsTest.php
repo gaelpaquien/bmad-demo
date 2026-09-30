@@ -756,3 +756,44 @@ it('returns an empty paginator when neither a term nor a tag is given', function
         ->where('keywordLimitReached', false)
     );
 });
+
+// Source filter (spec-ajustements-recherche-spinner-source): alone it lists
+// that source's documents, newest first, like a tag alone.
+it('lists only the documents of the selected source when no term or tag is given', function () {
+    $created = Document::factory()->created()->create();
+    Document::factory()->count(2)->create();
+
+    $response = $this->get('/recherche?source=created');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Search')
+        ->where('sourceFilter', 'created')
+        ->where('documents.total', 1)
+        ->where('documents.data.0.id', $created->id)
+    );
+});
+
+it('narrows a keyword search to the selected source', function () {
+    $imported = Document::factory()->create(['extracted_text' => 'facture importée']);
+    Document::factory()->created()->create(['extracted_text' => 'facture créée']);
+
+    $response = $this->get('/recherche?search=facture&source=imported');
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('documents.total', 1)
+        ->where('documents.data.0.id', $imported->id)
+    );
+});
+
+it('ignores an unknown source value instead of erroring', function () {
+    Document::factory()->count(2)->create();
+
+    $response = $this->get('/recherche?source=bogus');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('sourceFilter', null)
+        ->has('documents.data', 0)
+    );
+});

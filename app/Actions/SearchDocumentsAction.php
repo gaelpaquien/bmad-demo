@@ -15,9 +15,10 @@ use Illuminate\Pagination\LengthAwarePaginator;
  * diverge.
  *
  * Every bound truncates, never refuses. A blank (post-trim) term with no tag
- * short-circuits to an empty paginator — the whole library is never listed.
- * A blank term with at least one tag lists that tag's documents, newest
- * first, through the same `Document::search()` path.
+ * and no source filter short-circuits to an empty paginator — the whole
+ * library is never listed. A blank term with at least one tag, or a source
+ * filter, lists the matching documents, newest first, through the same
+ * `Document::search()` path.
  */
 class SearchDocumentsAction
 {
@@ -41,14 +42,18 @@ class SearchDocumentsAction
         $term = self::boundedTerm($data->term);
         $tagIds = array_slice($data->tagIds, 0, self::MAX_TAG_FILTERS);
 
-        if ($term === '' && $tagIds === []) {
+        if ($term === '' && $tagIds === [] && $data->source === null) {
             return new LengthAwarePaginator([], 0, self::PER_PAGE, options: ['path' => $data->path ?? LengthAwarePaginator::resolveCurrentPath()]);
         }
 
         return Document::search($term)
-            ->query(function (Builder $query) use ($tagIds) {
+            ->query(function (Builder $query) use ($tagIds, $data) {
                 if ($tagIds !== []) {
                     $query->whereHas('tags', fn (Builder $tagQuery) => $tagQuery->whereIn('tags.id', $tagIds));
+                }
+
+                if ($data->source !== null) {
+                    $query->where('source', $data->source);
                 }
 
                 return $query
