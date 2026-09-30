@@ -145,6 +145,7 @@ class DocumentController extends Controller
             tagIds: $tagIds,
             path: $request->url(),
             source: $source,
+            perPage: self::LIBRARY_PER_PAGE,
         ));
 
         return Inertia::render('Documents/Search', [

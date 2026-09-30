@@ -26,6 +26,10 @@ class SearchDocumentsAction
 
     public const MAX_TAG_FILTERS = 20;
 
+    /**
+     * Default page size (MCP tool); the Recherche page passes its own via
+     * SearchDocumentsData::$perPage.
+     */
     public const PER_PAGE = 10;
 
     /**
@@ -43,7 +47,7 @@ class SearchDocumentsAction
         $tagIds = array_slice($data->tagIds, 0, self::MAX_TAG_FILTERS);
 
         if ($term === '' && $tagIds === [] && $data->source === null) {
-            return new LengthAwarePaginator([], 0, self::PER_PAGE, options: ['path' => $data->path ?? LengthAwarePaginator::resolveCurrentPath()]);
+            return new LengthAwarePaginator([], 0, $data->perPage, options: ['path' => $data->path ?? LengthAwarePaginator::resolveCurrentPath()]);
         }
 
         return Document::search($term)
@@ -62,6 +66,6 @@ class SearchDocumentsAction
                     ->latest()
                     ->orderByDesc('id');
             })
-            ->paginate(self::PER_PAGE, 'page', $data->page);
+            ->paginate($data->perPage, 'page', $data->page);
     }
 }

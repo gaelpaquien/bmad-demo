@@ -9,7 +9,7 @@ import TagChip from '@/Components/TagChip.vue';
 import TextInput from '@/Components/TextInput.vue';
 
 const props = defineProps({
-    // Laravel paginator, 10 results per page (spec-recherche-bornes-pagination).
+    // Laravel paginator, 20 results per page, like the Documents list (spec-recherche-bornes-pagination).
     documents: {
         type: Object,
         default: () => ({ data: [], links: [], total: 0 }),
@@ -500,7 +500,7 @@ function formatDate(dateString) {
                                     créés ou importés le plus récemment viennent en premier.
                                 </li>
                                 <li>
-                                    Les résultats s'affichent par pages de 10, avec le nombre total de documents trouvés sous la pagination.
+                                    Les résultats s'affichent par pages de 20, avec le nombre total de documents trouvés sous la pagination.
                                     Une nouvelle recherche repart de la première page.
                                 </li>
                                 <li>La recherche part une demi-seconde après la dernière frappe, ou tout de suite avec Entrée.</li>

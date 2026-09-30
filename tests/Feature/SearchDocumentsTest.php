@@ -625,29 +625,29 @@ it('returns an empty result set when the search term only contains excluded keyw
     );
 })->with(['-speed', '+', '- +']);
 
-// I/O matrix "Page 1" (spec-recherche-bornes-pagination): 10 per page, the
+// I/O matrix "Page 1" (spec-recherche-bornes-pagination): 20 per page (as the Documents list), the
 // total counting every match.
-it('paginates search results 10 per page with the total count of matches', function () {
-    Document::factory()->count(25)->create(['extracted_text' => 'Facture du mois.']);
+it('paginates search results 20 per page (as the Documents list) with the total count of matches', function () {
+    Document::factory()->count(45)->create(['extracted_text' => 'Facture du mois.']);
 
     $response = $this->get('/recherche?search=facture');
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Search')
-        ->has('documents.data', 10)
-        ->where('documents.total', 25)
+        ->has('documents.data', 20)
+        ->where('documents.total', 45)
         ->where('documents.current_page', 1)
         ->where('documents.last_page', 3)
     );
 });
 
-// I/O matrix "Page 2": results 11–20, page links keep `search` and
+// I/O matrix "Page 2": results 21–40, page links keep `search` and
 // `tag_id[]`, never Scout's own `query` parameter.
 it('serves the second page of results with page links keeping the search criteria', function () {
     $tag = Tag::factory()->create();
-    $documents = Document::factory()->count(25)->sequence(
-        fn ($sequence) => ['created_at' => now()->subMinutes(25 - $sequence->index)],
+    $documents = Document::factory()->count(45)->sequence(
+        fn ($sequence) => ['created_at' => now()->subMinutes(45 - $sequence->index)],
     )->create(['extracted_text' => 'Facture du mois.']);
     $documents->each(fn (Document $document) => $document->tags()->sync([$tag->id]));
 
@@ -655,11 +655,11 @@ it('serves the second page of results with page links keeping the search criteri
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('documents.data', 10)
+        ->has('documents.data', 20)
         ->where('documents.current_page', 2)
-        // Newest first: page 2 holds positions 11–20, i.e. indexes 14 down to 5.
-        ->where('documents.data.0.id', $documents->get(14)->id)
-        ->where('documents.data.9.id', $documents->get(5)->id)
+        // Newest first: page 2 holds positions 21–40, i.e. indexes 24 down to 5.
+        ->where('documents.data.0.id', $documents->get(24)->id)
+        ->where('documents.data.19.id', $documents->get(5)->id)
         ->where('documents.links', function ($links) use ($tag) {
             $urls = collect($links)->pluck('url')->filter();
 

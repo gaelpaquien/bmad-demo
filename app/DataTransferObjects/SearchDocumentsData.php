@@ -2,6 +2,7 @@
 
 namespace App\DataTransferObjects;
 
+use App\Actions\SearchDocumentsAction;
 use App\Enums\DocumentSource;
 
 final readonly class SearchDocumentsData
@@ -15,5 +16,6 @@ final readonly class SearchDocumentsData
         public ?int $page = null,
         public ?string $path = null,
         public ?DocumentSource $source = null,
+        public int $perPage = SearchDocumentsAction::PER_PAGE,
     ) {}
 }
