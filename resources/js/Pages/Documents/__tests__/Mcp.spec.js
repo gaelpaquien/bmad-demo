@@ -18,6 +18,8 @@ function mountPage(projectPath = WINDOWS_PROJECT_PATH) {
 describe('Documents/Mcp', () => {
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
     });
 
     it('explains that the server is local-only and lists the three tools', () => {
@@ -67,8 +69,6 @@ describe('Documents/Mcp', () => {
         expect(writeText).toHaveBeenCalledWith(wrapper.find('[data-testid="mcp-desktop-config"]').text());
         expect(wrapper.find('[data-testid="mcp-copy-desktop"]').text()).toBe('Copié');
         expect(wrapper.find('[data-testid="mcp-copy-code"]').text()).toBe('Copier');
-
-        vi.unstubAllGlobals();
     });
 
     it('stays silent when the clipboard is unavailable', async () => {
@@ -80,7 +80,35 @@ describe('Documents/Mcp', () => {
         await wrapper.vm.$nextTick();
 
         expect(wrapper.find('[data-testid="mcp-copy-desktop"]').text()).toBe('Copier');
+    });
 
-        vi.unstubAllGlobals();
+    it('stays silent when there is no clipboard API at all', async () => {
+        vi.stubGlobal('navigator', {});
+        const wrapper = mountPage();
+
+        await wrapper.find('[data-testid="mcp-copy-desktop"]').trigger('click');
+        await Promise.resolve();
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('[data-testid="mcp-copy-desktop"]').text()).toBe('Copier');
+    });
+
+    it('copies the Claude Code command and reverts the confirmation after two seconds', async () => {
+        vi.useFakeTimers();
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        const wrapper = mountPage();
+
+        await wrapper.find('[data-testid="mcp-copy-code"]').trigger('click');
+        await Promise.resolve();
+        await wrapper.vm.$nextTick();
+
+        expect(writeText).toHaveBeenCalledWith(wrapper.find('[data-testid="mcp-code-command"]').text());
+        expect(wrapper.find('[data-testid="mcp-copy-code"]').text()).toBe('Copié');
+
+        vi.advanceTimersByTime(2000);
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('[data-testid="mcp-copy-code"]').text()).toBe('Copier');
     });
 });
