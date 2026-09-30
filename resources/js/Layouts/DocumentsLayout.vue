@@ -84,7 +84,7 @@ function formatDate(dateString) {
                 data-testid="documents-menu"
             >
                 <div
-                    class="mb-5 flex items-center gap-2 px-2.5 py-1 text-sm font-semibold tracking-tight"
+                    class="mb-5 flex shrink-0 items-center gap-2 px-2.5 py-1 text-sm font-semibold tracking-tight"
                     data-testid="documents-menu-title"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0" aria-hidden="true">
@@ -96,7 +96,7 @@ function formatDate(dateString) {
                     <span class="whitespace-nowrap">Documents</span>
                 </div>
 
-                <hr class="mb-3 h-0.5 border-0 opacity-70 bg-[linear-gradient(to_right,var(--color-border)_60%,transparent)]" />
+                <hr class="mb-3 h-0.5 shrink-0 border-0 opacity-70 bg-[linear-gradient(to_right,var(--color-border)_60%,transparent)]" />
 
                 <ul v-if="isListLoading" class="flex flex-col gap-0.5" aria-busy="true" data-testid="documents-skeleton">
                     <li v-for="row in skeletonRowCount" :key="row" class="flex animate-pulse flex-col gap-1.5 rounded-md px-2.5 py-2">
@@ -149,7 +149,7 @@ function formatDate(dateString) {
                      shows, so the menu does not jump. -->
                 <template v-if="documents.data.length > 0 && documents.links.length > 3">
                     <hr
-                        class="mt-4 h-px border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]"
+                        class="mt-4 h-px shrink-0 border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]"
                         data-testid="documents-pagination-separator"
                     />
                     <Pagination
