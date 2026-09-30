@@ -21,6 +21,11 @@ vi.mock('@inertiajs/vue3', async () => {
 
     return {
         usePage: () => pageState,
+        Link: {
+            name: 'Link',
+            props: ['href'],
+            template: '<a :href="href"><slot /></a>',
+        },
         router: {
             delete: routerDeleteMock,
         },
@@ -89,6 +94,18 @@ describe('Documents/Configuration', () => {
 
         expect(wrapper.text()).toContain('1 document');
         expect(wrapper.text()).not.toContain('1 documents');
+    });
+
+    it('links the document count to the search page filtered on that tag, except when the tag has no document', () => {
+        const wrapper = mount(Configuration, {
+            props: { tags: twoTags },
+            global: { stubs: globalStubs },
+        });
+
+        const link = wrapper.find('a[href="/recherche?tag_id[]=1"]');
+        expect(link.exists()).toBe(true);
+        expect(link.text()).toBe('3 documents');
+        expect(wrapper.findAll('a[href^="/recherche"]')).toHaveLength(1);
     });
 
     // --- État vide -------------------------------------------------------------

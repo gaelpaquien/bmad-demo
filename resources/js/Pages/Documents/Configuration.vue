@@ -1,5 +1,5 @@
 <script setup>
-import { router, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, ref } from 'vue';
 import ConfigurationLayout from '@/Layouts/ConfigurationLayout.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -334,8 +334,16 @@ function trapDeleteDialogFocus(event) {
                         <span class="min-w-0 flex-1 truncate font-medium text-foreground">
                             {{ tag.name }}
                         </span>
-                        <span class="shrink-0 text-xs text-muted">
+                        <Link
+                            v-if="tag.documents_count > 0"
+                            :href="`/recherche?tag_id[]=${tag.id}`"
+                            class="shrink-0 rounded-sm text-xs text-muted underline underline-offset-2 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                            :aria-label="`Voir les ${tag.documents_count} document${tag.documents_count === 1 ? '' : 's'} du tag ${tag.name}`"
+                        >
                             {{ tag.documents_count }} document{{ tag.documents_count === 1 ? '' : 's' }}
+                        </Link>
+                        <span v-else class="shrink-0 text-xs text-muted">
+                            {{ tag.documents_count }} document
                         </span>
                         <button
                             type="button"
