@@ -29,7 +29,7 @@ final class DocumentMimeTypes
 
     /**
      * `type[]`-filter value => matching `mime_type`, consumed by the
-     * type-filter parsing/application in `DocumentController::applyFilters()`.
+     * type-filter parsing and `DocumentPresenter::typeLabel()`.
      */
     public const TYPE_TO_MIME = [
         'pdf' => 'application/pdf',

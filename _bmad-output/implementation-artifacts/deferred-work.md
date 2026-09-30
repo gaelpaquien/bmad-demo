@@ -466,3 +466,7 @@ Motif du tri 2026-09-29 pour chaque entrée fermée.
 - source_spec: none
   summary: Limiter à 10 le nombre de pièces jointes par document (brouillons + pièces jointes déjà rattachées, sur les trois points d'entrée : import, éditeur, document existant) et ajouter le pré-contrôle client des 20 Mo sur les pièces…
   motif: Résolu — livré (f6456b3, spec-limite-pieces-jointes), pré-contrôle client 20 Mo en place.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-mcp-base-connaissance.md`
+  summary: Vérifier que ChatGPT et claude.ai (web) acceptent réellement un jeton bearer statique pour se connecter à `/mcp`, sinon protéger l'endpoint par OAuth (Passport) ou l'ouvrir sans authentification derrière un secret dans l'URL.
+  evidence: Sévérité medium non vérifiée. La doc Laravel MCP indique qu'OAuth 2.1 est le mécanisme le plus largement pris en charge par les clients MCP ; les connecteurs personnalisés de ChatGPT et de claude.ai proposent, à notre connaissance, OAuth ou aucune authentification plutôt qu'un en-tête statique. À trancher en branchant réellement un de ces clients sur `/mcp` via un tunnel HTTPS ; le serveur local (stdio) et les clients qui acceptent un en-tête `Authorization` (Claude Code, Cursor, API Claude) ne sont pas concernés.

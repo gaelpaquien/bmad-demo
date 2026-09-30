@@ -9,6 +9,7 @@ use App\Actions\DeleteDocumentAction;
 use App\Actions\DeleteDraftDirectoryAction;
 use App\Actions\ExportDocumentToPdfAction;
 use App\Actions\ImportDocumentAction;
+use App\Actions\SearchDocumentsAction;
 use App\Actions\SyncDocumentTagsAction;
 use App\Actions\UpdateDocumentAction;
 use App\Actions\UploadDraftAttachmentAction;
@@ -19,6 +20,7 @@ use App\DataTransferObjects\DeleteDocumentData;
 use App\DataTransferObjects\DeleteDraftDirectoryData;
 use App\DataTransferObjects\ExportDocumentToPdfData;
 use App\DataTransferObjects\ImportDocumentData;
+use App\DataTransferObjects\SearchDocumentsData;
 use App\DataTransferObjects\SyncDocumentTagsData;
 use App\DataTransferObjects\UpdateDocumentData;
 use App\DataTransferObjects\UploadDraftAttachmentData;
@@ -34,11 +36,9 @@ use App\Jobs\ExtractDocumentTextJob;
 use App\Models\Document;
 use App\Support\DocumentMimeTypes;
 use App\Support\KeywordDatabaseEngine;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -55,17 +55,6 @@ class DocumentController extends Controller
     private const PREVIEW_DIRECTORY = 'previews';
 
     /**
-     * Recherche bounds (spec-recherche-bornes-pagination): the term is cut
-     * to this many characters, the tag filter to this many tags, and results
-     * come this many per page.
-     */
-    private const MAX_SEARCH_LENGTH = 255;
-
-    private const MAX_TAG_FILTERS = 20;
-
-    private const SEARCH_PER_PAGE = 10;
-
-    /**
      * User-uploaded content is streamed inline — into a preview iframe, or
      * an `<img>` (spec-2-2) — nosniff closes off content-sniffing if a
      * stored file's actual content ever mismatches what its extension/
@@ -78,8 +67,7 @@ class DocumentController extends Controller
      * title, tags, date), sorted most recent first and paginated 20 per
      * page. No filtering here (spec-nettoyage-sidebar-et-page-documents) —
      * filtering by tag now lives solely on the dedicated Recherche surface
-     * (search()), which still shares applyFilters()/tagIdsFromQuery() with
-     * this class.
+     * (search()).
      *
      * Fulltext search never lived here (that's search(), spec-3-4): this
      * method never touches Scout.
@@ -98,96 +86,39 @@ class DocumentController extends Controller
 
     /**
      * Dedicated Recherche surface entry point (spec-3-4): fulltext search
-     * (documents + pièces jointes, via Scout's `database` driver, indexed on
-     * `extracted_text`/`attachments_extracted_text`) narrowed by the active
-     * tag filter, never a type filter (Boundaries & Constraints — type stays
-     * specific to the Bibliothèque), paginated SEARCH_PER_PAGE per page with
-     * no cap on the total (spec-recherche-bornes-pagination). The page links
-     * keep `search` and `tag_id[]`; Scout's own `query` parameter, which its
+     * (documents + pièces jointes) narrowed by the active tag filter, never a
+     * type filter (Boundaries & Constraints — type stays specific to the
+     * Bibliothèque). Bounds, blank-term handling and the query itself live in
+     * SearchDocumentsAction, shared with the MCP tools (AD-8); this method
+     * only parses the request and builds the page. The page links keep
+     * `search` and `tag_id[]`; Scout's own `query` parameter, which its
      * paginate() appends, is dropped again (null is skipped when the links
      * are built).
      *
-     * Every bound truncates, never refuses: the term is cut to
-     * MAX_SEARCH_LENGTH characters (and echoed back cut), only the first
-     * KeywordDatabaseEngine::MAX_KEYWORDS distinct keywords are applied
-     * (`keywordLimitReached` tells the page some were ignored), and only the
-     * first MAX_TAG_FILTERS tags are kept (tagIdsFromQuery()).
-     *
-     * A blank (post-trim) term with no tag selected short-circuits to an
-     * empty paginator — Recherche never falls back to showing the whole
-     * library (Boundaries & Constraints, AC2). A blank term with at least one
-     * tag lists that tag's documents, newest first, through the same
-     * `Document::search()` path (AD-8, 2026-09-29). Reuses applyFilters()/
-     * tagIdsFromQuery() unmodified (AD-8) — this is now their sole caller,
-     * index() having dropped all filtering (spec-nettoyage-sidebar-et-page-
-     * documents).
+     * The term is echoed back cut to SearchDocumentsAction::MAX_SEARCH_LENGTH,
+     * `keywordLimitReached` tells the page that keywords beyond
+     * KeywordDatabaseEngine::MAX_KEYWORDS were ignored, and only the first
+     * SearchDocumentsAction::MAX_TAG_FILTERS tags are kept (tagIdsFromQuery()).
      */
-    public function search(Request $request): Response
+    public function search(Request $request, SearchDocumentsAction $searchDocuments): Response
     {
         $rawSearch = $request->query('search', '');
-        $search = trim(mb_substr(trim(is_scalar($rawSearch) ? (string) $rawSearch : ''), 0, self::MAX_SEARCH_LENGTH));
+        $search = SearchDocumentsAction::boundedTerm(is_scalar($rawSearch) ? (string) $rawSearch : '');
 
         $tagIds = $this->tagIdsFromQuery($request);
 
-        $columns = ['id', 'title', 'source', 'mime_type', 'created_at'];
-
-        $documents = $search === '' && $tagIds === []
-            ? new LengthAwarePaginator([], 0, self::SEARCH_PER_PAGE, options: ['path' => $request->url()])
-            // Keyword splitting, LIKE escaping and relevance ranking all live in
-            // KeywordDatabaseEngine (Document::searchableUsing()).
-            : Document::search($search)
-                ->query(fn ($query) => $this->applyFilters($query, $tagIds, [])
-                    ->select($columns)->with('tags:id,name')->latest()->orderByDesc('id'))
-                ->paginate(self::SEARCH_PER_PAGE)
-                ->withQueryString()
-                ->appends('query', null);
+        $documents = $searchDocuments(new SearchDocumentsData(
+            term: $search,
+            tagIds: $tagIds,
+            path: $request->url(),
+        ));
 
         return Inertia::render('Documents/Search', [
-            'documents' => $documents,
+            'documents' => $documents->withQueryString()->appends('query', null),
             'search' => $search,
             'tagFilters' => $tagIds,
             'keywordLimitReached' => KeywordDatabaseEngine::exceedsKeywordLimit($search),
         ]);
-    }
-
-    /**
-     * Sole filter-application point — the only place either filter is ever
-     * applied (Boundaries & Constraints, spec-3-1: never a second/separate
-     * `whereHas` branch elsewhere). Its only remaining call site is
-     * `search()`'s Scout query callback: `index()` no longer filters at all
-     * (spec-nettoyage-sidebar-et-page-documents), so `$types` only ever
-     * arrives empty in practice now (search() always passes `[]`) — the
-     * parameter and its handling stay since `search()` still calls through
-     * this shared signature. ET between the tag and type groups, OU within
-     * each group: `whereHas('tags', ...)` narrows to documents carrying at
-     * least one of the selected tags when any is selected, and a single
-     * `where()` closure ORs together the recognized-mime types plus
-     * `source = created` when selected.
-     */
-    private function applyFilters(Builder $query, array $tagIds, array $types): Builder
-    {
-        if ($tagIds !== []) {
-            $query->whereHas('tags', function (Builder $tagQuery) use ($tagIds) {
-                $tagQuery->whereIn('tags.id', $tagIds);
-            });
-        }
-
-        if ($types !== []) {
-            $mimeTypes = array_values(array_intersect_key(DocumentMimeTypes::TYPE_TO_MIME, array_flip($types)));
-            $includesCreated = in_array('created', $types, true);
-
-            $query->where(function (Builder $typeQuery) use ($mimeTypes, $includesCreated) {
-                if ($mimeTypes !== []) {
-                    $typeQuery->orWhereIn('mime_type', $mimeTypes);
-                }
-
-                if ($includesCreated) {
-                    $typeQuery->orWhere('source', DocumentSource::Created);
-                }
-            });
-        }
-
-        return $query;
     }
 
     /**
@@ -200,7 +131,7 @@ class DocumentController extends Controller
      * `(int) "2.5"` — that truncation could otherwise match a real tag the
      * client never actually selected.
      *
-     * Only the first MAX_TAG_FILTERS distinct valid ids are kept, silently:
+     * Only the first SearchDocumentsAction::MAX_TAG_FILTERS distinct valid ids are kept, silently:
      * the tag selector never exceeds it, only a forged URL does.
      */
     private function tagIdsFromQuery(Request $request): array
@@ -219,7 +150,7 @@ class DocumentController extends Controller
         return array_slice(
             array_values(array_unique(array_filter($ids, static fn ($value) => $value !== false))),
             0,
-            self::MAX_TAG_FILTERS,
+            SearchDocumentsAction::MAX_TAG_FILTERS,
         );
     }
 

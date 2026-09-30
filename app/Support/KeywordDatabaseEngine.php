@@ -177,6 +177,21 @@ class KeywordDatabaseEngine extends DatabaseEngine
     }
 
     /**
+     * The words a matching document can contain (required and optional
+     * keywords, never the excluded ones), for callers that show where a
+     * result matched.
+     *
+     * @return array<int, string>
+     */
+    public static function matchableWordsFrom(string $term): array
+    {
+        return array_values(array_map(
+            fn (array $keyword): string => $keyword['text'],
+            array_filter(self::keywordsFrom($term), fn (array $keyword): bool => $keyword['operator'] !== self::EXCLUDED),
+        ));
+    }
+
+    /**
      * Every distinct keyword of the term, merged as described in
      * keywordsFrom(), in order of first appearance and without any limit.
      *
