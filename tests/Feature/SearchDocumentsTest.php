@@ -797,3 +797,25 @@ it('ignores an unknown source value instead of erroring', function () {
         ->has('documents.data', 0)
     );
 });
+
+// Ranking tie-break: equal on distinct keywords, the document mentioning the
+// keyword more often comes first, ahead of the more recent one.
+it('breaks a tie on distinct keywords by the total number of occurrences before the date', function () {
+    $often = Document::factory()->create(['extracted_text' => 'facture, facture, facture.', 'created_at' => now()->subDays(3)]);
+    $once = Document::factory()->create(['extracted_text' => 'Une facture.', 'created_at' => now()]);
+
+    $this->get('/recherche?search=facture')->assertInertia(fn ($page) => $page
+        ->where('documents.data.0.id', $often->id)
+        ->where('documents.data.1.id', $once->id)
+    );
+});
+
+it('still ranks more distinct keywords ahead of more occurrences of one keyword', function () {
+    $many = Document::factory()->create(['extracted_text' => 'facture facture facture facture']);
+    $both = Document::factory()->create(['extracted_text' => 'facture et devis']);
+
+    $this->get('/recherche?search=facture+devis')->assertInertia(fn ($page) => $page
+        ->where('documents.data.0.id', $both->id)
+        ->where('documents.data.1.id', $many->id)
+    );
+});

@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\SearchDocumentsAction;
 use App\Mcp\Servers\KnowledgeBaseServer;
 use App\Mcp\Tools\SearchDocumentsTool;
 use App\Models\Document;
@@ -176,4 +177,56 @@ it('never exposes the path of the original file', function () {
     Document::factory()->create(['file_path' => 'documents/secret/dossier/original.pdf', 'extracted_text' => 'facture']);
 
     searchDocumentsTool(['query' => 'facture'])->assertDontSee('documents/secret');
+});
+
+it('tells how many keywords each result contains and where', function () {
+    $document = Document::factory()->create([
+        'title' => 'Contrat de maintenance.pdf',
+        'extracted_text' => 'Le préavis est de trois mois.',
+        'attachments_extracted_text' => 'Annexe : conditions de résiliation.',
+    ]);
+
+    searchDocumentsTool(['query' => 'contrat préavis résiliation absent'])->assertStructuredContent(fn ($json) => $json
+        ->where('results.0.id', $document->id)
+        ->where('results.0.keywords_matched', 3)
+        ->where('results.0.keywords_total', 4)
+        ->where('results.0.matched_in', ['titre', 'contenu', 'pièce jointe'])
+        ->etc()
+    );
+});
+
+it('centres the excerpt on the zone holding the most keywords, not the first occurrence', function () {
+    $document = Document::factory()->create([
+        'extracted_text' => 'Le contrat est mentionné ici seul.'.str_repeat(' Bla bla bla.', 60).' Contrat de maintenance : la clause de résiliation est précisée.'.str_repeat(' Fin.', 60),
+    ]);
+
+    searchDocumentsTool(['query' => 'contrat résiliation'])->assertStructuredContent(fn ($json) => $json
+        ->where('results.0.id', $document->id)
+        ->where('results.0.excerpt', fn ($excerpt) => str_contains($excerpt, 'clause de résiliation') && ! str_contains($excerpt, 'mentionné ici seul'))
+        ->etc()
+    );
+});
+
+it('keeps only the documents of the requested source', function () {
+    $created = Document::factory()->created()->create(['extracted_text' => 'Facture de janvier.']);
+    Document::factory()->create(['extracted_text' => 'Facture de février.']);
+
+    searchDocumentsTool(['query' => 'facture', 'source' => 'created'])->assertStructuredContent(fn ($json) => $json
+        ->where('total', 1)
+        ->where('results.0.id', $created->id)
+        ->etc()
+    );
+});
+
+it('still refuses a source given without any keyword or tag, and an unknown source', function () {
+    Document::factory()->count(2)->create();
+
+    searchDocumentsTool(['source' => 'created'])->assertHasErrors();
+    searchDocumentsTool(['query' => 'facture', 'source' => 'bogus'])->assertHasErrors();
+});
+
+it('advises on how to search in its description', function () {
+    $description = (new SearchDocumentsTool(app(SearchDocumentsAction::class)))->description();
+
+    expect($description)->toContain('2 à 4 mots')->toContain('`+`')->toContain('affine ta requête');
 });

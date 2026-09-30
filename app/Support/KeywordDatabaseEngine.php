@@ -147,7 +147,40 @@ class KeywordDatabaseEngine extends DatabaseEngine
 
         $orderByMatchCount($columns);
 
+        $this->orderByOccurrences($query, $ranked, $columns);
+
         return $query;
+    }
+
+    /**
+     * Last text-based tie-break, after the distinct-keyword counts: how many
+     * times the ranked keywords appear in total, across every indexed column
+     * (occurrences counted as removed-length / keyword-length after
+     * lower-casing, so case-insensitive but not accent-insensitive — it only
+     * separates documents already equal on distinct keywords).
+     *
+     * @param  EloquentBuilder  $query
+     * @param  array<int, array{text: string, operator: string}>  $ranked
+     * @param  array<int, string>  $columns
+     */
+    private function orderByOccurrences($query, array $ranked, array $columns): void
+    {
+        $grammar = $query->getQuery()->getGrammar();
+        $model = $query->getModel();
+        $terms = [];
+        $bindings = [];
+
+        foreach ($ranked as $keyword) {
+            $needle = mb_strtolower($keyword['text']);
+
+            foreach ($columns as $column) {
+                $wrapped = "lower(coalesce({$grammar->wrap($model->qualifyColumn($column))}, ''))";
+                $terms[] = "((length({$wrapped}) - length(replace({$wrapped}, ?, ''))) / length(?))";
+                array_push($bindings, $needle, $needle);
+            }
+        }
+
+        $query->orderByRaw(implode(' + ', $terms).' desc', $bindings);
     }
 
     /**
@@ -218,7 +251,7 @@ class KeywordDatabaseEngine extends DatabaseEngine
                 default => self::OPTIONAL,
             };
 
-            $key = self::deduplicationKeyFor($text);
+            $key = self::foldForComparison($text);
             $existing = $keywords[$key] ?? null;
 
             if ($existing === null || self::STRICTNESS[$operator] > self::STRICTNESS[$existing['operator']]) {
@@ -234,7 +267,7 @@ class KeywordDatabaseEngine extends DatabaseEngine
      * (`utf8mb4_unicode_ci`): "ete" and "Été" match the same rows, so they
      * must merge into one keyword rather than count twice in the ranking.
      */
-    private static function deduplicationKeyFor(string $text): string
+    public static function foldForComparison(string $text): string
     {
         $decomposed = Normalizer::normalize(mb_strtolower($text), Normalizer::FORM_D);
 

@@ -495,9 +495,9 @@ function formatDate(dateString) {
                             <ul class="list-disc space-y-1 pl-5">
                                 <li>
                                     D'abord les documents dont le titre contient le plus de mots-clés différents
-                                    (obligatoires et facultatifs), puis ceux qui en contiennent le plus au total. Un mot
-                                    présent plusieurs fois dans un document ne compte qu'une fois. À égalité, les documents
-                                    créés ou importés le plus récemment viennent en premier.
+                                    (obligatoires et facultatifs), puis ceux qui en contiennent le plus au total. À égalité,
+                                    ceux où ces mots reviennent le plus souvent (un mot présent plusieurs fois compte alors
+                                    à chaque fois), puis les documents créés ou importés le plus récemment.
                                 </li>
                                 <li>
                                     Les résultats s'affichent par pages de 20, avec le nombre total de documents trouvés sous la pagination.

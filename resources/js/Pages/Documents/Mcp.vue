@@ -14,7 +14,7 @@ const SERVER_HANDLE = 'bmad-demo';
 const tools = [
     {
         name: 'search_documents',
-        role: "Recherche des documents par mots-clés dans leur titre et leur contenu (pièces jointes comprises), avec un filtre optionnel par tag. Renvoie 10 résultats par page, chacun avec un extrait.",
+        role: "Recherche des documents par mots-clés dans leur titre et leur contenu (pièces jointes comprises), avec des filtres optionnels par tag et par type (importé ou créé). Renvoie 10 résultats par page, les plus pertinents d'abord, chacun avec les mots-clés trouvés et un extrait.",
     },
     {
         name: 'read_document',

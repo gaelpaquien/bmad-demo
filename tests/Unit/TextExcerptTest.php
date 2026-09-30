@@ -41,3 +41,19 @@ it('falls back to the start of the first non-blank text when no text contains a 
 
     expect($excerpt)->toBe('Premier texte.');
 });
+
+it('centres the best excerpt on the zone with the most distinct words', function () {
+    $text = 'contrat seul'.str_repeat(' x', 200).' contrat et résiliation ensemble'.str_repeat(' y', 200);
+
+    $excerpt = TextExcerpt::aroundBestMatch([$text], ['contrat', 'résiliation'], radius: 60);
+
+    expect($excerpt)->toContain('résiliation ensemble')->not->toContain('contrat seul');
+});
+
+it('finds words ignoring case and accents for the best excerpt', function () {
+    expect(TextExcerpt::aroundBestMatch(['Résiliation du CONTRAT'], ['resiliation', 'contrat']))->toBe('Résiliation du CONTRAT');
+});
+
+it('starts the best excerpt from the first non-blank text when no word appears', function () {
+    expect(TextExcerpt::aroundBestMatch([null, '  ', 'Début du texte.'], ['absent']))->toBe('Début du texte.');
+});
