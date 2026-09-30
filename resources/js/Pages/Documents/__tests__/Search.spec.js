@@ -167,7 +167,7 @@ describe('Documents/Search', () => {
         expect(wrapper.findAll('button[aria-label^="Retirer le filtre tag"]')).toHaveLength(0);
     });
 
-    it('adds a chip under the fields and searches again right away when a type is chosen in the select', async () => {
+    it('adds a chip under the fields and searches again right away when a type is chosen in the list', async () => {
         router.get.mockClear();
 
         const wrapper = mount(Search, {
@@ -177,14 +177,15 @@ describe('Documents/Search', () => {
 
         expect(wrapper.find('[data-testid="search-source-filter"]').exists()).toBe(false);
 
-        await wrapper.find('select#search-source').setValue('created');
+        await wrapper.find('input[role="combobox"][aria-label="Type de document"]').trigger('focus');
+        await wrapper.find('[role="option"]:last-child').trigger('mousedown');
 
         expect(router.get).toHaveBeenLastCalledWith('/recherche', { search: 'contrat', source: 'created' }, expect.any(Object));
         expect(router.get.mock.calls.at(-1)[2].only).toContain('sourceFilter');
         expect(wrapper.find('[data-testid="search-source-filter"]').text()).toContain('Créé');
     });
 
-    it('removes the type filter and searches again when its chip is removed, or when the empty option is chosen', async () => {
+    it('removes the type filter and searches again when its chip is removed', async () => {
         router.get.mockClear();
 
         const wrapper = mount(Search, {
@@ -192,14 +193,12 @@ describe('Documents/Search', () => {
             global: { stubs: globalStubs },
         });
 
-        expect(wrapper.find('select#search-source').element.value).toBe('imported');
         expect(wrapper.find('[data-testid="search-source-filter"]').text()).toContain('Importé');
 
         await wrapper.find('button[aria-label="Retirer le filtre type Importé"]').trigger('click');
 
         expect(router.get).toHaveBeenLastCalledWith('/recherche', { search: 'contrat' }, expect.any(Object));
         expect(wrapper.find('[data-testid="search-source-filter"]').exists()).toBe(false);
-        expect(wrapper.find('select#search-source').element.value).toBe('');
     });
 
     it('treats a source received from the server as an active criterion', () => {
@@ -253,18 +252,13 @@ describe('Documents/Search bounds and pagination', () => {
         vi.useRealTimers();
     });
 
-    it('shows the total number of documents found, singular or plural', () => {
-        const single = mount(Search, {
-            props: { documents: pageOf([documentRow(1)]), search: 'contrat', tagFilters: [] },
-            global: { stubs: globalStubs },
-        });
-        const several = mount(Search, {
+    it('shows no separate count above the results, the total sitting under the page links', () => {
+        const wrapper = mount(Search, {
             props: { documents: pageOf([documentRow(1), documentRow(2)], { total: 25 }), search: 'contrat', tagFilters: [] },
             global: { stubs: globalStubs },
         });
 
-        expect(single.find('[data-testid="search-count"]').text()).toBe('1 document trouvé');
-        expect(several.find('[data-testid="search-count"]').text()).toBe('25 documents trouvés');
+        expect(wrapper.find('[data-testid="search-count"]').exists()).toBe(false);
     });
 
     it('renders the page links under the results', () => {

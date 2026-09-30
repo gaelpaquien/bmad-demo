@@ -34,3 +34,9 @@ context: []
 
 - Filtre par type : remplacé le groupe de boutons radio par un `<select>` (« Tous les types », Importé, Créé) qui affiche un badge « Filtre par type actif : [Importé ×] » sous les champs, comme le filtre par tag ; choix unique, retirer le badge ou choisir « Tous les types » retire le filtre.
 - Liste des documents (menu `DocumentsLayout`) : 2 tags maximum par ligne, puis un badge « +X » (X = tags masqués, infobulle avec leurs noms). Les lignes de résultat de la recherche gardent tous leurs tags.
+
+## Ajustement 3 (2026-09-30)
+
+- Compteur « N documents trouvés » du haut retiré (doublon) : le total reste sous la pagination.
+- `Pagination` : boutons précédent/suivant en icônes (comme le listing) dans tous les modes ; en mode non compact, les pages numérotées sont fenêtrées côté client (1 à 5, « … », deux dernières ; page courante et voisines quand on est plus loin). Décision utilisateur : barre du listing + pages numérotées limitées.
+- Filtre par type : nouveau `SourceSelector` (même champ et même liste de suggestions que `TagSelector`) à la place du `<select>` natif.

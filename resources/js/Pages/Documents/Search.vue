@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
+import SourceSelector from '@/Components/SourceSelector.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import TagChip from '@/Components/TagChip.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -499,7 +500,7 @@ function formatDate(dateString) {
                                     créés ou importés le plus récemment viennent en premier.
                                 </li>
                                 <li>
-                                    Les résultats s'affichent par pages de 10, avec le nombre total de documents trouvés.
+                                    Les résultats s'affichent par pages de 10, avec le nombre total de documents trouvés sous la pagination.
                                     Une nouvelle recherche repart de la première page.
                                 </li>
                                 <li>La recherche part une demi-seconde après la dernière frappe, ou tout de suite avec Entrée.</li>
@@ -545,24 +546,12 @@ function formatDate(dateString) {
                     <TagSelector v-model="selectedTagIds" :show-label="false" :show-selected="false" />
                 </fieldset>
 
-                <div>
-                    <label for="search-source" class="mb-1 block text-sm font-medium text-foreground">
+                <fieldset>
+                    <legend class="mb-1 text-sm font-medium text-foreground">
                         Filtrer par type de document
-                    </label>
-                    <select
-                        id="search-source"
-                        :value="selectedSource ?? ''"
-                        class="h-10 w-full rounded-md border-2 border-border bg-background px-3 text-sm text-foreground focus:border-foreground focus:outline-none"
-                        @change="selectedSource = $event.target.value || null"
-                    >
-                        <option value="">
-                            Tous les types
-                        </option>
-                        <option v-for="option in SOURCE_OPTIONS" :key="option.value" :value="option.value">
-                            {{ option.label }}
-                        </option>
-                    </select>
-                </div>
+                    </legend>
+                    <SourceSelector v-model="selectedSource" />
+                </fieldset>
 
                 <div v-if="selectedTagIds.length > 0" class="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     <span class="text-sm text-muted">Filtres par tag actifs :</span>
@@ -623,9 +612,6 @@ function formatDate(dateString) {
                 </div>
 
                 <div v-else-if="documents.data.length > 0">
-                    <p data-testid="search-count" class="mb-2 text-sm text-muted">
-                        {{ resultCountLabel }}
-                    </p>
                     <ul data-testid="search-results" class="border-t border-border">
                         <li v-for="document in documents.data" :key="document.id">
                             <Link

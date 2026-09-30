@@ -22,6 +22,7 @@ describe('Pagination', () => {
         const items = mount(Pagination, { props: { links } }).find('nav').findAll(':scope > *');
 
         expect(items[0].text()).toBe('Précédent');
+        expect(items[0].find('.sr-only').text()).toBe('Précédent');
         expect(items[0].attributes('aria-label')).toBe('Page précédente');
         expect(items[0].find('svg').exists()).toBe(true);
         expect(items[3].text()).toBe('Suivant');
@@ -61,6 +62,40 @@ describe('Pagination', () => {
         expect(items[1].text()).toBe('Page 2 sur 9');
         expect(items[2].attributes('aria-label')).toBe('Page suivante');
         expect(items[2].attributes('href')).toBe('/?page=3');
+    });
+
+    function manyPagesLinks(current, last) {
+        const numbered = Array.from({ length: last }, (_, i) => ({
+            url: `/recherche?search=a&page=${i + 1}`,
+            label: String(i + 1),
+            active: i + 1 === current,
+        }));
+
+        return [{ url: null, label: '&laquo; Previous', active: false }, ...numbered.filter((page, i) => i < 8 || i >= last - 2 || Math.abs(i + 1 - current) <= 3), { url: null, label: 'Next &raquo;', active: false }];
+    }
+
+    function shownPages(current, last) {
+        const items = mount(Pagination, { props: { links: manyPagesLinks(current, last) } }).find('nav').findAll(':scope > *');
+
+        return items.slice(1, -1).map((item) => item.text());
+    }
+
+    it.each([
+        [1, 50, ['1', '2', '3', '4', '5', '…', '49', '50']],
+        [5, 50, ['1', '2', '3', '4', '5', '…', '49', '50']],
+        [20, 50, ['1', '2', '…', '19', '20', '21', '…', '49', '50']],
+        [48, 50, ['1', '2', '…', '46', '47', '48', '49', '50']],
+        [2, 6, ['1', '2', '3', '4', '5', '6']],
+    ])('windows the numbered pages: page %i of %i', (current, last, expected) => {
+        expect(shownPages(current, last)).toEqual(expected);
+    });
+
+    it('links every windowed page, including ones the paginator did not send', () => {
+        const items = mount(Pagination, { props: { links: manyPagesLinks(20, 50) } }).find('nav').findAll(':scope > *');
+
+        expect(items.find((item) => item.text() === '19').attributes('href')).toBe('/recherche?search=a&page=19');
+        expect(items.find((item) => item.text() === '20').attributes('aria-current')).toBe('page');
+        expect(items.find((item) => item.text() === '…').element.tagName).toBe('SPAN');
     });
 
     it.each([
