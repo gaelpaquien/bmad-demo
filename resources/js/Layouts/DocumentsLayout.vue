@@ -1,6 +1,6 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import TagChip from '@/Components/TagChip.vue';
@@ -14,6 +14,53 @@ import TagChip from '@/Components/TagChip.vue';
 const page = usePage();
 const documents = computed(() => page.props.documents ?? { data: [], links: [] });
 const activeDocumentId = computed(() => page.props.document?.id ?? null);
+
+// While a visit heads to another page of the list (pagination click), the
+// rows are replaced by placeholders so the change is softer than a sudden
+// swap. A row click keeps the same list page, so it never triggers it.
+// The response usually lands within a few ms, which would make the skeleton
+// flash: once shown, it stays at least SKELETON_MIN_DURATION_MS.
+const SKELETON_MIN_DURATION_MS = 400;
+const isListLoading = ref(false);
+const skeletonRowCount = computed(() => Math.max(documents.value.per_page ?? documents.value.data.length, 1));
+let skeletonShownAt = 0;
+let skeletonHideTimer = null;
+let trackedVisit = null;
+
+const stopListeningStart = router.on('start', (event) => {
+    const { url, only } = event.detail.visit;
+    const requestedPage = Number(url.searchParams.get('page'));
+
+    // Only a visit that explicitly asks for another list page counts: the
+    // extraction polling (partial `router.reload`) and any URL without `page`
+    // (a document opened on a page computed server-side) must not flash it.
+    if (only?.length > 0 || !requestedPage || requestedPage === (documents.value.current_page ?? 1)) {
+        return;
+    }
+
+    clearTimeout(skeletonHideTimer);
+    trackedVisit = event.detail.visit;
+    skeletonShownAt = Date.now();
+    isListLoading.value = true;
+});
+// Only the finish of the visit that showed the skeleton hides it: a
+// background visit ending meanwhile (extraction polling) must not cut it short.
+const stopListeningFinish = router.on('finish', (event) => {
+    if (!isListLoading.value || event.detail.visit !== trackedVisit) {
+        return;
+    }
+
+    clearTimeout(skeletonHideTimer);
+    skeletonHideTimer = setTimeout(() => {
+        isListLoading.value = false;
+    }, Math.max(0, SKELETON_MIN_DURATION_MS - (Date.now() - skeletonShownAt)));
+});
+
+onBeforeUnmount(() => {
+    stopListeningStart();
+    stopListeningFinish();
+    clearTimeout(skeletonHideTimer);
+});
 
 function formatDate(dateString) {
     if (!dateString) {
@@ -47,34 +94,62 @@ function formatDate(dateString) {
 
                 <hr class="mb-3 h-0.5 border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]" />
 
-                <p v-if="documents.data.length === 0" class="px-2.5 py-6 text-center text-sm text-muted">
+                <ul v-if="isListLoading" class="flex flex-col gap-0.5" aria-busy="true" data-testid="documents-skeleton">
+                    <li v-for="row in skeletonRowCount" :key="row" class="flex animate-pulse flex-col gap-1.5 rounded-md px-2.5 py-2">
+                        <div class="h-3.5 w-3/4 rounded bg-border"></div>
+                        <div class="h-3 w-1/3 rounded bg-border opacity-70"></div>
+                        <div class="h-4 w-1/2 rounded-full bg-border opacity-70"></div>
+                    </li>
+                </ul>
+
+                <p v-else-if="documents.data.length === 0" class="px-2.5 py-6 text-center text-sm text-muted">
                     Aucun document pour l'instant.
                 </p>
 
-                <template v-else>
-                    <ul class="flex flex-col gap-0.5">
-                        <li v-for="document in documents.data" :key="document.id">
-                            <Link
-                                :href="`/documents/${document.id}${documents.current_page > 1 ? `?page=${documents.current_page}` : ''}`"
-                                class="flex flex-col gap-1 rounded-md px-2.5 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                                :class="document.id === activeDocumentId
-                                    ? 'bg-primary font-semibold text-primary-foreground'
-                                    : 'text-foreground hover:bg-surface-alt'"
-                                :aria-current="document.id === activeDocumentId ? 'page' : undefined"
-                                :title="document.title"
-                            >
-                                <span class="truncate leading-tight">{{ document.title }}</span>
-                                <span class="flex flex-wrap items-center gap-1 text-xs font-normal" :class="document.id === activeDocumentId ? 'text-primary-foreground' : 'text-muted'">
-                                    <span>{{ formatDate(document.created_at) }}</span>
-                                    <template v-if="document.tags && document.tags.length > 0">
-                                        <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" />
-                                    </template>
-                                </span>
-                            </Link>
-                        </li>
-                    </ul>
+                <ul v-else class="flex flex-col gap-0.5">
+                    <li v-for="(document, index) in documents.data" :key="document.id">
+                        <!-- Light gradient separator between two rows, plus a
+                             faint alternating tint so consecutive documents
+                             stay distinguishable. -->
+                        <hr
+                            v-if="index > 0"
+                            class="mx-2.5 my-0.5 h-px border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]"
+                            data-testid="documents-row-separator"
+                        />
+                        <Link
+                            :href="`/documents/${document.id}${documents.current_page > 1 ? `?page=${documents.current_page}` : ''}`"
+                            class="flex flex-col gap-1 rounded-md px-2.5 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                            :class="document.id === activeDocumentId
+                                ? 'bg-primary font-semibold text-primary-foreground'
+                                : ['text-foreground hover:bg-surface-alt', index % 2 === 1 ? 'bg-surface-alt/50' : '']"
+                            :aria-current="document.id === activeDocumentId ? 'page' : undefined"
+                            :title="document.title"
+                        >
+                            <span class="truncate leading-tight">{{ document.title }}</span>
+                            <span class="text-xs font-normal" :class="document.id === activeDocumentId ? 'text-primary-foreground' : 'text-muted'" data-testid="documents-row-date">
+                                {{ formatDate(document.created_at) }}
+                            </span>
+                            <span v-if="document.tags && document.tags.length > 0" class="flex flex-wrap items-center gap-1" data-testid="documents-row-tags">
+                                <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" />
+                            </span>
+                        </Link>
+                    </li>
+                </ul>
 
-                    <Pagination :links="documents.links" />
+                <!-- Separator + pagination stay in place while the skeleton
+                     shows, so the menu does not jump. -->
+                <template v-if="documents.data.length > 0 && documents.links.length > 3">
+                    <hr
+                        class="mt-4 h-px border-0 opacity-70 bg-[linear-gradient(to_right,transparent,var(--color-border)_20%,var(--color-border)_80%,transparent)]"
+                        data-testid="documents-pagination-separator"
+                    />
+                    <Pagination
+                        :links="documents.links"
+                        :total="documents.total"
+                        :from="documents.from"
+                        :to="documents.to"
+                        compact
+                    />
                 </template>
             </nav>
             <div class="min-w-0 flex-1">

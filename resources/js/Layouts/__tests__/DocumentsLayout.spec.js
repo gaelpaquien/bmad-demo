@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DocumentsLayout from '@/Layouts/DocumentsLayout.vue';
 
 const pageState = vi.hoisted(() => ({ component: 'Documents/Index', props: {} }));
+const routerHandlers = vi.hoisted(() => ({}));
 
 vi.mock('@inertiajs/vue3', () => ({
     Link: {
@@ -11,8 +12,16 @@ vi.mock('@inertiajs/vue3', () => ({
         template: '<a :href="href"><slot /></a>',
     },
     usePage: () => pageState,
-    router: { reload: vi.fn(), get: vi.fn(), on: vi.fn(() => () => {}) },
+    router: {
+        on: (event, handler) => {
+            routerHandlers[event] = handler;
+
+            return () => {};
+        },
+    },
 }));
+
+const visitTo = (path, only = []) => ({ detail: { visit: { url: new URL(path, 'http://localhost'), only } } });
 
 const globalStubs = {
     AppLayout: { template: '<div><slot /></div>' },
@@ -30,6 +39,9 @@ function makeDocuments(overrides = {}) {
             { id: 43, title: 'Note interne', created_at: '2026-01-14T10:30:00Z', tags: [] },
         ],
         current_page: 1,
+        total: 27,
+        from: 1,
+        to: 2,
         links: [],
         ...overrides,
     };
@@ -65,6 +77,17 @@ describe('DocumentsLayout', () => {
         expect(row.text()).toContain('2026');
     });
 
+    it('lays each row out on three lines: title, date, then tags (no tag line without tags)', () => {
+        const wrapper = mountLayout();
+        const tagged = wrapper.find('a[href="/documents/42"]');
+        const untagged = wrapper.find('a[href="/documents/43"]');
+
+        expect(tagged.findAll(':scope > *').map((line) => line.attributes('data-testid') ?? 'title'))
+            .toEqual(['title', 'documents-row-date', 'documents-row-tags']);
+        expect(tagged.find('[data-testid="documents-row-tags"]').text()).toContain('Finance');
+        expect(untagged.find('[data-testid="documents-row-tags"]').exists()).toBe(false);
+    });
+
     it('marks only the active document row', () => {
         pageState.props = { documents: makeDocuments(), document: { id: 43 } };
         const links = mountLayout().findAll('[data-testid="documents-menu"] li a');
@@ -81,6 +104,93 @@ describe('DocumentsLayout', () => {
         expect(links.map((link) => link.attributes('href'))).toEqual(['/documents/42?page=3', '/documents/43?page=3']);
     });
 
+    it('keeps the skeleton at least 400 ms even when the response is instant, then restores the rows', async () => {
+        vi.useFakeTimers();
+
+        try {
+            pageState.props = { documents: makeDocuments({ per_page: 3 }) };
+            const wrapper = mountLayout();
+
+            const visit = visitTo('/?page=2');
+            routerHandlers.start(visit);
+            await wrapper.vm.$nextTick();
+
+            expect(wrapper.find('[data-testid="documents-skeleton"]').findAll('li').length).toBe(3);
+            wrapper.find('[data-testid="documents-skeleton"]').findAll('li').forEach((row) => {
+                expect(row.findAll(':scope > div').length).toBe(3);
+            });
+            expect(wrapper.findAll('[data-testid="documents-menu"] li a').length).toBe(0);
+
+            routerHandlers.finish(visit);
+            await vi.advanceTimersByTimeAsync(399);
+            expect(wrapper.find('[data-testid="documents-skeleton"]').exists()).toBe(true);
+
+            await vi.advanceTimersByTimeAsync(1);
+            expect(wrapper.find('[data-testid="documents-skeleton"]').exists()).toBe(false);
+            expect(wrapper.findAll('[data-testid="documents-menu"] li a').length).toBe(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('does not extend the skeleton when the response already took longer than the minimum', async () => {
+        vi.useFakeTimers();
+
+        try {
+            const wrapper = mountLayout();
+
+            const visit = visitTo('/?page=2');
+            routerHandlers.start(visit);
+            await vi.advanceTimersByTimeAsync(700);
+            routerHandlers.finish(visit);
+            await vi.advanceTimersByTimeAsync(0);
+
+            expect(wrapper.find('[data-testid="documents-skeleton"]').exists()).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('never shows the skeleton for a partial reload (extraction polling) nor for a URL without page', async () => {
+        const wrapper = mountLayout();
+
+        routerHandlers.start(visitTo('/documents/42?page=2', ['pendingExtractions']));
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('[data-testid="documents-skeleton"]').exists()).toBe(false);
+
+        routerHandlers.start(visitTo('/documents/42'));
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('[data-testid="documents-skeleton"]').exists()).toBe(false);
+    });
+
+    it('is not cut short by the end of another visit', async () => {
+        vi.useFakeTimers();
+
+        try {
+            const wrapper = mountLayout();
+            const pageVisit = visitTo('/?page=2');
+
+            routerHandlers.start(pageVisit);
+            routerHandlers.finish(visitTo('/?page=1', ['pendingExtractions']));
+            await vi.advanceTimersByTimeAsync(1000);
+
+            expect(wrapper.find('[data-testid="documents-skeleton"]').exists()).toBe(true);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('keeps the rows while opening a document from the current list page', async () => {
+        pageState.props = { documents: makeDocuments({ current_page: 2 }) };
+        const wrapper = mountLayout();
+
+        routerHandlers.start(visitTo('/documents/43?page=2'));
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('[data-testid="documents-skeleton"]').exists()).toBe(false);
+        expect(wrapper.findAll('[data-testid="documents-menu"] li a').length).toBe(2);
+    });
+
     it('shows the empty-library message when there are no documents', () => {
         pageState.props = { documents: makeDocuments({ data: [] }) };
         const wrapper = mountLayout();
@@ -89,7 +199,7 @@ describe('DocumentsLayout', () => {
         expect(wrapper.findAll('li').length).toBe(0);
     });
 
-    it('renders pagination links, a disabled link never being an anchor', () => {
+    it('renders a compact pagination (previous, page indicator, next), a disabled link never being an anchor', () => {
         pageState.props = {
             documents: makeDocuments({
                 links: [
@@ -102,8 +212,35 @@ describe('DocumentsLayout', () => {
         };
         const nav = mountLayout().find('nav[aria-label="Pagination"]');
 
-        expect(nav.findAll('a').length).toBe(3);
+        expect(nav.findAll('a').length).toBe(1);
         expect(nav.find('a[href="/documents/42?page=2"]').exists()).toBe(true);
         expect(nav.text()).toContain('Précédent');
+        expect(nav.find('[data-testid="pagination-status"]').text()).toBe('Page 1 sur 2');
+    });
+
+    it('shows the shown range out of the total, with a light separator above the pagination', () => {
+        pageState.props = {
+            documents: makeDocuments({
+                total: 27,
+                from: 4,
+                to: 5,
+                links: [
+                    { url: '/?page=1', label: '&laquo; Previous', active: false },
+                    { url: '/?page=1', label: '1', active: false },
+                    { url: null, label: '2', active: true },
+                    { url: '/?page=3', label: 'Next &raquo;', active: false },
+                ],
+            }),
+        };
+        const wrapper = mountLayout();
+
+        expect(wrapper.find('[data-testid="pagination-count"]').text()).toBe('4–5 sur 27 documents');
+        expect(wrapper.find('[data-testid="documents-pagination-separator"]').exists()).toBe(true);
+    });
+
+    it('shows no pagination separator when there is a single page', () => {
+        pageState.props = { documents: makeDocuments({ links: [] }) };
+
+        expect(mountLayout().find('[data-testid="documents-pagination-separator"]').exists()).toBe(false);
     });
 });
