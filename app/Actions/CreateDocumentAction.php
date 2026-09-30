@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Actions\Concerns\CleansUpDocumentDirectoryOnFailure;
 use App\Actions\Concerns\RelocatesDraftAttachments;
 use App\Actions\Concerns\SanitizesDocumentContent;
 use App\DataTransferObjects\CreateDocumentData;
@@ -9,6 +10,7 @@ use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
 use App\Models\Document;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Sole write point for documents authored directly in the editor (Boundaries
@@ -50,9 +52,21 @@ use Illuminate\Support\Facades\DB;
  * ExtractDocumentTextJob per row after the transaction commits — mirroring
  * how ImportDocumentAction's own caller dispatches its job only once the
  * row is safely persisted.
+ *
+ * Everything from the first relocation attempt onward (draft images, the
+ * conditional `content_html` rewrite, draft attachments) is wrapped in a
+ * `try/catch` that hands off to CleansUpDocumentDirectoryOnFailure — shared
+ * with DocumentController::store()/storeCreated() — which deletes the whole
+ * `documents/{id}` directory before rethrowing (spec-nettoyage-fichiers-
+ * orphelins-tmp). A brand-new document's directory never holds anything but
+ * what this very call just moved into it, so wiping it whole on any failure
+ * is always safe, unlike UpdateDocumentAction/relocateDraftImages()'s own
+ * narrower cleanup, which must leave a document's pre-existing images
+ * untouched.
  */
 class CreateDocumentAction
 {
+    use CleansUpDocumentDirectoryOnFailure;
     use RelocatesDraftAttachments;
     use SanitizesDocumentContent;
 
@@ -73,13 +87,22 @@ class CreateDocumentAction
                 'extraction_status' => ExtractionStatus::Completed,
             ]);
 
-            $finalContentHtml = $this->relocateDraftImages($data->draftToken, $document, $contentHtml);
+            try {
+                $finalContentHtml = $this->relocateDraftImages($data->draftToken, $document, $contentHtml);
 
-            if ($finalContentHtml !== $contentHtml) {
-                $document->forceFill(['content_html' => $finalContentHtml])->save();
+                if ($finalContentHtml !== $contentHtml) {
+                    $document->forceFill(['content_html' => $finalContentHtml])->save();
+                }
+
+                $createdAttachments = $this->relocateDraftAttachments($data->draftToken, $document, $data->draftAttachments);
+            } catch (Throwable $exception) {
+                // The row rolls back with the transaction; anything already
+                // moved into this brand-new document's own directory —
+                // relocated images, relocated attachments — must not outlive
+                // it on disk.
+                $this->cleanUpDocumentDirectoryOnFailure($document->id, $exception);
             }
 
-            $createdAttachments = $this->relocateDraftAttachments($data->draftToken, $document, $data->draftAttachments);
             $document->setRelation('attachments', $createdAttachments);
 
             return $document;

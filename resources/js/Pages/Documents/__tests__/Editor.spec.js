@@ -17,7 +17,7 @@ import TagSelector from '@/Components/TagSelector.vue';
 // `chain().focus().insertTable(...).run()` / `chain().focus().deleteTable().run()`
 // keep working however many links are chained.
 const {
-    isActiveMock, chainMock, insertTableMock, deleteTableMock, tableCommandMock, runMock, formPostMock, formPatchMock, editorState,
+    isActiveMock, chainMock, insertTableMock, deleteTableMock, tableCommandMock, runMock, formPostMock, formPatchMock, editorState, useHttpDeleteMock,
 } = vi.hoisted(() => {
     const tableCommandMock = vi.fn();
     const insertTableMock = vi.fn();
@@ -25,6 +25,7 @@ const {
     const runMock = vi.fn();
     const formPostMock = vi.fn();
     const formPatchMock = vi.fn();
+    const useHttpDeleteMock = vi.fn(() => Promise.resolve());
 
     const chainObj = {
         focus: () => chainObj,
@@ -72,6 +73,7 @@ const {
         runMock,
         formPostMock,
         formPatchMock,
+        useHttpDeleteMock,
         // Read by the mocked editor's `isEmpty` getter — lets a test put the
         // editor body in the empty state that keeps "Enregistrer" disabled.
         editorState: { isEmpty: false },
@@ -118,6 +120,7 @@ vi.mock('@inertiajs/vue3', async () => {
         router: {
             on: vi.fn(() => vi.fn()),
             post: vi.fn(),
+            visit: vi.fn(),
         },
         useForm: (initial) => reactive({
             ...initial,
@@ -126,6 +129,11 @@ vi.mock('@inertiajs/vue3', async () => {
             post: formPostMock,
             patch: formPatchMock,
         }),
+        // useHttp({}).delete(url) is onCancelClick()'s fire-and-forget draft
+        // directory delete (spec-nettoyage-fichiers-orphelins-tmp) — only
+        // `delete` needs to exist, nothing here exercises the rest of
+        // useHttp's surface.
+        useHttp: vi.fn(() => ({ delete: useHttpDeleteMock })),
         Link: { name: 'Link', props: ['href'], template: '<a :href="href"><slot /></a>' },
     };
 });
@@ -248,14 +256,17 @@ describe('Documents/Editor — tableaux imbriqués (spec-3-6)', () => {
 });
 
 // spec-ajustements-consultation-editeur: the unsaved-changes notion is gone
-// entirely — no pastille, no label, no exit confirmation — and "Annuler"
-// leaves without any request.
+// entirely — no pastille, no label, no exit confirmation. "Annuler" now also
+// deletes its own draft directory server-side before navigating away
+// (spec-nettoyage-fichiers-orphelins-tmp), still without touching the form.
 describe('Documents/Editor — Annuler et absence de garde de sortie', () => {
     const existingDocument = { id: 12, title: 'Titre initial', content_html: '', tags: [], attachments: [] };
 
     beforeEach(() => {
         router.on.mockClear();
         router.post.mockClear();
+        router.visit.mockClear();
+        useHttpDeleteMock.mockClear();
         formPostMock.mockReset();
         formPatchMock.mockReset();
         window.confirm = vi.fn(() => true);
@@ -268,6 +279,11 @@ describe('Documents/Editor — Annuler et absence de garde de sortie', () => {
         });
     }
 
+    // "Annuler" is a plain <a> while enabled (P7: keeps middle-click/
+    // ctrl-click "open in new tab" working) and swaps for an inert,
+    // disabled <button> mid-save/mid-upload — so matching only `<a>` here
+    // already resolves to `undefined` in that busy state, with no need to
+    // also check a `disabled` attribute an anchor can never carry.
     function findCancelLink(wrapper) {
         return wrapper.findAll('a').find((link) => link.text() === 'Annuler');
     }
@@ -295,19 +311,27 @@ describe('Documents/Editor — Annuler et absence de garde de sortie', () => {
         expect(window.confirm).not.toHaveBeenCalled();
     });
 
-    it('points "Annuler" back to the document when editing an existing one', () => {
+    it('deletes its own draft directory and navigates to the document when clicking "Annuler" while editing an existing one', async () => {
         const wrapper = mountExistingEditor();
+        const draftToken = wrapper.findComponent(AttachmentsPanel).props('draftToken');
 
-        expect(findCancelLink(wrapper).attributes('href')).toBe('/documents/12');
+        await findCancelLink(wrapper).trigger('click');
+
+        expect(useHttpDeleteMock).toHaveBeenCalledWith(`/documents/create/draft/${draftToken}`);
+        expect(router.visit).toHaveBeenCalledWith('/documents/12');
     });
 
-    it('points "Annuler" back to the list when drafting a new document', () => {
+    it('deletes its own draft directory and navigates to the list when clicking "Annuler" while drafting a new document', async () => {
         const wrapper = mountEditor();
+        const draftToken = wrapper.findComponent(AttachmentsPanel).props('draftToken');
 
-        expect(findCancelLink(wrapper).attributes('href')).toBe('/');
+        await findCancelLink(wrapper).trigger('click');
+
+        expect(useHttpDeleteMock).toHaveBeenCalledWith(`/documents/create/draft/${draftToken}`);
+        expect(router.visit).toHaveBeenCalledWith('/');
     });
 
-    it('sends no request when clicking "Annuler"', async () => {
+    it('leaves the form untouched and asks no confirmation when clicking "Annuler"', async () => {
         const wrapper = mountExistingEditor();
 
         await wrapper.find('#document-title').setValue('Titre modifié');

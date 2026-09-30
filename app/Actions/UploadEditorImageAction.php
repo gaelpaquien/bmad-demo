@@ -23,9 +23,16 @@ use Throwable;
  * filename — `extension()` derives it from the file's detected MIME type
  * instead, which UploadEditorImageRequest's validation already guarantees
  * is one of a fixed set of raster image types.
+ *
+ * Every successful upload also purges stale draft directories left behind
+ * by other, abandoned drafts (P3 point 2, deferred-work.md 2026-09-29) —
+ * at the fold, with no scheduler involved (Boundaries & Constraints). A
+ * purge failure is logged and never allowed to fail this upload.
  */
 class UploadEditorImageAction
 {
+    public function __construct(private PurgeStaleDraftDirectoriesAction $purgeStaleDraftDirectories) {}
+
     public function __invoke(UploadEditorImageData $data): array
     {
         $extension = $data->image->extension();
@@ -46,6 +53,15 @@ class UploadEditorImageAction
             ]);
 
             throw $exception;
+        }
+
+        try {
+            ($this->purgeStaleDraftDirectories)();
+        } catch (Throwable $exception) {
+            Log::warning('Failed to purge stale draft directories after an editor image upload.', [
+                'draft_token' => $data->draftToken,
+                'exception' => $exception->getMessage(),
+            ]);
         }
 
         return [

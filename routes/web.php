@@ -42,6 +42,15 @@ Route::get('/documents/editor-images/tmp/{token}/{filename}', [DocumentControlle
 // image upload route above, ahead of GET /documents/{document} below for
 // the same reason.
 Route::post('/documents/create/attachments', [DocumentController::class, 'storeEditorAttachment'])->name('documents.editorAttachments.store');
+// "Annuler" (Editor.vue/Import.vue) deleting its own draft directory
+// (spec-nettoyage-fichiers-orphelins-tmp, P3 point 1) — a fire-and-forget
+// `useHttp` DELETE, registered alongside the other draft routes above.
+// Unlike those, its own placement relative to GET /documents/{document}
+// below is not actually order-sensitive: different HTTP verb (DELETE vs
+// GET) and a distinct 3-segment path, so it can never be captured by that
+// route's model binding regardless of registration order — kept here
+// purely for locality with the other draft routes.
+Route::delete('/documents/create/draft/{token}', [DocumentController::class, 'destroyDraft'])->whereUuid('token')->name('documents.draft.destroy');
 Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
 // Editing a previously created document (spec-2-3) — same distinct-suffix
 // shape as preview/download/images below, so no ordering conflict with the

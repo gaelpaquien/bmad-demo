@@ -283,6 +283,22 @@ Décision : les fichiers orphelins n'ont aucune utilité, on les évite là où 
   summary: `Editor.spec.js` (nouveau) ne suit pas la convention `attachTo: document.body` + `wrapper.unmount()` déjà en place dans `Configuration.spec.js`/`Search.spec.js` — les 5 montages du fichier n'appellent jamais `onBeforeUnmount`, donc le nettoyage du listener `beforeunload` et de l'abonnement `router.on('before', ...)` d'`Editor.vue` n'est jamais exercé par ce test (accumulation silencieuse across les 5 `mount()`, sans échec observé sur la suite actuelle).
   evidence: Blind Hunter (step-04 review, itération 2) — suite complète (80/80) verte malgré cette lacune ; à corriger si `Editor.spec.js` grossit ou si des avertissements de fuite apparaissent, en alignant sur le patron déjà établi par les specs voisines du même dossier.
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-nettoyage-fichiers-orphelins-tmp.md`
+  summary: `PurgeStaleDraftDirectoriesAction` tourne de façon synchrone et sans limite (un `directories()` + un `lastModified()` par dossier) à chaque envoi de brouillon (image ou pièce jointe) — si les dossiers `tmp/*` abandonnés s'accumulent, cela ajoute une latence croissante et non bornée au chemin d'upload.
+  evidence: Blind Hunter (step-04 review) — inhérent à la décision humaine explicite « purge au fil de l'eau, sans scheduler » (P3, 2026-09-29) ; à revisiter seulement si une latence réelle est observée en usage.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-nettoyage-fichiers-orphelins-tmp.md`
+  summary: `DELETE /documents/create/draft/{token}` supprime `documents/tmp/{token}` sans aucune vérification de propriété/session liée au token — quiconque observe l'UUID d'un brouillon (historique navigateur, logs proxy, réseau partagé) pourrait supprimer les fichiers déjà envoyés d'une session de brouillon d'autrui encore en cours.
+  evidence: Edge Case Hunter (step-04 review) — cohérent avec la posture sans authentification déjà acceptée ailleurs dans l'app pour un usage local mono-utilisateur (NFR3) ; à durcir si l'app s'ouvre un jour à plusieurs utilisateurs/postes.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-nettoyage-fichiers-orphelins-tmp.md`
+  summary: Le test Mockery ajouté à `CreateDocumentTest.php` (« attachment relocation fails after the image was already moved ») sélectionne l'appel `move()` à faire échouer via `str_contains($to, '/attachments/')`, ce qui couple le test à un détail d'implémentation incident (que les chemins de pièce jointe contiennent bien ce segment, et que les images se relocalisent strictement avant les pièces jointes) plutôt qu'au comportement testé.
+  evidence: Blind Hunter (step-04 review) — un futur refactor de l'ordre de relocalisation ou du nommage des chemins pourrait faire passer/échouer ce test pour la mauvaise raison, sans signal clair ; amélioration de robustesse de test, pas un défaut de production.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-nettoyage-fichiers-orphelins-tmp.md`
+  summary: Aucun test ne documente le comportement de reprise après un échec en cours d'enregistrement (mêmes `draft_token`) — par construction de cette même story, un fichier déjà relocalisé est désormais activement supprimé (et non plus seulement laissé orphelin) en cas d'échec, donc une nouvelle tentative ne peut pas le récupérer et l'utilisateur doit le re-téléverser.
+  evidence: Blind Hunter (step-04 review) — comportement intentionnel (Boundaries & Constraints de cette story), mais surprenant pour un futur lecteur sans test/commentaire explicite qui le confirme.
+
 ## Clos
 
 Motif du tri 2026-09-29 pour chaque entrée fermée.

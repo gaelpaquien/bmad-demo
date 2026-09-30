@@ -10,9 +10,12 @@ import TagSelector from '@/Components/TagSelector.vue';
 // is stashed on `formInstance` so a test can flip `processing`/`errors`
 // directly — real Inertia sets them internally during a request and this
 // mock never simulates the request lifecycle.
-const { formPostMock, formState } = vi.hoisted(() => ({
+const { formPostMock, formState, useHttpDeleteMock } = vi.hoisted(() => ({
     formPostMock: vi.fn(),
     formState: { instance: null },
+    // useHttp({}).delete(url) is onCancelClick()'s fire-and-forget draft
+    // directory delete (spec-nettoyage-fichiers-orphelins-tmp).
+    useHttpDeleteMock: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('@inertiajs/vue3', async () => {
@@ -25,6 +28,7 @@ vi.mock('@inertiajs/vue3', async () => {
             on: vi.fn(() => vi.fn()),
             post: vi.fn(),
             delete: vi.fn(),
+            visit: vi.fn(),
         },
         useForm: (initial) => {
             const instance = reactive({
@@ -38,6 +42,7 @@ vi.mock('@inertiajs/vue3', async () => {
 
             return instance;
         },
+        useHttp: vi.fn(() => ({ delete: useHttpDeleteMock })),
         Link: { name: 'Link', props: ['href'], template: '<a :href="href"><slot /></a>' },
     };
 });
@@ -71,6 +76,11 @@ function findButton(wrapper, label) {
     return wrapper.findAll('button').find((button) => button.text() === label);
 }
 
+// "Annuler" is a plain <a> while enabled (P7: keeps middle-click/ctrl-click
+// "open in new tab" working) and swaps for an inert, disabled <button>
+// mid-save/mid-upload — so matching only `<a>` here already resolves to
+// `undefined` in that busy state, with no need to also check a `disabled`
+// attribute an anchor can never carry.
 function findCancelLink(wrapper) {
     return wrapper.findAll('a').find((link) => link.text() === 'Annuler');
 }
@@ -79,7 +89,9 @@ beforeEach(() => {
     formPostMock.mockReset();
     router.post.mockClear();
     router.delete.mockClear();
+    router.visit.mockClear();
     router.on.mockClear();
+    useHttpDeleteMock.mockClear();
     window.confirm = vi.fn(() => true);
 });
 
@@ -270,13 +282,15 @@ describe('Documents/Import — formulaire unique (spec-refonte-import-formulaire
         expect(wrapper.text()).toContain('Tag invalide.');
     });
 
-    it('points "Annuler" to the library and sends no request or confirmation', async () => {
+    it('deletes its own draft directory and navigates to the library, without a request or confirmation, on "Annuler"', async () => {
         const wrapper = mountImport();
+        const panel = wrapper.findComponent(AttachmentsPanel);
 
         await chooseFile(wrapper, pdfFile());
         await findCancelLink(wrapper).trigger('click');
 
-        expect(findCancelLink(wrapper).attributes('href')).toBe('/');
+        expect(useHttpDeleteMock).toHaveBeenCalledWith(`/documents/create/draft/${panel.props('draftToken')}`);
+        expect(router.visit).toHaveBeenCalledWith('/');
         expect(formPostMock).not.toHaveBeenCalled();
         expect(window.confirm).not.toHaveBeenCalled();
     });

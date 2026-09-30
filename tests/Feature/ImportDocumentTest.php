@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\SyncDocumentTagsAction;
 use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
 use App\Jobs\ExtractDocumentTextJob;
@@ -400,4 +401,22 @@ it('rolls back the whole import and leaves no document directory when relocating
         ->all())->toBe([]);
     Storage::disk('local')->assertExists("documents/tmp/{$draftToken}/attachments/{$uploadedAttachment['filename']}");
     Queue::assertNothingPushed();
+});
+
+it('rolls back the import and leaves no document directory when SyncDocumentTagsAction fails after the file was already stored', function () {
+    $this->mock(SyncDocumentTagsAction::class, function ($mock) {
+        $mock->shouldReceive('__invoke')->andThrow(new RuntimeException('Forced SyncDocumentTagsAction failure.'));
+    });
+
+    $this->withoutExceptionHandling();
+
+    expect(fn () => $this->post('/documents', [
+        'file' => UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf')),
+        'tag_ids' => [],
+    ]))->toThrow(RuntimeException::class);
+
+    expect(Document::count())->toBe(0);
+    expect(collect(Storage::disk('local')->allDirectories('documents'))
+        ->reject(fn (string $directory) => str_starts_with($directory, 'documents/tmp'))
+        ->all())->toBe([]);
 });

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Concerns\CleansUpDocumentDirectoryOnFailure;
 use App\Actions\ConvertDocumentToPreviewAction;
 use App\Actions\CreateDocumentAction;
 use App\Actions\DeleteDocumentAction;
+use App\Actions\DeleteDraftDirectoryAction;
 use App\Actions\ExportDocumentToPdfAction;
 use App\Actions\ImportDocumentAction;
 use App\Actions\SyncDocumentTagsAction;
@@ -14,6 +16,7 @@ use App\Actions\UploadEditorImageAction;
 use App\DataTransferObjects\ConvertDocumentToPreviewData;
 use App\DataTransferObjects\CreateDocumentData;
 use App\DataTransferObjects\DeleteDocumentData;
+use App\DataTransferObjects\DeleteDraftDirectoryData;
 use App\DataTransferObjects\ExportDocumentToPdfData;
 use App\DataTransferObjects\ImportDocumentData;
 use App\DataTransferObjects\SyncDocumentTagsData;
@@ -43,9 +46,12 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class DocumentController extends Controller
 {
+    use CleansUpDocumentDirectoryOnFailure;
+
     private const PREVIEW_DIRECTORY = 'previews';
 
     /**
@@ -234,6 +240,12 @@ class DocumentController extends Controller
      * ImportDocumentAction inside the same transaction; once it commits,
      * one ExtractDocumentTextJob is dispatched per relocated attachment —
      * same post-commit reasoning as storeCreated().
+     *
+     * A SyncDocumentTagsAction failure after ImportDocumentAction already
+     * moved the original file (and any relocated draft attachments) onto
+     * disk must not leave them behind once the transaction rolls the row
+     * back (spec-nettoyage-fichiers-orphelins-tmp) — same reasoning as
+     * ImportDocumentAction's own relocateDraftAttachments() cleanup.
      */
     public function store(ImportDocumentRequest $request, ImportDocumentAction $import, SyncDocumentTagsAction $syncTags): RedirectResponse
     {
@@ -245,10 +257,14 @@ class DocumentController extends Controller
                 draftAttachments: $request->validated('draft_attachments', []),
             ));
 
-            $syncTags(new SyncDocumentTagsData(
-                document: $document,
-                tagIds: $request->validated('tag_ids', []),
-            ));
+            try {
+                $syncTags(new SyncDocumentTagsData(
+                    document: $document,
+                    tagIds: $request->validated('tag_ids', []),
+                ));
+            } catch (Throwable $exception) {
+                $this->cleanUpDocumentDirectoryOnFailure($document->id, $exception);
+            }
 
             return $document;
         });
@@ -301,6 +317,11 @@ class DocumentController extends Controller
      * ImportDocumentAction's own post-transaction dispatch (AD-6/AD-9): a
      * job must never be able to run against a row that a rollback could
      * still erase.
+     *
+     * A SyncDocumentTagsAction failure after CreateDocumentAction already
+     * relocated draft images/attachments onto this document's own directory
+     * must not leave them behind once the transaction rolls the row back
+     * (spec-nettoyage-fichiers-orphelins-tmp) — same reasoning as store().
      */
     public function storeCreated(CreateDocumentRequest $request, CreateDocumentAction $create, SyncDocumentTagsAction $syncTags): RedirectResponse
     {
@@ -312,10 +333,14 @@ class DocumentController extends Controller
                 draftAttachments: $request->validated('draft_attachments', []),
             ));
 
-            $syncTags(new SyncDocumentTagsData(
-                document: $document,
-                tagIds: $request->validated('tag_ids', []),
-            ));
+            try {
+                $syncTags(new SyncDocumentTagsData(
+                    document: $document,
+                    tagIds: $request->validated('tag_ids', []),
+                ));
+            } catch (Throwable $exception) {
+                $this->cleanUpDocumentDirectoryOnFailure($document->id, $exception);
+            }
 
             return $document;
         });
@@ -364,6 +389,21 @@ class DocumentController extends Controller
         ));
 
         return back()->with('uploadedAttachment', $uploadedAttachment);
+    }
+
+    /**
+     * Sole entry point for "Annuler" (Editor.vue/Import.vue) deleting its own
+     * draft directory (spec-nettoyage-fichiers-orphelins-tmp, P3 point 1) —
+     * always delegates to DeleteDraftDirectoryAction, an unconditional
+     * delete. Reached through a fire-and-forget `useHttp` DELETE, never an
+     * Inertia visit (Design Notes), so this must answer with a bare 2xx and
+     * no body — a 3xx redirect would be treated by `useHttp` as a failure.
+     */
+    public function destroyDraft(string $token, DeleteDraftDirectoryAction $action): HttpResponse
+    {
+        $action(new DeleteDraftDirectoryData(draftToken: $token));
+
+        return response()->noContent();
     }
 
     /**

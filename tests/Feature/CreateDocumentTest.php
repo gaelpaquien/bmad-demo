@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\SyncDocumentTagsAction;
 use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
 use App\Jobs\ExtractDocumentTextJob;
@@ -449,4 +450,130 @@ it('is immediately searchable through its relocated draft attachment\'s extracte
         ->has('documents', 1)
         ->where('documents.0.id', $document->id)
     );
+});
+
+// --- Purge des dossiers tmp obsolètes (spec-nettoyage-fichiers-orphelins-tmp) -
+
+it('purges another draft\'s stale directory while handling a new draft attachment upload', function () {
+    Storage::fake('local');
+
+    $staleToken = Str::uuid()->toString();
+    $staleDirectory = "documents/tmp/{$staleToken}";
+    Storage::disk('local')->put("{$staleDirectory}/images/old.jpg", 'fake-image-bytes');
+    // Staleness is read from the file's own mtime (lastActivityAt()), not
+    // the directory entry's — backdating only the directory would leave the
+    // file itself looking freshly written and the directory not stale.
+    touch(Storage::disk('local')->path("{$staleDirectory}/images/old.jpg"), now()->subHours(25)->timestamp);
+
+    uploadDraftAttachment(Str::uuid()->toString());
+
+    Storage::disk('local')->assertMissing($staleDirectory);
+});
+
+it('keeps the draft attachment upload successful even when purging a stale draft directory fails', function () {
+    Storage::fake('local');
+
+    $staleToken = Str::uuid()->toString();
+    $staleDirectory = "documents/tmp/{$staleToken}";
+    Storage::disk('local')->put("{$staleDirectory}/attachments/old.pdf", 'fake-pdf-bytes');
+    touch(Storage::disk('local')->path("{$staleDirectory}/attachments/old.pdf"), now()->subHours(25)->timestamp);
+
+    // Only the stale directory's own deleteDirectory() call fails — every
+    // other disk operation (including the upload's own storeAs()) is left
+    // to the real disk.
+    $realDisk = Storage::disk('local');
+    $failingDisk = Mockery::mock($realDisk)->makePartial();
+    $failingDisk->shouldReceive('deleteDirectory')->andReturnUsing(
+        fn (string $directory) => $directory === $staleDirectory
+            ? throw new RuntimeException('Simulated purge failure.')
+            : $realDisk->deleteDirectory($directory)
+    );
+    Storage::set('local', $failingDisk);
+
+    $uploadedAttachment = uploadDraftAttachment(Str::uuid()->toString());
+
+    expect($uploadedAttachment)->not->toBeNull();
+});
+
+it('leaves a stale draft directory untouched when the triggering draft attachment upload is itself rejected', function () {
+    Storage::fake('local');
+
+    $staleToken = Str::uuid()->toString();
+    $staleDirectory = "documents/tmp/{$staleToken}";
+    Storage::disk('local')->put("{$staleDirectory}/attachments/old.pdf", 'fake-pdf-bytes');
+    touch(Storage::disk('local')->path("{$staleDirectory}/attachments/old.pdf"), now()->subHours(25)->timestamp);
+
+    $file = new UploadedFile(__DIR__.'/../Fixtures/sample.pdf', 'big.pdf', 'application/pdf', UPLOAD_ERR_INI_SIZE, true);
+
+    $response = test()->post('/documents/create/attachments', [
+        'draft_token' => Str::uuid()->toString(),
+        'file' => $file,
+    ]);
+
+    $response->assertRedirect();
+    expect(sessionErrorMessage('file'))->toStartWith('Fichier trop volumineux (20 Mo maximum).');
+    Storage::disk('local')->assertExists("{$staleDirectory}/attachments/old.pdf");
+});
+
+// --- Échec après relocalisation partielle (spec-nettoyage-fichiers-orphelins-tmp) --
+
+it('rolls back the save and leaves no document directory when the attachment relocation fails after the image was already moved', function () {
+    Storage::fake('local');
+
+    $draftToken = Str::uuid()->toString();
+    $uploadedImage = uploadDraftImage($draftToken);
+    $uploadedAttachment = uploadDraftAttachment($draftToken, 'annexe.pdf', 'sample.pdf');
+
+    // Only the attachment's own move() call fails — the image's own move
+    // (already run inside relocateDraftImages()) is left to the real disk,
+    // so the failure lands strictly after a successful relocation (Design
+    // Notes) — adapted from ImportDocumentTest.php:381, which fails every
+    // move() instead.
+    $realDisk = Storage::disk('local');
+    $failingDisk = Mockery::mock($realDisk)->makePartial();
+    $failingDisk->shouldReceive('move')->andReturnUsing(
+        fn (string $from, string $to) => str_contains($to, '/attachments/') ? false : $realDisk->move($from, $to)
+    );
+    Storage::set('local', $failingDisk);
+
+    test()->withoutExceptionHandling();
+
+    expect(fn () => test()->post('/documents/create', createDocumentPayload([
+        'content_html' => "<p>Voici le schéma :</p><img src=\"{$uploadedImage['url']}\" alt=\"{$uploadedImage['alt']}\">",
+        'draft_token' => $draftToken,
+        'draft_attachments' => [[
+            'filename' => $uploadedAttachment['filename'],
+            'original_filename' => $uploadedAttachment['original_filename'],
+        ]],
+    ])))->toThrow(RuntimeException::class);
+
+    expect(Document::count())->toBe(0);
+    expect(DocumentAttachment::count())->toBe(0);
+    expect(collect(Storage::disk('local')->allDirectories('documents'))
+        ->reject(fn (string $directory) => str_starts_with($directory, 'documents/tmp'))
+        ->all())->toBe([]);
+});
+
+it('rolls back the save and leaves no document directory when SyncDocumentTagsAction fails after the draft images were already relocated', function () {
+    Storage::fake('local');
+
+    $draftToken = Str::uuid()->toString();
+    $uploadedImage = uploadDraftImage($draftToken);
+
+    test()->mock(SyncDocumentTagsAction::class, function ($mock) {
+        $mock->shouldReceive('__invoke')->andThrow(new RuntimeException('Forced SyncDocumentTagsAction failure.'));
+    });
+
+    test()->withoutExceptionHandling();
+
+    expect(fn () => test()->post('/documents/create', createDocumentPayload([
+        'content_html' => "<p>Voici le schéma :</p><img src=\"{$uploadedImage['url']}\" alt=\"{$uploadedImage['alt']}\">",
+        'draft_token' => $draftToken,
+        'tag_ids' => [],
+    ])))->toThrow(RuntimeException::class);
+
+    expect(Document::count())->toBe(0);
+    expect(collect(Storage::disk('local')->allDirectories('documents'))
+        ->reject(fn (string $directory) => str_starts_with($directory, 'documents/tmp'))
+        ->all())->toBe([]);
 });

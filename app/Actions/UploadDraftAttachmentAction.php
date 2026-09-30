@@ -28,9 +28,17 @@ use Throwable;
  * client-supplied one (Boundaries & Constraints) — nothing here is derived
  * from user input. The original filename is returned separately, purely
  * for display, never trusted for the stored path.
+ *
+ * Every successful upload also purges stale draft directories left behind
+ * by other, abandoned drafts (P3 point 2, deferred-work.md 2026-09-29) —
+ * at the fold, with no scheduler involved (Boundaries & Constraints), same
+ * mechanism as UploadEditorImageAction. A purge failure is logged and never
+ * allowed to fail this upload.
  */
 class UploadDraftAttachmentAction
 {
+    public function __construct(private PurgeStaleDraftDirectoriesAction $purgeStaleDraftDirectories) {}
+
     public function __invoke(UploadDraftAttachmentData $data): array
     {
         $extension = $data->file->extension();
@@ -51,6 +59,15 @@ class UploadDraftAttachmentAction
             ]);
 
             throw $exception;
+        }
+
+        try {
+            ($this->purgeStaleDraftDirectories)();
+        } catch (Throwable $exception) {
+            Log::warning('Failed to purge stale draft directories after a draft attachment upload.', [
+                'draft_token' => $data->draftToken,
+                'exception' => $exception->getMessage(),
+            ]);
         }
 
         return [

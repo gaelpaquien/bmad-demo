@@ -73,6 +73,92 @@ it('serves the stored draft image back from its tmp route, visible immediately i
     $response->assertHeader('Content-Type', 'image/jpeg');
 });
 
+// --- Purge des dossiers tmp obsolètes (spec-nettoyage-fichiers-orphelins-tmp) -
+
+it('purges another draft\'s directory left stale for more than 24 hours while handling a new image upload', function () {
+    $staleToken = Str::uuid()->toString();
+    $staleDirectory = "documents/tmp/{$staleToken}";
+    Storage::disk('local')->put("{$staleDirectory}/images/old.jpg", 'fake-image-bytes');
+    // Staleness is read from the file's own mtime (lastActivityAt()), not
+    // the directory entry's — backdating only the directory would leave the
+    // file itself looking freshly written and the directory not stale.
+    touch(Storage::disk('local')->path("{$staleDirectory}/images/old.jpg"), now()->subHours(25)->timestamp);
+
+    test()->post('/documents/create/images', editorImageUploadPayload());
+
+    Storage::disk('local')->assertMissing($staleDirectory);
+});
+
+it('keeps another draft\'s directory modified less than 24 hours ago while handling a new image upload', function () {
+    $recentToken = Str::uuid()->toString();
+    $recentDirectory = "documents/tmp/{$recentToken}";
+    Storage::disk('local')->put("{$recentDirectory}/images/recent.jpg", 'fake-image-bytes');
+    touch(Storage::disk('local')->path("{$recentDirectory}/images/recent.jpg"), now()->subHours(1)->timestamp);
+
+    test()->post('/documents/create/images', editorImageUploadPayload());
+
+    Storage::disk('local')->assertExists("{$recentDirectory}/images/recent.jpg");
+});
+
+// On the local filesystem, writing a new file into an already-existing
+// `images/` subdirectory does not bump its parent `{token}` directory's own
+// mtime — only `images/`'s. Checking only the parent's own lastModified()
+// (the original bug, code review finding) would therefore treat a draft
+// session's own directory as stale and delete it out from under the very
+// upload that just wrote into it, mid-session.
+it('never purges its own directory mid-upload even when the parent directory\'s own mtime looks stale', function () {
+    $token = Str::uuid()->toString();
+    $directory = "documents/tmp/{$token}";
+    // The images/ subdirectory already exists (an earlier upload in this
+    // same draft session) — only the parent is backdated here, reproducing
+    // the exact gap a naive "check the parent's own mtime" purge falls into.
+    Storage::disk('local')->put("{$directory}/images/first.jpg", 'fake-image-bytes');
+    touch(Storage::disk('local')->path($directory), now()->subHours(25)->timestamp);
+
+    $response = test()->post('/documents/create/images', editorImageUploadPayload(['draft_token' => $token]));
+
+    $uploadedImage = session('uploadedImage');
+    $response->assertRedirect();
+    Storage::disk('local')->assertExists("{$directory}/images/first.jpg");
+    Storage::disk('local')->assertExists("{$directory}/images/{$uploadedImage['filename']}");
+});
+
+it('keeps the image upload successful even when purging a stale draft directory fails', function () {
+    $staleToken = Str::uuid()->toString();
+    $staleDirectory = "documents/tmp/{$staleToken}";
+    Storage::disk('local')->put("{$staleDirectory}/images/old.jpg", 'fake-image-bytes');
+    touch(Storage::disk('local')->path("{$staleDirectory}/images/old.jpg"), now()->subHours(25)->timestamp);
+
+    // Only the stale directory's own deleteDirectory() call fails — every
+    // other disk operation (including the upload's own storeAs()) is left
+    // to the real disk.
+    $realDisk = Storage::disk('local');
+    $failingDisk = Mockery::mock($realDisk)->makePartial();
+    $failingDisk->shouldReceive('deleteDirectory')->andReturnUsing(
+        fn (string $directory) => $directory === $staleDirectory
+            ? throw new RuntimeException('Simulated purge failure.')
+            : $realDisk->deleteDirectory($directory)
+    );
+    Storage::set('local', $failingDisk);
+
+    $response = test()->post('/documents/create/images', editorImageUploadPayload());
+
+    $response->assertRedirect();
+    expect(session('uploadedImage'))->not->toBeNull();
+});
+
+it('leaves a stale draft directory untouched when the triggering image upload is itself rejected', function () {
+    $staleToken = Str::uuid()->toString();
+    $staleDirectory = "documents/tmp/{$staleToken}";
+    Storage::disk('local')->put("{$staleDirectory}/images/old.jpg", 'fake-image-bytes');
+    touch(Storage::disk('local')->path("{$staleDirectory}/images/old.jpg"), now()->subHours(25)->timestamp);
+
+    $response = test()->post('/documents/create/images', editorImageUploadPayload(['alt' => '']));
+
+    $response->assertSessionHasErrors('alt');
+    Storage::disk('local')->assertExists("{$staleDirectory}/images/old.jpg");
+});
+
 // --- Alt manquant ------------------------------------------------------------
 
 it('rejects an image upload with no alt text and stores no file', function () {

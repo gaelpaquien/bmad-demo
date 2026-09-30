@@ -1,5 +1,5 @@
 <script setup>
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { router, useForm, useHttp, usePage } from '@inertiajs/vue3';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import { Table } from '@tiptap/extension-table';
@@ -444,10 +444,24 @@ function submit() {
     }
 }
 
-// "Annuler" abandons the session with no request and no confirmation
+// "Annuler" abandons the session with no confirmation
 // (spec-ajustements-consultation-editeur): back to the document when
 // editing one, back to the list when drafting a new one.
 const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
+
+// Deletes this session's own tmp/{draftToken} draft directory server-side
+// (spec-nettoyage-fichiers-orphelins-tmp, P3 point 1) — fire-and-forget:
+// the DELETE is never awaited before navigating away, since the app stays
+// a SPA and the underlying fetch survives the following visit (Design
+// Notes). useHttp() handles CSRF automatically via the XSRF-TOKEN cookie,
+// same as useForm(). The `.catch()` is only there to silence an unhandled
+// promise rejection (network error, CSRF mismatch, 500) — the delete is
+// already best-effort server-side (DeleteDraftDirectoryAction), and this
+// click must navigate regardless of how it resolves.
+function onCancelClick() {
+    useHttp({}).delete(`/documents/create/draft/${draftToken}`).catch(() => {});
+    router.visit(cancelUrl);
+}
 </script>
 
 <template>
@@ -627,10 +641,10 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
                 >
                     {{ form.processing ? 'Enregistrement…' : (isAttachmentUploading ? 'Envoi de la pièce jointe…' : 'Enregistrer') }}
                 </button>
-                <!-- Swapped for an inert button while a save or an upload is
-                     in flight (leaving would abort that Inertia visit):
-                     Inertia's <Link> overrides any click listener passed to
-                     it, so it can't be disabled in place. -->
+                <!-- Swapped for an inert, disabled button while a save or an
+                     upload is in flight — leaving would both abort that
+                     Inertia visit and race the in-flight save against the
+                     draft-directory delete triggered by onCancelClick(). -->
                 <button
                     v-if="form.processing || isAttachmentUploading || isUploadingImage"
                     type="button"
@@ -639,13 +653,22 @@ const cancelUrl = props.document ? `/documents/${props.document.id}` : '/';
                 >
                     Annuler
                 </button>
-                <Link
+                <!-- A plain <a>, not Inertia's <Link> or a <button> — its
+                     native href keeps middle-click/ctrl-click "open in new
+                     tab" and the hover status-bar URL preview working.
+                     `@click.prevent` only intercepts the primary left-click
+                     (the browser's own `auxclick`, never `click`, is what
+                     fires for a middle-click), running the delete-then-
+                     navigate flow via onCancelClick() instead of a native
+                     visit. -->
+                <a
                     v-else
                     :href="cancelUrl"
                     class="rounded-md border border-foreground/40 px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                    @click.prevent="onCancelClick"
                 >
                     Annuler
-                </Link>
+                </a>
             </div>
         </div>
 
