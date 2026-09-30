@@ -2,24 +2,6 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-// Theme toggle: logic reused verbatim from the old AppHeader.vue (Boundaries
-// & Constraints, spec-3-2 — "réutilisé tel quel, seulement déplacé/restylé
-// dans la sidebar"). Same isDark ref, same toggleTheme(), same
-// localStorage['bmad-demo-theme'] key, same `.dark` class on <html> — the
-// SSR-safe script in app.blade.php already resolves this before paint.
-const isDark = ref(document.documentElement.classList.contains('dark'));
-
-function toggleTheme() {
-    isDark.value = !isDark.value;
-    document.documentElement.classList.toggle('dark', isDark.value);
-
-    try {
-        localStorage.setItem('bmad-demo-theme', isDark.value ? 'dark' : 'light');
-    } catch (e) {
-        // Private browsing or storage disabled: theme just won't persist across reloads.
-    }
-}
-
 // Collapsed (icons-only) mode, persisted like the theme choice under its
 // own localStorage key. Labels stay in the DOM as `sr-only` so every item
 // keeps its accessible name, with a `title` tooltip while collapsed.
@@ -63,10 +45,13 @@ function toggleCollapsed() {
 // no nav item active at all.
 const LIBRARY_SURFACES = ['Documents/Index', 'Documents/Editor', 'Documents/Show'];
 
+// "Configuration" covers the three pages of its secondary menu
+// (spec-refonte-layout-configuration): Tags, MCP and Thèmes.
+const CONFIGURATION_SURFACES = ['Documents/Configuration', 'Documents/Mcp', 'Documents/Themes'];
+
 const page = usePage();
 const isSearchActive = computed(() => page.component === 'Documents/Search');
-const isConfigActive = computed(() => page.component === 'Documents/Configuration');
-const isMcpActive = computed(() => page.component === 'Documents/Mcp');
+const isConfigActive = computed(() => CONFIGURATION_SURFACES.includes(page.component));
 
 // "Créer un document" gets its own active state: `Documents/Editor` serves
 // both create (`document` prop null/absent) and edit (prop present) — only
@@ -181,7 +166,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
                 <span class="whitespace-nowrap" :class="{ 'sr-only': isCollapsed }">Recherche</span>
             </Link>
             <Link
-                href="/configuration"
+                href="/configuration/tags"
                 class="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 :class="isConfigActive
                     ? 'bg-primary font-semibold text-primary-foreground'
@@ -199,47 +184,8 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
                 </svg>
                 <span class="whitespace-nowrap" :class="{ 'sr-only': isCollapsed }">Configuration</span>
             </Link>
-            <Link
-                href="/mcp"
-                class="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                :class="isMcpActive
-                    ? 'bg-primary font-semibold text-primary-foreground'
-                    : 'text-foreground hover:bg-surface'"
-                :aria-current="isMcpActive ? 'page' : undefined"
-                :title="isCollapsed ? 'MCP' : undefined"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0" aria-hidden="true">
-                    <rect x="3" y="4" width="18" height="6" rx="1.5" />
-                    <rect x="3" y="14" width="18" height="6" rx="1.5" />
-                    <line x1="7" y1="7" x2="7.01" y2="7" />
-                    <line x1="7" y1="17" x2="7.01" y2="17" />
-                </svg>
-                <span class="whitespace-nowrap" :class="{ 'sr-only': isCollapsed }">MCP</span>
-            </Link>
         </nav>
 
-        <!-- Toggle thème : dans la liste des boutons juste après Configuration
-        (retouche sidebar demandée en conversation), mais volontairement hors
-        de <nav aria-label="Navigation principale"> — ce n'est pas une
-        destination de navigation, seulement un bouton d'état. `nav` est en
-        `display:contents` ci-dessus pour que ses liens restent des items flex
-        de ce conteneur, avec le même espacement (`gap-0.5`) que ce bouton. -->
-        <button
-            type="button"
-            class="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm leading-none text-foreground transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-            :aria-label="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'"
-            :title="isCollapsed ? (isDark ? 'Thème clair' : 'Thème sombre') : undefined"
-            @click="toggleTheme"
-        >
-            <svg v-if="isDark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0" aria-hidden="true">
-                <circle cx="12" cy="12" r="4" />
-                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-            </svg>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0" aria-hidden="true">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
-            </svg>
-            <span class="whitespace-nowrap" :class="{ 'sr-only': isCollapsed }">{{ isDark ? 'Thème clair' : 'Thème sombre' }}</span>
-        </button>
         </div>
 
         <div class="flex-1"></div>

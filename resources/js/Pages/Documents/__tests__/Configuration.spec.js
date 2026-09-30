@@ -45,7 +45,7 @@ vi.mock('@inertiajs/vue3', async () => {
 const pageState = usePage();
 
 const globalStubs = {
-    AppLayout: { template: '<div><slot /></div>' },
+    ConfigurationLayout: { template: '<div><slot /></div>' },
 };
 
 const twoTags = [

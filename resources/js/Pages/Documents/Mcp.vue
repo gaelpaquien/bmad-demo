@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import ConfigurationLayout from '@/Layouts/ConfigurationLayout.vue';
 
 const props = defineProps({
     projectPath: {
@@ -66,7 +66,7 @@ onBeforeUnmount(() => clearTimeout(copiedTimer));
 </script>
 
 <template>
-    <AppLayout>
+    <ConfigurationLayout>
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
             <h1 class="mb-6 text-2xl font-semibold text-foreground">
                 MCP
@@ -150,5 +150,5 @@ onBeforeUnmount(() => clearTimeout(copiedTimer));
                 </p>
             </section>
         </div>
-    </AppLayout>
+    </ConfigurationLayout>
 </template>

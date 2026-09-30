@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import Mcp from '@/Pages/Documents/Mcp.vue';
 
 const globalStubs = {
-    AppLayout: { template: '<div><slot /></div>' },
+    ConfigurationLayout: { template: '<div><slot /></div>' },
 };
 
 const WINDOWS_PROJECT_PATH = 'C:\\Sites\\bmad-demo';

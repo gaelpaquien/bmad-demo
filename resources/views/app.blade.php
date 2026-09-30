@@ -20,8 +20,31 @@
                         }
                     }
                     var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    if (stored === 'dark' || (!stored && prefersDark)) {
-                        document.documentElement.classList.add('dark');
+                    var root = document.documentElement;
+                    var customTheme = null;
+                    var tokens = ['background', 'surface', 'surface-alt', 'border', 'foreground', 'muted', 'primary', 'primary-hover', 'primary-foreground'];
+                    if (stored === 'custom') {
+                        // Thème personnalisé : même validation stricte que useTheme.js (base connue
+                        // et les 9 couleurs en hex valide). Sinon, retombe sur la préférence système.
+                        try {
+                            var custom = JSON.parse(localStorage.getItem('bmad-demo-theme-custom'));
+                            var isValid = (custom.base === 'light' || custom.base === 'dark') && tokens.every(function (key) {
+                                return typeof custom.colors[key] === 'string' && /^#[0-9a-f]{6}$/i.test(custom.colors[key]);
+                            });
+                            if (isValid) {
+                                customTheme = custom;
+                            }
+                        } catch (e) {}
+                    }
+                    if (customTheme) {
+                        if (customTheme.base === 'dark') {
+                            root.classList.add('dark');
+                        }
+                        tokens.forEach(function (key) {
+                            root.style.setProperty('--color-' + key, customTheme.colors[key]);
+                        });
+                    } else if (stored === 'dark' || (stored !== 'light' && prefersDark)) {
+                        root.classList.add('dark');
                     }
                 } catch (e) {}
             })();

@@ -466,3 +466,15 @@ Motif du tri 2026-09-29 pour chaque entrée fermée.
 - source_spec: none
   summary: Limiter à 10 le nombre de pièces jointes par document (brouillons + pièces jointes déjà rattachées, sur les trois points d'entrée : import, éditeur, document existant) et ajouter le pré-contrôle client des 20 Mo sur les pièces…
   motif: Résolu — livré (f6456b3, spec-limite-pieces-jointes), pré-contrôle client 20 Mo en place.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-refonte-layout-configuration.md`
+  summary: Vérifier que `PALETTES` (useTheme.js) reste identique aux tokens de `app.css`.
+  evidence: Valeurs recopiées à la main, identiques aujourd'hui ; un test lisant `app.css` éviterait une dérive silencieuse des pastilles et de « Réinitialiser ».
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-refonte-layout-configuration.md`
+  summary: Prévoir un garde-fou pour un thème personnalisé illisible (contraste, réinitialisation hors de la page Thèmes).
+  evidence: Rien n'empêche un texte de la couleur du fond ; le seul bouton « Réinitialiser » est sur la page elle-même. Non vérifié : dépend d'un choix de design.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-refonte-layout-configuration.md`
+  summary: Finitions du triple layout : accessibilité des radios de la page Thèmes, comportement responsive du menu secondaire, titre de page (`<Head>`).
+  evidence: Relevé en revue ; hors intention de la refonte, à traiter avec la partie Documents du triple layout.

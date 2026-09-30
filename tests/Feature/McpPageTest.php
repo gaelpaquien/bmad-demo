@@ -1,7 +1,7 @@
 <?php
 
 it('renders the MCP documentation page with the project path', function () {
-    test()->get('/mcp')->assertInertia(fn ($page) => $page
+    test()->get('/configuration/mcp')->assertInertia(fn ($page) => $page
         ->component('Documents/Mcp')
         ->where('projectPath', base_path())
     );
@@ -9,5 +9,5 @@ it('renders the MCP documentation page with the project path', function () {
 
 it('no longer exposes an MCP HTTP endpoint', function () {
     test()->postJson('/mcp', ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list'])
-        ->assertStatus(405);
+        ->assertNotFound();
 });

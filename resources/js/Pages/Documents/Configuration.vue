@@ -1,7 +1,7 @@
 <script setup>
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, ref } from 'vue';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import ConfigurationLayout from '@/Layouts/ConfigurationLayout.vue';
 import TextInput from '@/Components/TextInput.vue';
 
 const props = defineProps({
@@ -245,10 +245,10 @@ function trapDeleteDialogFocus(event) {
 </script>
 
 <template>
-    <AppLayout>
+    <ConfigurationLayout>
         <div class="mx-auto w-full px-6 py-8 xl:w-3/4">
             <h1 class="mb-6 text-2xl font-semibold text-foreground">
-                Configuration
+                Tags
             </h1>
 
             <p v-if="tagDeletedMessage" role="status" aria-live="polite" class="mb-6 rounded-md border border-border bg-surface-alt px-4 py-2 text-sm text-foreground">
@@ -405,5 +405,5 @@ function trapDeleteDialogFocus(event) {
                 </div>
             </div>
         </div>
-    </AppLayout>
+    </ConfigurationLayout>
 </template>

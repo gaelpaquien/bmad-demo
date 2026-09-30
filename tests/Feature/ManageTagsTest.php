@@ -12,7 +12,7 @@ it('lists every existing tag with its document count, ordered by name', function
     $document = Document::factory()->create();
     $document->tags()->sync([$zebras->id]);
 
-    $response = test()->get('/configuration');
+    $response = test()->get('/configuration/tags');
 
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Configuration')
@@ -32,7 +32,7 @@ it('orders tags case-insensitively rather than by raw byte/ASCII value (retro Ep
     Tag::factory()->create(['name' => 'abricot']);
     Tag::factory()->create(['name' => 'cerise']);
 
-    $response = test()->get('/configuration');
+    $response = test()->get('/configuration/tags');
 
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Configuration')
@@ -51,7 +51,7 @@ it('sorts an accented, mixed-case name with Str::lower() rather than SQLite\'s A
     Tag::factory()->create(['name' => 'école']);
     Tag::factory()->create(['name' => 'École']);
 
-    $response = test()->get('/configuration');
+    $response = test()->get('/configuration/tags');
 
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Configuration')
@@ -61,7 +61,7 @@ it('sorts an accented, mixed-case name with Str::lower() rather than SQLite\'s A
 });
 
 it('shows the neutral empty state when no tag exists', function () {
-    $response = test()->get('/configuration');
+    $response = test()->get('/configuration/tags');
 
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Configuration')
@@ -180,7 +180,7 @@ it('flashes the factual post-deletion message naming the detached document count
     // Reads it the same way Configuration.vue actually does — through a
     // real Inertia response's shared props (same pattern as
     // UploadEditorImageTest's flash.uploadedImage assertion).
-    test()->get('/configuration')->assertInertia(fn ($page) => $page
+    test()->get('/configuration/tags')->assertInertia(fn ($page) => $page
         ->where('flash.tagDeleted.count', 2)
     );
 });

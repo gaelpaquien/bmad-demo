@@ -75,25 +75,17 @@ describe('Sidebar', () => {
         expect(importLink.text()).toBe('Importer un document');
 
         const items = wrapper.findAll('nav a, nav button').map((item) => item.text());
-        expect(items).toEqual(['Documents', 'Créer un document', 'Importer un document', 'Recherche', 'Configuration', 'MCP']);
+        expect(items).toEqual(['Documents', 'Créer un document', 'Importer un document', 'Recherche', 'Configuration']);
     });
 
-    // spec-page-mcp-documentation: "MCP" links to its own read-only page and
-    // is active only there.
-    it('renders "MCP" as active only on the Documents/Mcp page', () => {
-        const idleWrapper = mount(Sidebar);
-        const idle = idleWrapper.find('a[href="/mcp"]');
+    // spec-refonte-layout-configuration: "MCP" moved to the Configuration
+    // secondary menu — no longer a main-menu entry.
+    it('no longer renders an "MCP" or theme toggle entry in the main menu', () => {
+        const wrapper = mount(Sidebar);
 
-        expect(idle.exists()).toBe(true);
-        expect(idle.attributes('aria-current')).toBeUndefined();
-
-        pageState.component = 'Documents/Mcp';
-        const activeWrapper = mount(Sidebar);
-        const active = activeWrapper.find('a[href="/mcp"]');
-
-        expect(active.attributes('aria-current')).toBe('page');
-        expect(active.classes()).toContain('bg-primary');
-        expect(activeWrapper.find('nav a[href="/"]').attributes('aria-current')).toBeUndefined();
+        expect(wrapper.find('a[href="/mcp"]').exists()).toBe(false);
+        expect(wrapper.text()).not.toContain('MCP');
+        expect(wrapper.find('[aria-label="Passer en mode sombre"]').exists()).toBe(false);
     });
 
     // spec-import-document-page: "Importer un document" is now a plain
@@ -198,21 +190,24 @@ describe('Sidebar', () => {
         expect(navLink.classes()).not.toContain('bg-primary');
     });
 
-    // Code Map, spec-3-5: a "Configuration" item links to `/configuration`
-    // and renders active only on that dedicated surface, "Documents"
+    // Code Map, spec-3-5: a "Configuration" item links to `/configuration/tags`
+    // and renders active only on its dedicated surfaces, "Documents"
     // turning inactive there too, same shape as the Recherche case above.
-    it('renders the Configuration nav item as active on the Documents/Configuration page, Documents turning inactive', () => {
-        pageState.component = 'Documents/Configuration';
-        const wrapper = mount(Sidebar);
-        const navLink = wrapper.find('nav a[href="/"]');
-        const configLink = wrapper.find('a[href="/configuration"]');
+    it.each(['Documents/Configuration', 'Documents/Mcp', 'Documents/Themes'])(
+        'renders the Configuration nav item as active on %s, Documents turning inactive',
+        (component) => {
+            pageState.component = component;
+            const wrapper = mount(Sidebar);
+            const navLink = wrapper.find('nav a[href="/"]');
+            const configLink = wrapper.find('a[href="/configuration/tags"]');
 
-        expect(configLink.exists()).toBe(true);
-        expect(configLink.attributes('aria-current')).toBe('page');
-        expect(configLink.classes()).toContain('bg-primary');
-        expect(navLink.attributes('aria-current')).toBeUndefined();
-        expect(navLink.classes()).not.toContain('bg-primary');
-    });
+            expect(configLink.exists()).toBe(true);
+            expect(configLink.attributes('aria-current')).toBe('page');
+            expect(configLink.classes()).toContain('bg-primary');
+            expect(navLink.attributes('aria-current')).toBeUndefined();
+            expect(navLink.classes()).not.toContain('bg-primary');
+        },
+    );
 
     // Retrospective Epic 3, action item 12: `isLibraryActive` is an explicit
     // whitelist of `Documents/*` surfaces, not "everything that isn't
@@ -225,7 +220,7 @@ describe('Sidebar', () => {
 
         expect(wrapper.find('nav a[href="/"]').attributes('aria-current')).toBeUndefined();
         expect(wrapper.find('a[href="/recherche"]').attributes('aria-current')).toBeUndefined();
-        expect(wrapper.find('a[href="/configuration"]').attributes('aria-current')).toBeUndefined();
+        expect(wrapper.find('a[href="/configuration/tags"]').attributes('aria-current')).toBeUndefined();
     });
 
     // AC5: navigating away from a document reached through the Recherche
@@ -247,13 +242,12 @@ describe('Sidebar', () => {
     // I/O matrix "Navigation clavier sidebar", updated by
     // spec-sidebar-document-actions: focus order is now Documents, Créer un
     // document, Importer un document, Recherche, Configuration, then the
-    // theme toggle then footer — the footer itself is static text, not a
-    // separate focusable stop.
-    it('exposes the brand, Documents, Créer un document, Importer un document, Recherche, Configuration, MCP, the theme toggle then the collapse toggle as focusable items, in that order', () => {
+    // collapse toggle (the theme toggle and MCP moved to Configuration).
+    it('exposes the brand, Documents, Créer un document, Importer un document, Recherche, Configuration then the collapse toggle as focusable items, in that order', () => {
         const wrapper = mount(Sidebar);
         const focusable = wrapper.findAll('a, button');
 
-        expect(focusable).toHaveLength(9);
+        expect(focusable).toHaveLength(7);
         expect(focusable[0].attributes('data-testid')).toBe('sidebar-brand');
         expect(focusable[1].element.tagName).toBe('A');
         expect(focusable[1].text()).toBe('Documents');
@@ -265,10 +259,7 @@ describe('Sidebar', () => {
         expect(focusable[4].text()).toBe('Recherche');
         expect(focusable[5].element.tagName).toBe('A');
         expect(focusable[5].text()).toBe('Configuration');
-        expect(focusable[6].element.tagName).toBe('A');
-        expect(focusable[6].text()).toBe('MCP');
-        expect(focusable[7].element.tagName).toBe('BUTTON');
-        expect(focusable[8].attributes('data-testid')).toBe('sidebar-collapse-toggle');
+        expect(focusable[6].attributes('data-testid')).toBe('sidebar-collapse-toggle');
     });
 
     it('renders the brand as a link to the homepage with the app logo', () => {
@@ -308,29 +299,5 @@ describe('Sidebar', () => {
 
         expect(wrapper.find('aside').classes()).toContain('w-sidebar-width');
         expect(localStorage.getItem('bmad-demo-sidebar-collapsed')).toBe('false');
-    });
-
-    // I/O matrix "Toggle thème": clicking flips `.dark` on <html> and
-    // persists the choice — logic reused verbatim from the old
-    // AppHeader.vue, only relocated into the sidebar.
-    it('toggles the `.dark` class on <html> and persists the choice in localStorage', async () => {
-        document.documentElement.classList.remove('dark');
-        const wrapper = mount(Sidebar);
-        const toggle = wrapper.find('[aria-label="Passer en mode sombre"]');
-
-        expect(document.documentElement.classList.contains('dark')).toBe(false);
-        expect(toggle.text()).toBe('Thème sombre');
-
-        await toggle.trigger('click');
-
-        expect(document.documentElement.classList.contains('dark')).toBe(true);
-        expect(localStorage.getItem('bmad-demo-theme')).toBe('dark');
-        expect(toggle.text()).toBe('Thème clair');
-
-        await toggle.trigger('click');
-
-        expect(document.documentElement.classList.contains('dark')).toBe(false);
-        expect(localStorage.getItem('bmad-demo-theme')).toBe('light');
-        expect(toggle.text()).toBe('Thème sombre');
     });
 });
