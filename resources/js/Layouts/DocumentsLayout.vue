@@ -79,7 +79,7 @@ function formatDate(dateString) {
     <AppLayout>
         <div class="flex min-h-screen">
             <nav
-                class="sticky top-0 flex h-screen w-80 shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-border bg-surface px-3 py-5 text-foreground"
+                class="sticky top-0 flex h-screen w-80 shrink-0 flex-col overflow-y-auto overflow-x-hidden themed-scrollbar border-r border-border bg-surface px-3 py-5 text-foreground"
                 aria-label="Liste des documents"
                 data-testid="documents-menu"
             >
