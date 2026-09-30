@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue';
 import ConfigurationLayout from '@/Layouts/ConfigurationLayout.vue';
 import { COLOR_TOKENS, PALETTES, useTheme } from '@/Composables/useTheme';
 
@@ -34,6 +35,30 @@ const presetThemes = [
     { value: 'light', label: 'Clair', palette: PALETTES.light },
     { value: 'dark', label: 'Sombre', palette: PALETTES.dark },
 ];
+
+// The lexicon is folded by default, like the search help (Search.vue); the
+// reader's choice is remembered.
+const LEXICON_OPEN_STORAGE_KEY = 'bmad-demo-theme-lexicon-open';
+
+function readStoredLexiconOpen() {
+    try {
+        return localStorage.getItem(LEXICON_OPEN_STORAGE_KEY) === 'true';
+    } catch (e) {
+        return false;
+    }
+}
+
+const isLexiconOpen = ref(readStoredLexiconOpen());
+
+function toggleLexicon() {
+    isLexiconOpen.value = !isLexiconOpen.value;
+
+    try {
+        localStorage.setItem(LEXICON_OPEN_STORAGE_KEY, isLexiconOpen.value ? 'true' : 'false');
+    } catch (e) {
+        // Private browsing or storage disabled: the state just won't persist across reloads.
+    }
+}
 
 const baseOptions = [
     { value: 'light', label: 'Clair' },
@@ -162,25 +187,62 @@ const baseOptions = [
                 </div>
             </fieldset>
 
-            <section class="mt-8 flex flex-col gap-3" aria-labelledby="theme-lexicon">
-                <h2 id="theme-lexicon" class="text-lg font-semibold text-foreground">Lexique des couleurs</h2>
-                <dl class="flex flex-col gap-2" data-testid="theme-lexicon">
-                    <div v-for="token in COLOR_TOKENS" :key="token.key" class="flex items-center gap-4 rounded-lg border border-border px-4 py-2">
-                        <div class="min-w-0 flex-1">
-                            <dt class="text-sm font-semibold text-foreground">{{ token.label }}</dt>
-                            <dd class="text-sm text-foreground">{{ token.description }}</dd>
-                            <dd class="text-sm text-muted" data-testid="lexicon-example">Exemple : {{ token.example }}</dd>
-                        </div>
-                        <span
-                            class="inline-flex min-w-24 shrink-0 items-center justify-center rounded-md border px-3 py-2 text-xs"
-                            :style="samples[token.key]"
+            <section class="mt-8 rounded-lg border border-border bg-surface text-sm text-muted">
+                <h2 class="text-base font-semibold text-foreground">
+                    <button
+                        type="button"
+                        class="flex w-full items-center justify-between rounded-lg px-4 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        :aria-expanded="isLexiconOpen"
+                        aria-controls="theme-lexicon"
+                        @click="toggleLexicon"
+                    >
+                        <span>Lexique des couleurs</span>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="h-4 w-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none"
+                            :class="{ 'rotate-180': isLexiconOpen }"
                             aria-hidden="true"
-                            data-testid="lexicon-sample"
                         >
-                            {{ sampleTexts[token.key] }}
-                        </span>
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                    </button>
+                </h2>
+
+                <div
+                    id="theme-lexicon"
+                    class="grid transition-[grid-template-rows] duration-200 motion-reduce:transition-none"
+                    :class="isLexiconOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
+                    :inert="isLexiconOpen ? undefined : true"
+                    :aria-hidden="isLexiconOpen ? undefined : 'true'"
+                >
+                    <div class="overflow-hidden">
+                        <div class="border-t border-border px-4 py-4">
+                            <dl class="flex flex-col gap-2" data-testid="theme-lexicon">
+                                <div v-for="token in COLOR_TOKENS" :key="token.key" class="flex items-center gap-4 rounded-lg border border-border px-4 py-2">
+                                    <div class="min-w-0 flex-1">
+                                        <dt class="text-sm font-semibold text-foreground">{{ token.label }}</dt>
+                                        <dd class="text-sm text-foreground">{{ token.description }}</dd>
+                                        <dd class="text-sm text-muted" data-testid="lexicon-example">Exemple : {{ token.example }}</dd>
+                                    </div>
+                                    <span
+                                        class="inline-flex min-w-24 shrink-0 items-center justify-center rounded-md border px-3 py-2 text-xs"
+                                        :style="samples[token.key]"
+                                        aria-hidden="true"
+                                        data-testid="lexicon-sample"
+                                    >
+                                        {{ sampleTexts[token.key] }}
+                                    </span>
+                                </div>
+                            </dl>
+                        </div>
                     </div>
-                </dl>
+                </div>
             </section>
         </div>
     </ConfigurationLayout>

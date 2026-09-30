@@ -96,6 +96,23 @@ describe('Documents/Themes', () => {
         expect(lexicon.findAll('[data-testid="lexicon-sample"]').every((sample) => sample.text() === 'Exemple')).toBe(true);
     });
 
+    it('folds the lexicon by default and toggles it, remembering the choice', async () => {
+        const wrapper = mount(Themes, { global: { stubs: globalStubs } });
+        const toggle = wrapper.find('button[aria-controls="theme-lexicon"]');
+        const panel = wrapper.find('#theme-lexicon');
+
+        expect(toggle.text()).toContain('Lexique des couleurs');
+        expect(toggle.attributes('aria-expanded')).toBe('false');
+        expect(panel.attributes('inert')).toBeDefined();
+
+        await toggle.trigger('click');
+
+        expect(toggle.attributes('aria-expanded')).toBe('true');
+        expect(panel.attributes('inert')).toBeUndefined();
+        expect(localStorage.getItem('bmad-demo-theme-lexicon-open')).toBe('true');
+        expect(mount(Themes, { global: { stubs: globalStubs } }).find('button[aria-controls="theme-lexicon"]').attributes('aria-expanded')).toBe('true');
+    });
+
     it('changes the custom colours and the dark class when the base is switched', async () => {
         const wrapper = mount(Themes, { global: { stubs: globalStubs } });
 
