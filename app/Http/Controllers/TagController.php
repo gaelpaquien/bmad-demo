@@ -62,7 +62,7 @@ class TagController extends Controller
             name: $request->validated('name'),
         ));
 
-        Toast::success('Tag créé.');
+        Toast::success('Tag créé avec succès.');
 
         return back();
     }
@@ -79,27 +79,21 @@ class TagController extends Controller
             name: $request->validated('name'),
         ));
 
-        Toast::success('Tag renommé.');
+        Toast::success('Tag renommé avec succès.');
 
         return back();
     }
 
     /**
-     * Sole entry point for deleting a tag — the document count captured by
-     * DeleteTagAction (before the row, and the cascaded pivot rows, are
-     * gone) is folded into the success toast so the factual post-deletion
-     * message ("Tag supprimé — détaché de N documents.") still reaches the
-     * user.
+     * Sole entry point for deleting a tag.
      */
     public function destroy(Tag $tag, DeleteTagAction $action): RedirectResponse
     {
-        $count = $action(new DeleteTagData(
+        $action(new DeleteTagData(
             tag: $tag,
         ));
 
-        $documents = $count > 1 ? 'documents' : 'document';
-
-        Toast::success("Tag supprimé — détaché de {$count} {$documents}.");
+        Toast::success('Tag supprimé avec succès.');
 
         return back();
     }

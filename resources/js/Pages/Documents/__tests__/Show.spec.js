@@ -214,7 +214,7 @@ describe('Documents/Show — Télécharger', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(fetchMock.mock.calls[0][0]).toBe('/documents/7/export/pdf');
-        expect(useToasts().toasts.map((toast) => toast.message)).toEqual(['Export PDF généré.']);
+        expect(useToasts().toasts.map((toast) => toast.message)).toEqual(['Export PDF généré avec succès.']);
     });
 
     it('reads "Téléchargement…" and is disabled while the export is in flight', async () => {

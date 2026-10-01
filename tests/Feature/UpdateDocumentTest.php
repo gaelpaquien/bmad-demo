@@ -96,7 +96,7 @@ it('updates content_html and re-derives extracted_text without changing unchange
     ]));
 
     $response->assertRedirect("/documents/{$document->id}");
-    $response->assertInertiaFlash('toast.message', 'Document modifié.');
+    $response->assertInertiaFlash('toast.message', 'Document modifié avec succès.');
     $document->refresh();
     expect($document->content_html)->toBe('<p>Texte modifié</p>');
     expect($document->extracted_text)->toBe('Texte modifié');

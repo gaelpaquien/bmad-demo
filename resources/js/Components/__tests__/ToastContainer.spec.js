@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import ToastContainer from '@/Components/ToastContainer.vue';
-import { dismissToast, notifySuccess, useToasts } from '@/Composables/useToasts';
+import { TOAST_DURATION_MS, dismissToast, notifySuccess, useToasts } from '@/Composables/useToasts';
 
 describe('ToastContainer', () => {
     afterEach(() => {
@@ -26,6 +26,18 @@ describe('ToastContainer', () => {
 
         expect(items.map((item) => item.text())).toEqual(['Document supprimé.', 'Tag créé.']);
         expect(wrapper.find('[role="status"]').attributes('aria-live')).toBe('polite');
+    });
+
+    it('shows a progress bar running for the same duration as the automatic dismissal', async () => {
+        const wrapper = mount(ToastContainer);
+
+        notifySuccess('Document créé.');
+        await wrapper.vm.$nextTick();
+
+        const progress = wrapper.find('[data-testid="toast-progress"]');
+
+        expect(progress.exists()).toBe(true);
+        expect(progress.attributes('style')).toContain(`--toast-duration: ${TOAST_DURATION_MS}ms`);
     });
 
     it('closes a toast from its close button', async () => {

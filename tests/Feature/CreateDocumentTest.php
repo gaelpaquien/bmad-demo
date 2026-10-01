@@ -64,7 +64,7 @@ it('creates a document with the chosen tags, derives extracted_text, and redirec
     $document = Document::sole();
 
     $response->assertRedirect("/documents/{$document->id}");
-    $response->assertInertiaFlash('toast.message', 'Document créé.');
+    $response->assertInertiaFlash('toast.message', 'Document créé avec succès.');
     expect($document->source)->toBe(DocumentSource::Created);
     expect($document->title)->toBe('Compte rendu réunion');
     expect($document->content_html)->toBe('<h1>Compte rendu</h1><p>Décisions prises en réunion.</p>');

@@ -74,7 +74,7 @@ it('shows the neutral empty state when no tag exists', function () {
 it('creates a tag with a free name', function () {
     $response = test()->post('/tags', ['name' => 'Finance']);
 
-    $response->assertInertiaFlash('toast.message', 'Tag créé.');
+    $response->assertInertiaFlash('toast.message', 'Tag créé avec succès.');
     $response->assertRedirect();
     expect(Tag::where('name', 'Finance')->exists())->toBeTrue();
 });
@@ -119,7 +119,7 @@ it('renames a tag, leaving the document_tag pivot untouched', function () {
     $document->tags()->sync([$tag->id]);
 
     $response = test()->patch("/tags/{$tag->id}", ['name' => 'Finance']);
-    $response->assertInertiaFlash('toast.message', 'Tag renommé.');
+    $response->assertInertiaFlash('toast.message', 'Tag renommé avec succès.');
 
     $response->assertRedirect();
     expect($tag->fresh()->name)->toBe('Finance');
@@ -170,7 +170,7 @@ it('detaches a tag used by N documents on deletion, deletes the tag row, and nev
     expect(Document::find($documentB->id))->not->toBeNull();
 });
 
-it('toasts the factual post-deletion message naming the detached document count', function () {
+it('toasts a short success message after deleting a tag attached to documents', function () {
     $tag = Tag::factory()->create();
     $documentA = Document::factory()->create();
     $documentB = Document::factory()->create();
@@ -180,25 +180,25 @@ it('toasts the factual post-deletion message naming the detached document count'
     $response = test()->delete("/tags/{$tag->id}");
 
     $response->assertInertiaFlash('toast.type', 'success');
-    $response->assertInertiaFlash('toast.message', 'Tag supprimé — détaché de 2 documents.');
+    $response->assertInertiaFlash('toast.message', 'Tag supprimé avec succès.');
 
     // Delivered to the client through the very next Inertia response, then
     // gone — never replayed on a later visit.
     test()->get('/configuration/tags')->assertInertia(fn ($page) => $page
-        ->hasFlash('toast.message', 'Tag supprimé — détaché de 2 documents.')
+        ->hasFlash('toast.message', 'Tag supprimé avec succès.')
     );
     test()->get('/configuration/tags')->assertInertia(fn ($page) => $page
         ->missingFlash('toast')
     );
 });
 
-it('deletes an unused tag cleanly, toasting a count of zero, in the singular', function () {
+it('deletes an unused tag cleanly, toasting the same short message', function () {
     $tag = Tag::factory()->create();
 
     $response = test()->delete("/tags/{$tag->id}");
 
     $response->assertRedirect();
-    $response->assertInertiaFlash('toast.message', 'Tag supprimé — détaché de 0 document.');
+    $response->assertInertiaFlash('toast.message', 'Tag supprimé avec succès.');
     expect(Tag::find($tag->id))->toBeNull();
 });
 
@@ -221,13 +221,4 @@ it('never assigns tags through SyncDocumentTagsAction when deleting a tag', func
     test()->delete("/tags/{$tagToDelete->id}");
 
     expect($document->fresh()->tags->pluck('id')->all())->toBe([$keptTag->id]);
-});
-
-it('toasts the singular form when exactly one document was detached', function () {
-    $tag = Tag::factory()->create();
-    Document::factory()->create()->tags()->sync([$tag->id]);
-
-    $response = test()->delete("/tags/{$tag->id}");
-
-    $response->assertInertiaFlash('toast.message', 'Tag supprimé — détaché de 1 document.');
 });

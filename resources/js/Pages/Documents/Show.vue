@@ -209,7 +209,7 @@ async function exportToPdf() {
         link.remove();
         URL.revokeObjectURL(objectUrl);
 
-        notifySuccess('Export PDF généré.');
+        notifySuccess('Export PDF généré avec succès.');
     } catch (error) {
         exportPdfError.value = 'Export PDF impossible pour l\'instant, merci de réessayer.';
     } finally {

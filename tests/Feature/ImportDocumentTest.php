@@ -29,7 +29,7 @@ it('imports a valid PDF, extracts its text and redirects to the document page', 
     $document = Document::sole();
 
     $response->assertRedirect("/documents/{$document->id}");
-    $response->assertInertiaFlash('toast.message', 'Document importé.');
+    $response->assertInertiaFlash('toast.message', 'Document importé avec succès.');
     expect($document->source)->toBe(DocumentSource::Imported);
     expect($document->title)->toBe('contract');
     expect($document->file_path)->toBe("documents/{$document->id}/contract.pdf");

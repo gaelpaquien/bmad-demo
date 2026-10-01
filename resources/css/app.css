@@ -23,6 +23,9 @@
        par transparence reste quasi invisible sur le fond clair. */
     --color-primary-hover: #B6EC00;
     --color-primary-foreground: #12130A;
+    /* Vert de confirmation (toasts de succès) : accent, bordure et barre de
+       progression ; le fond du toast le mêle à la couleur de fond du thème. */
+    --color-success: #4FC031;
 
     --radius-sm: 4px;
     --radius-md: 8px;

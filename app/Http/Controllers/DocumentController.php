@@ -241,7 +241,7 @@ class DocumentController extends Controller
             ExtractDocumentTextJob::dispatch($attachment);
         }
 
-        Toast::success('Document importé.');
+        Toast::success('Document importé avec succès.');
 
         return to_route('documents.show', $document);
     }
@@ -319,7 +319,7 @@ class DocumentController extends Controller
             ExtractDocumentTextJob::dispatch($attachment);
         }
 
-        Toast::success('Document créé.');
+        Toast::success('Document créé avec succès.');
 
         return to_route('documents.show', $document);
     }
@@ -481,7 +481,7 @@ class DocumentController extends Controller
             draftToken: $request->validated('draft_token'),
         ));
 
-        Toast::success('Document modifié.');
+        Toast::success('Document modifié avec succès.');
 
         return to_route('documents.show', $document);
     }
@@ -499,7 +499,7 @@ class DocumentController extends Controller
             tagIds: $request->validated('tag_ids', []),
         ));
 
-        Toast::success('Tags du document mis à jour.');
+        Toast::success('Tags du document mis à jour avec succès.');
 
         return back();
     }
@@ -516,7 +516,7 @@ class DocumentController extends Controller
             document: $document,
         ));
 
-        Toast::success('Document supprimé.');
+        Toast::success('Document supprimé avec succès.');
 
         return to_route('documents.index');
     }

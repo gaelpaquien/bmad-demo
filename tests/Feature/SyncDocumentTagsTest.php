@@ -82,7 +82,7 @@ it('replaces a document\'s tags entirely via PATCH, leaving no orphaned pivot ro
     ]);
 
     $response->assertRedirect();
-    $response->assertInertiaFlash('toast.message', 'Tags du document mis à jour.');
+    $response->assertInertiaFlash('toast.message', 'Tags du document mis à jour avec succès.');
     $document->refresh();
 
     expect($document->tags->pluck('id')->sort()->values()->all())

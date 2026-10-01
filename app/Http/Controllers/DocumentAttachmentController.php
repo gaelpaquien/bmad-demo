@@ -49,7 +49,7 @@ class DocumentAttachmentController extends Controller
             file: $request->file('file'),
         ));
 
-        Toast::success('Pièce jointe ajoutée.');
+        Toast::success('Pièce jointe ajoutée avec succès.');
 
         return back();
     }
@@ -64,7 +64,7 @@ class DocumentAttachmentController extends Controller
 
         $detach(new DetachDocumentFileData(attachment: $attachment));
 
-        Toast::success('Pièce jointe supprimée.');
+        Toast::success('Pièce jointe supprimée avec succès.');
 
         return back();
     }

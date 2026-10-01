@@ -57,7 +57,7 @@ it('permanently deletes the file, the preview cache and the document row, then r
     $response = test()->delete("/documents/{$document->id}");
 
     $response->assertRedirect('/');
-    $response->assertInertiaFlash('toast.message', 'Document supprimé.');
+    $response->assertInertiaFlash('toast.message', 'Document supprimé avec succès.');
     expect(Document::find($document->id))->toBeNull();
     $disk->assertDirectoryEmpty("documents/{$document->id}");
     $disk->assertMissing("previews/{$document->id}.pdf");

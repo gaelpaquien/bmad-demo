@@ -26,7 +26,7 @@ it('attaches a valid PDF to an already-saved document, extracts its text, and re
     $response = test()->post("/documents/{$document->id}/attachments", ['file' => $file]);
 
     $response->assertRedirect();
-    $response->assertInertiaFlash('toast.message', 'Pièce jointe ajoutée.');
+    $response->assertInertiaFlash('toast.message', 'Pièce jointe ajoutée avec succès.');
     $attachment = DocumentAttachment::sole();
 
     expect($attachment->document_id)->toBe($document->id);
